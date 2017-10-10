@@ -6,5 +6,6 @@
 
 #include "aiger.h"
 #include "circuit.h"
+#include "mem.h"
 #include "msg.h"
 #include "stack.h"
