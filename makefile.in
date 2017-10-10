@@ -1,0 +1,12 @@
+CC=@CC@
+CFLAGS=@CFLAGS@
+MAKEFLAGS=-j
+all: dualcount
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+dualcount: aiger.o dualcount.o makefile
+	$(CC) $(CFLAGS) -o $@ aiger.o dualcount.o
+clean:
+	rm -f `cat .gitignore`
+dualcount.o: dualcount.c aiger.h
+aiger.o: aiger.c aiger.h
