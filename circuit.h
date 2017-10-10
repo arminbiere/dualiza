@@ -19,3 +19,6 @@ struct Circuit {
   int num_inputs;
   Gates gates;
 };
+
+Circuit * new_circuit (int num_inputs);
+void delete_circuit (Circuit *);
