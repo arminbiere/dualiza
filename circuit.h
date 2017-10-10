@@ -1,12 +1,12 @@
+#include "stack.h"
+
 typedef enum Operator Operator;
 typedef struct Gate Gate;
 typedef struct Circuit Circuit;
 
 enum Operator { VAR, AND, ITE, XOR };
 
-typedef struct Gates Gates;
-
-struct Gates { Gate * start, * top, * end; };
+typedef STACK (Gate) Gates;
 
 struct Gate {
   Operator op;

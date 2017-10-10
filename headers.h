@@ -7,3 +7,4 @@
 #include "aiger.h"
 #include "circuit.h"
 #include "msg.h"
+#include "stack.h"

@@ -32,3 +32,6 @@ do { \
   DEALLOC ((S).start, SIZE (S)); \
   (S).top = (S).end = 0; \
 } while (0)
+
+#define STACK(T) \
+  struct { T * start; T * top; T * end; }
