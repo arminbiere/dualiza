@@ -4,4 +4,6 @@
 #include <string.h>
 #include <assert.h>
 
+#include "aiger.h"
+#include "circuit.h"
 #include "msg.h"
