@@ -38,6 +38,9 @@ Circuit * new_circuit (int num_inputs) {
 }
 
 static void delete_gate (Gate * g) {
+  assert (!SIGN (g));
+  RELEASE (g->inputs);
+  RELEASE (g->outputs);
   DELETE (g);
 }
 
