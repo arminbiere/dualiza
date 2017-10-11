@@ -42,7 +42,7 @@ void prev_char (Reader * reader, int ch) {
 void parse_error (Reader * reader, const char * fmt, ...) {
   fflush (stdout);
   fprintf (stderr,
-    "*** dualcount: parse error in '%s' line %d byte %d: ",
+    "dualcount: %s:%d: parse error at byte %d: ",
     reader->name, reader->lineno, reader->bytes);
   va_list ap;
   va_start (ap, fmt);

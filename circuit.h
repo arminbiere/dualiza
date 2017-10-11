@@ -20,13 +20,13 @@ typedef STACK (Gate*) Gates;
 
 struct Gate {
   Operator op;
-  int idx, pos, neg, mark;
+  int idx, pos, neg, input, mark;
   Gates inputs, outputs;
   Circuit * circuit;
 };
 
 struct Circuit {
-  Gates gates;
+  Gates inputs, gates;
   Gate * output;
 };
 
@@ -38,7 +38,7 @@ Circuit * new_circuit ();
 void delete_circuit (Circuit *);
 
 Gate * new_false_gate (Circuit *);
-Gate * new_input_gate (Circuit *);
+Gate * new_input_gate (Circuit *, int input);
 Gate * new_and_gate (Circuit *);
 Gate * new_xor_gate (Circuit *);
 Gate * new_or_gate (Circuit *);

@@ -2,11 +2,12 @@
 
 int main (int argc, char ** argv) {
   verbosity = 1;
+#if 0
   const int num_inputs = 5;
   Circuit * c = new_circuit (num_inputs);
   Gate * input[num_inputs + 1];
   for (int i = 1; i <= num_inputs; i++)
-    input[i] = new_input_gate (c);
+    input[i] = new_input_gate (c, i);
   Gate * f = new_and_gate (c);
   connect_gates (input[1], f);
   connect_gates (NOT (input[2]), f);
@@ -24,6 +25,15 @@ int main (int argc, char ** argv) {
   delete_circuit (c);
   println_circuit (d);
   delete_circuit (d);
+#endif
+#if 1
+  Circuit * c = parse_formula ("<stdin>", stdin);
+  println_circuit (c);
+  Circuit * d = negate_circuit (c);
+  delete_circuit (c);
+  println_circuit (d);
+  delete_circuit (d);
+#endif
   print_statistics ();
   return 0;
 }

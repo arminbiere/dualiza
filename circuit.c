@@ -11,8 +11,24 @@ static Gate * new_gate (Circuit * c, Operator op) {
   return res;
 }
 
-Gate * new_false_gate (Circuit * c) { return new_gate (c, FALSE); }
-Gate * new_input_gate (Circuit * c) { return new_gate (c, INPUT); }
+Gate * new_false_gate (Circuit * c) {
+  if (EMPTY (c->gates)) return new_gate (c, FALSE);
+  else return c->gates.start[0];
+}
+
+Gate * new_input_gate (Circuit * c, int input) {
+  assert (input >= 0);
+  while (COUNT (c->inputs) <= input)
+    PUSH (c->inputs, 0);
+  Gate * res = c->inputs.start[input];
+  if (!res) {
+    res = new_gate (c, INPUT);
+    res->input = input;
+    c->inputs.start[input] = res;
+  }
+  return res;
+}
+
 Gate * new_and_gate (Circuit * c) { return new_gate (c, AND); }
 Gate * new_xor_gate (Circuit * c) { return new_gate (c, XOR); }
 Gate * new_or_gate (Circuit * c) { return new_gate (c, OR); }
@@ -23,6 +39,7 @@ Circuit * new_circuit () {
   Circuit * res;
   NEW (res);
   new_false_gate (res);
+  PUSH (res->inputs, 0);
   return res;
 }
 
@@ -37,6 +54,7 @@ void delete_circuit (Circuit * c) {
   msg (1, "deleting circuit with %ld gates", COUNT (c->gates));
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
     delete_gate (*p);
+  RELEASE (c->inputs);
   RELEASE (c->gates);
   DELETE (c);
 }
@@ -144,7 +162,7 @@ static void print_gate_to_file (Gate * g, Operator outer, FILE * file) {
   if (g->op == FALSE) fprintf (file, "%c", sign ? '1' : '0');
   else {
     if (sign) fprintf (file, "!");
-    if (g->op == INPUT) fprintf (file, "x%d", g->idx);
+    if (g->op == INPUT) fprintf (file, "x%d", g->input);
     else {
       int parenthesis;
       if (sign) parenthesis = 1;
@@ -201,7 +219,7 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
         res = NOT (new_false_gate (c));
 	break;
       case INPUT:
-        res = NOT (new_input_gate (c));
+        res = NOT (new_input_gate (c, g->input));
 	break;
       case AND:
         res = new_or_gate (c);
@@ -219,6 +237,7 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
 	  connect_gates (negate_gate (*p, map, c), res);
 	break;
       case ITE:
+        res = new_ite_gate (c);
         connect_gates (negate_gate (inputs[0], map, c), res);
         connect_gates (negate_gate (inputs[2], map, c), res); /* yes 2 !! */
         connect_gates (negate_gate (inputs[1], map, c), res); /* yes 1 !! */
