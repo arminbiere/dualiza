@@ -1,17 +1,18 @@
 #include "headers.h"
 
 int main (int argc, char ** argv) {
-  const int num_numinputs = 4;
-  Circuit * c = new_circuit (num_numinputs);
-  Gate * input[num_numinputs + 1];
-  for (int i = 1; i <= num_numinputs; i++)
+  const int num_inputs = 5;
+  Circuit * c = new_circuit (num_inputs);
+  Gate * input[num_inputs + 1];
+  for (int i = 1; i <= num_inputs; i++)
     input[i] = get_input_gate (c, i);
   Gate * f = new_and_gate (c);
   connect_gates (input[1], f);
-  connect_gates (input[2], f);
+  connect_gates (NOT (input[2]), f);
+  connect_gates (input[3], f);
   Gate * g = new_xor_gate (c);
-  connect_gates (input[3], g);
   connect_gates (input[4], g);
+  connect_gates (NOT (input[5]), g);
   Gate * o = new_or_gate (c);
   connect_gates (f, o);
   connect_gates (g, o);
