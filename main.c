@@ -1,6 +1,7 @@
 #include "headers.h"
 
 int main (int argc, char ** argv) {
+  verbosity = 1;
   const int num_inputs = 5;
   Circuit * c = new_circuit (num_inputs);
   Gate * input[num_inputs + 1];

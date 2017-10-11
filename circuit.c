@@ -33,7 +33,7 @@ Circuit * new_circuit (int num_inputs) {
   res->num_inputs = num_inputs;
   for (int i = 0; i < num_inputs; i++)
     new_input_gate (res);
-  msg ("new circuit with %d inputs", num_inputs);
+  msg (1, "new circuit with %d inputs", num_inputs);
   return res;
 }
 
@@ -42,7 +42,7 @@ static void delete_gate (Gate * g) {
 }
 
 void delete_circuit (Circuit * c) {
-  msg ("deleting circuit with %ld gates", COUNT (c->gates));
+  msg (1, "deleting circuit with %ld gates", COUNT (c->gates));
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
     delete_gate (*p);
   RELEASE (c->gates);
@@ -190,7 +190,7 @@ void cone_of_influence (Circuit * c) {
     else disconnected++;
     g->mark = 0;
   }
-  msg ("coi: %d pos, %d neg, %d both, %d disconnected",
+  msg (1, "coi: %d pos, %d neg, %d both, %d disconnected",
     pos, neg, both, disconnected);
 }
 
