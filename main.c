@@ -18,7 +18,10 @@ int main (int argc, char ** argv) {
   connect_output (c, o);
   cone_of_influence (c);
   println_circuit (c);
+  Circuit * d = negate_circuit (c);
   delete_circuit (c);
+  println_circuit (d);
+  delete_circuit (d);
   print_statistics ();
   return 0;
 }

@@ -85,15 +85,15 @@ Gate * new_ite_gate (Circuit * c) {
 }
 
 void connect_gates (Gate * input, Gate * output) {
-  input = STRIP (input);
-  output = STRIP (output);
+  Gate * stripped_input = STRIP (input);
+  Gate * stripped_output = STRIP (output);
   assert (input);
   assert (output);
-  assert (input->circuit = output->circuit);
-  assert (output->op != FALSE);
-  assert (output->op != INPUT);
-  PUSH (input->outputs, output);
-  PUSH (output->inputs, input);
+  assert (stripped_input->circuit = stripped_output->circuit);
+  assert (stripped_output->op != FALSE);
+  assert (stripped_output->op != INPUT);
+  PUSH (stripped_input->outputs, output);
+  PUSH (stripped_output->inputs, input);
 }
 
 Gate * get_false_gate (Circuit * c) {
@@ -134,11 +134,8 @@ static void coi (Circuit * c, Gate * g, int sign) {
       for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
 	coi (c, *p, sign), coi (c, *p, !sign);
       break;
-    case INPUT:
-      break;
     case FALSE:
-    default:
-      assert (g->op == FALSE);
+    case INPUT:
       break;
   }
 }
@@ -151,7 +148,7 @@ void connect_output (Circuit * c, Gate * output) {
 }
 
 static void check_circuit_connected (Circuit * c) {
-#ifdef NDEBUG
+#ifndef NDEBUG
   assert (c);
   assert (c->output);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
@@ -159,8 +156,6 @@ static void check_circuit_connected (Circuit * c) {
     assert (!SIGN (g));
     const int num_inputs = COUNT (g->inputs);
     switch (g->op) {
-      default:
-        break;
       case XOR:
       case XNOR:
         assert (num_inputs == 2);
@@ -168,6 +163,11 @@ static void check_circuit_connected (Circuit * c) {
       case ITE:
         assert (num_inputs == 3);
 	break;
+      case FALSE:
+      case INPUT:
+      case AND:
+      case OR:
+        break;
     }
   }
 #endif
@@ -244,4 +244,57 @@ void print_circuit_to_file (Circuit * c, FILE * file) {
 void println_circuit (Circuit * c) {
   print_circuit_to_file (c, stdout);
   fputc ('\n', stdout);
+}
+
+static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
+  const int sign = SIGN (g);
+  if (sign) g = NOT (g);
+  Gate * res = map[g->idx];
+  if (!res) {
+    Gate ** inputs = g->inputs.start;
+    switch (g->op) {
+      case FALSE:
+        res = NOT (get_false_gate (c));
+	break;
+      case INPUT:
+        res = NOT (get_input_gate (c, g->idx));
+	break;
+      case AND:
+        res = new_or_gate (c);
+	goto CONNECT;
+      case XOR:
+        res = new_xnor_gate (c);
+	goto CONNECT;
+      case OR:
+        res = new_and_gate (c);
+	goto CONNECT;
+      case XNOR:
+        res = new_xor_gate (c);
+      CONNECT:
+	for (Gate ** p = inputs; p < g->inputs.top; p++)
+	  connect_gates (negate_gate (*p, map, c), res);
+	break;
+      case ITE:
+        connect_gates (negate_gate (inputs[0], map, c), res);
+        connect_gates (negate_gate (inputs[2], map, c), res); /* yes 2 !! */
+        connect_gates (negate_gate (inputs[1], map, c), res); /* yes 1 !! */
+        break;
+    }
+    map[g->idx] = res;
+  }
+  if (sign) res = NOT (res);
+  return res;
+}
+
+Circuit * negate_circuit (Circuit * c) {
+  check_circuit_connected (c);
+  Circuit * res = new_circuit (c->num_inputs);
+  const int num_gates = COUNT (c->gates);
+  Gate ** map;
+  ALLOC (map, num_gates);
+  Gate * o = negate_gate (c->output, map, res);
+  connect_output (res, o);
+  DEALLOC (map, num_gates);
+  cone_of_influence (res);
+  return res;
 }
