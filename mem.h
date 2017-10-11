@@ -2,7 +2,6 @@ extern long allocated;
 
 #define ALLOC(P,N) \
 do { \
-  assert (P); \
   if ((N)) { \
     assert ((N) > 0); \
     const long BYTES = (N) * sizeof *(P); \
@@ -27,9 +26,6 @@ do { \
   } else assert (!(N)); \
 } while (0)
 
-#define NEW(P) ALLOC (P, 1)
-#define DELETE(P) DEALLOC (P, 1)
-
 #define REALLOC(P,O,N) \
 do { \
   assert ((O) >= 0); \
@@ -43,3 +39,8 @@ do { \
   if ((O) < (N)) memset ((O) + (char*)(P), 0, (N) - (O)); \
   allocated += (N); \
 } while (0)
+
+#define NEW(P) ALLOC (P, 1)
+
+#define DELETE(P) DEALLOC (P, 1)
+
