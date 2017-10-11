@@ -1,39 +1,28 @@
 #include "headers.h"
 
-static Gate * new_gate (Circuit * c) {
+static Gate * new_gate (Circuit * c, Operator op) {
   assert (COUNT (c->gates) < INT_MAX);
   Gate * res;
   NEW (res);
   res->idx = COUNT (c->gates);
   res->circuit = c;
+  res->op = op;
   PUSH (c->gates, res);
   return res;
 }
 
-static Gate * new_false_gate (Circuit * c) {
-  assert (EMPTY (c->gates));
-  Gate * res = new_gate (c);
-  res->op = FALSE;
-  assert (!res->idx);
-  return res;
-}
+Gate * new_false_gate (Circuit * c) { return new_gate (c, FALSE); }
+Gate * new_input_gate (Circuit * c) { return new_gate (c, INPUT); }
+Gate * new_and_gate (Circuit * c) { return new_gate (c, AND); }
+Gate * new_xor_gate (Circuit * c) { return new_gate (c, XOR); }
+Gate * new_or_gate (Circuit * c) { return new_gate (c, OR); }
+Gate * new_ite_gate (Circuit * c) { return new_gate (c, ITE); }
+Gate * new_xnor_gate (Circuit * c) { return new_gate (c, XNOR); }
 
-static Gate * new_input_gate (Circuit * c) {
-  Gate * res = new_gate (c);
-  res->op = INPUT;
-  assert (0 < res->idx);
-  assert (res->idx <= c->num_inputs);
-  return res;
-}
-
-Circuit * new_circuit (int num_inputs) {
+Circuit * new_circuit () {
   Circuit * res;
   NEW (res);
   new_false_gate (res);
-  res->num_inputs = num_inputs;
-  for (int i = 0; i < num_inputs; i++)
-    new_input_gate (res);
-  msg (1, "new circuit with %d inputs", num_inputs);
   return res;
 }
 
@@ -52,41 +41,6 @@ void delete_circuit (Circuit * c) {
   DELETE (c);
 }
 
-Gate * new_and_gate (Circuit * c) {
-  Gate * res = new_gate (c);
-  assert (res->idx >= c->num_inputs);
-  res->op = AND;
-  return res;
-}
-
-Gate * new_or_gate (Circuit * c) {
-  Gate * res = new_gate (c);
-  assert (res->idx >= c->num_inputs);
-  res->op = OR;
-  return res;
-}
-
-Gate * new_xor_gate (Circuit * c) {
-  Gate * res = new_gate (c);
-  assert (res->idx >= c->num_inputs);
-  res->op = XOR;
-  return res;
-}
-
-Gate * new_xnor_gate (Circuit * c) {
-  Gate * res = new_gate (c);
-  assert (res->idx >= c->num_inputs);
-  res->op = XNOR;
-  return res;
-}
-
-Gate * new_ite_gate (Circuit * c) {
-  Gate * res = new_gate (c);
-  assert (res->idx >= c->num_inputs);
-  res->op = ITE;
-  return res;
-}
-
 void connect_gates (Gate * input, Gate * output) {
   Gate * stripped_input = STRIP (input);
   Gate * stripped_output = STRIP (output);
@@ -97,19 +51,6 @@ void connect_gates (Gate * input, Gate * output) {
   assert (stripped_output->op != INPUT);
   PUSH (stripped_input->outputs, output);
   PUSH (stripped_output->inputs, input);
-}
-
-Gate * get_false_gate (Circuit * c) {
-  assert (c);
-  assert (!EMPTY (c->gates));
-  return c->gates.start[0];
-}
-
-Gate * get_input_gate (Circuit * c, int idx) {
-  assert (c);
-  assert (0 < idx);
-  assert (idx <= c->num_inputs);
-  return c->gates.start[idx];
 }
 
 static void coi (Circuit * c, Gate * g, int sign) {
@@ -257,10 +198,10 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
     Gate ** inputs = g->inputs.start;
     switch (g->op) {
       case FALSE:
-        res = NOT (get_false_gate (c));
+        res = NOT (new_false_gate (c));
 	break;
       case INPUT:
-        res = NOT (get_input_gate (c, g->idx));
+        res = NOT (new_input_gate (c));
 	break;
       case AND:
         res = new_or_gate (c);
@@ -291,7 +232,7 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
 
 Circuit * negate_circuit (Circuit * c) {
   check_circuit_connected (c);
-  Circuit * res = new_circuit (c->num_inputs);
+  Circuit * res = new_circuit ();
   const int num_gates = COUNT (c->gates);
   Gate ** map;
   ALLOC (map, num_gates);

@@ -26,7 +26,6 @@ struct Gate {
 };
 
 struct Circuit {
-  int num_inputs;
   Gates gates;
   Gate * output;
 };
@@ -35,15 +34,14 @@ struct Circuit {
 #define SIGN(G) ((int)(1l&(long)(G)))
 #define STRIP(G) ((Gate*)(~1l&(long)(G)))
 
-Circuit * new_circuit (int num_inputs);
+Circuit * new_circuit ();
 void delete_circuit (Circuit *);
 
-Gate * get_false_gate (Circuit * c);
-Gate * get_input_gate (Circuit * c, int idx);
-
+Gate * new_false_gate (Circuit *);
+Gate * new_input_gate (Circuit *);
 Gate * new_and_gate (Circuit *);
-Gate * new_or_gate (Circuit *);
 Gate * new_xor_gate (Circuit *);
+Gate * new_or_gate (Circuit *);
 Gate * new_ite_gate (Circuit *);
 Gate * new_xnor_gate (Circuit *);
 

@@ -6,7 +6,7 @@ int main (int argc, char ** argv) {
   Circuit * c = new_circuit (num_inputs);
   Gate * input[num_inputs + 1];
   for (int i = 1; i <= num_inputs; i++)
-    input[i] = get_input_gate (c, i);
+    input[i] = new_input_gate (c);
   Gate * f = new_and_gate (c);
   connect_gates (input[1], f);
   connect_gates (NOT (input[2]), f);
