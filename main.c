@@ -12,11 +12,12 @@ int main (int argc, char ** argv) {
   Gate * g = new_xor_gate (c);
   connect_gates (input[3], g);
   connect_gates (input[4], g);
-  Gate * o = new_and_gate (c);
-  connect_gates (NOT (f), o);
-  connect_gates (NOT (g), o);
-  connect_output (c, NOT (o));
+  Gate * o = new_or_gate (c);
+  connect_gates (f, o);
+  connect_gates (g, o);
+  connect_output (c, o);
   cone_of_influence (c);
+  println_circuit (c);
   delete_circuit (c);
   print_statistics ();
   return 0;

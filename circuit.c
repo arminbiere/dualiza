@@ -56,10 +56,24 @@ Gate * new_and_gate (Circuit * c) {
   return res;
 }
 
+Gate * new_or_gate (Circuit * c) {
+  Gate * res = new_gate (c);
+  assert (res->idx >= c->num_inputs);
+  res->op = OR;
+  return res;
+}
+
 Gate * new_xor_gate (Circuit * c) {
   Gate * res = new_gate (c);
   assert (res->idx >= c->num_inputs);
   res->op = XOR;
+  return res;
+}
+
+Gate * new_xnor_gate (Circuit * c) {
+  Gate * res = new_gate (c);
+  assert (res->idx >= c->num_inputs);
+  res->op = XNOR;
   return res;
 }
 
@@ -104,6 +118,7 @@ static void coi (Circuit * c, Gate * g, int sign) {
   g->mark |= mark;
   if (sign) g->neg++; else g->pos++;
   switch (g->op) {
+    case OR:
     case AND:
       for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
 	coi (c, *p, sign);
@@ -115,6 +130,7 @@ static void coi (Circuit * c, Gate * g, int sign) {
       }
       break;
     case XOR:
+    case XNOR:
       for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
 	coi (c, *p, sign), coi (c, *p, !sign);
       break;
@@ -134,9 +150,31 @@ void connect_output (Circuit * c, Gate * output) {
   c->output = output;
 }
 
-void cone_of_influence (Circuit * c) {
+static void check_circuit_connected (Circuit * c) {
+#ifdef NDEBUG
   assert (c);
   assert (c->output);
+  for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
+    Gate * g = *p;
+    assert (!SIGN (g));
+    const int num_inputs = COUNT (g->inputs);
+    switch (g->op) {
+      default:
+        break;
+      case XOR:
+      case XNOR:
+        assert (num_inputs == 2);
+	break;
+      case ITE:
+        assert (num_inputs == 3);
+	break;
+    }
+  }
+#endif
+}
+
+void cone_of_influence (Circuit * c) {
+  check_circuit_connected (c);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
     Gate * g = *p;
     g->pos = g->neg = g->mark = 0;
@@ -156,3 +194,54 @@ void cone_of_influence (Circuit * c) {
     pos, neg, both, disconnected);
 }
 
+static void print_gate_to_file (Gate * g, Operator outer, FILE * file) {
+  const int sign = SIGN (g);
+  if (sign) g = NOT (g);
+  if (g->op == FALSE) fprintf (file, "%c", sign ? '1' : '0');
+  else {
+    if (sign) fprintf (file, "!");
+    if (g->op == INPUT) fprintf (file, "x%d", g->idx);
+    else {
+      int parenthesis;
+      if (sign) parenthesis = 1;
+      else if (g->op < ITE) parenthesis = (g->op > outer);
+      else parenthesis = (g->op >= outer);
+      if (parenthesis) fprintf (file, "(");
+      if (g->op == ITE) {
+	Gate ** inputs = g->inputs.start;
+	assert (COUNT (g->inputs) == 3);
+	print_gate_to_file (inputs[0], ITE, file);
+	fprintf (file, " ? ");
+	print_gate_to_file (inputs[1], ITE, file);
+	fprintf (file, " : ");
+	print_gate_to_file (inputs[2], ITE, file);
+      } else {
+	char op = '=';
+	if (g->op == AND) op = '&';
+	else if (g->op == OR) op = '|';
+	else if (g->op == XOR) op = '^';
+	else assert (g->op == XNOR);
+	for (Gate ** p = g->inputs.start; p < g->inputs.top; p++) {
+	  if (p != g->inputs.start) fprintf (file, " %c ", op);
+	  print_gate_to_file (*p, g->op, file);
+	}
+      }
+      if (parenthesis) fprintf (file, ")");
+    }
+  }
+}
+
+void println_gate (Gate * g) {
+  print_gate_to_file (g, -1, stdout);
+  fputc ('\n', stdout);
+}
+
+void print_circuit_to_file (Circuit * c, FILE * file) {
+  check_circuit_connected (c);
+  print_gate_to_file (c->output, -1, file);
+}
+
+void println_circuit (Circuit * c) {
+  print_circuit_to_file (c, stdout);
+  fputc ('\n', stdout);
+}

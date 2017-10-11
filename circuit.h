@@ -4,7 +4,17 @@ typedef enum Operator Operator;
 typedef struct Gate Gate;
 typedef struct Circuit Circuit;
 
-enum Operator { FALSE, INPUT, AND, ITE, XOR };
+// using C operator precedence priorities as encoding
+
+enum Operator { 
+  FALSE = 0,
+  INPUT = 1,
+  AND = 8,
+  XOR = 9,
+  OR = 10,
+  ITE = 13,
+  XNOR = 14
+};
 
 typedef STACK (Gate*) Gates;
 
@@ -32,10 +42,16 @@ Gate * get_false_gate (Circuit * c);
 Gate * get_input_gate (Circuit * c, int idx);
 
 Gate * new_and_gate (Circuit *);
+Gate * new_or_gate (Circuit *);
 Gate * new_xor_gate (Circuit *);
 Gate * new_ite_gate (Circuit *);
+Gate * new_xnor_gate (Circuit *);
 
 void connect_gates (Gate * input, Gate * output);
 void connect_output (Circuit *, Gate * output);
 
 void cone_of_influence (Circuit *);
+void print_circuit_to_file (Circuit *, FILE *);
+void println_circuit_to_file (Circuit *, FILE *);
+void println_circuit (Circuit *);
+void println_gate (Gate *);
