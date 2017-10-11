@@ -32,7 +32,10 @@ Gate * get_false_gate (Circuit * c);
 Gate * get_input_gate (Circuit * c, int idx);
 
 Gate * new_and_gate (Circuit *);
-void connect_gates (Gate * input, Gate * output);
+Gate * new_xor_gate (Circuit *);
+Gate * new_ite_gate (Circuit *);
 
+void connect_gates (Gate * input, Gate * output);
 void connect_output (Circuit *, Gate * output);
+
 void cone_of_influence (Circuit *);

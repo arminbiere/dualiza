@@ -56,6 +56,20 @@ Gate * new_and_gate (Circuit * c) {
   return res;
 }
 
+Gate * new_xor_gate (Circuit * c) {
+  Gate * res = new_gate (c);
+  assert (res->idx >= c->num_inputs);
+  res->op = XOR;
+  return res;
+}
+
+Gate * new_ite_gate (Circuit * c) {
+  Gate * res = new_gate (c);
+  assert (res->idx >= c->num_inputs);
+  res->op = ITE;
+  return res;
+}
+
 void connect_gates (Gate * input, Gate * output) {
   input = STRIP (input);
   output = STRIP (output);
@@ -95,10 +109,14 @@ static void coi (Circuit * c, Gate * g, int sign) {
 	coi (c, *p, sign);
       break;
     case ITE:
-      die ("coi for ITE operator not implemented yet");
+      for (Gate ** p = g->inputs.start; p < g->inputs.top; p++) {
+	coi (c, *p, sign);
+	if (p == g->inputs.start) coi (c, *p, !sign);
+      }
       break;
     case XOR:
-      die ("coi for XOR operator not implemented yet");
+      for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
+	coi (c, *p, sign), coi (c, *p, !sign);
       break;
     case INPUT:
       break;
