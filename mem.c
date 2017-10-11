@@ -1,3 +1,3 @@
 #include "headers.h"
 
-long allocated;
+long allocated, max_allocated;

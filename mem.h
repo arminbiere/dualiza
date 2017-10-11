@@ -1,4 +1,16 @@
-extern long allocated;
+extern long allocated, max_allocated;
+
+#define INC_ALLOCATED(B) \
+do { \
+  allocated += (B); \
+  if (allocated > max_allocated) max_allocated = allocated; \
+} while (0)
+
+#define DEC_ALLOCATED(B) \
+do { \
+  assert (allocated >= (B)); \
+  allocated -= (B); \
+} while (0)
 
 #define ALLOC(P,N) \
 do { \
@@ -6,7 +18,7 @@ do { \
     assert ((N) > 0); \
     const long BYTES = (N) * sizeof *(P); \
     (P) = malloc (BYTES); \
-    allocated += BYTES; \
+    INC_ALLOCATED (BYTES); \
     if (!(P)) \
       die ("out-of-memory in '%s' allocating %ld bytes", \
 	__FUNCTION__, BYTES); \
@@ -19,8 +31,7 @@ do { \
   if ((P)) { \
     assert ((N) > 0); \
     const long BYTES = (N) * sizeof *(P); \
-    assert (allocated >= BYTES); \
-    allocated -= BYTES; \
+    DEC_ALLOCATED (BYTES); \
     free (P); \
     (P) = 0; \
   } else assert (!(N)); \
@@ -30,14 +41,13 @@ do { \
 do { \
   assert ((O) >= 0); \
   assert ((N) >= 0); \
-  assert (allocated >= (O)); \
-  allocated -= (O); \
+  DEC_ALLOCATED (O); \
   (P) = realloc ((P), (N)); \
   if ((N) && !(P)) \
     die ("out-of-memory in '%s' reallocating %ld bytes", \
       __FUNCTION__, (long)(N)); \
   if ((O) < (N)) memset ((O) + (char*)(P), 0, (N) - (O)); \
-  allocated += (N); \
+  INC_ALLOCATED (N); \
 } while (0)
 
 #define NEW(P) ALLOC (P, 1)
