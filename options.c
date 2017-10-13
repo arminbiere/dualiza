@@ -10,14 +10,15 @@ void usage_options () {
   char buffer[80];
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  sprintf (buffer, "--%s=%d", #NAME, DEFAULT); \
+  sprintf (buffer, "%s=%d", #NAME, DEFAULT); \
   if ((tmp = strlen (buffer)) > len) len = tmp;
   OPTIONS
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  sprintf (buffer, "--%s=%d", #NAME, DEFAULT); \
+  sprintf (buffer, "%s=%d", #NAME, DEFAULT); \
+  fputs ("  --", stdout); \
   fputs (buffer, stdout); \
-  for (int i = strlen (buffer) - 1; i < len; i++) \
+  for (int i = strlen (buffer) - 2; i < len; i++) \
     fputc (' ', stdout); \
   fputs (#DESCRIPTION, stdout); \
   fputc ('\n', stdout);

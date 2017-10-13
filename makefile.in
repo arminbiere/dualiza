@@ -3,8 +3,10 @@ CFLAGS=@CFLAGS@
 MAKEFLAGS=-j
 %.o: %.c $(shell ls *.h) makefile
 	$(CC) $(CFLAGS) -c $<
-OBJ=$(shell ls *.c|sed -e 's,.c$$,.o,g')
+OBJ=$(shell ls *.c|grep -v version|sed -e 's,.c$$,.o,g') version.o
 dualcount: $(OBJ) makefile
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
+version.c: $(shell ls *.[ch]|grep -v version.c) VERSION makefile mkversion.sh
+	./mkversion.sh > $@
 clean:
 	rm -f `cat .gitignore`
