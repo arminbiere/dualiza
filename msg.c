@@ -1,7 +1,5 @@
 #include "headers.h"
 
-int verbosity;
-
 void die (const char * fmt, ...) {
   fflush (stdout);
   fputs ("*** dualcount: ", stderr);

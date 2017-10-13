@@ -11,6 +11,7 @@
 #include "circuit.h"
 #include "mem.h"
 #include "msg.h"
+#include "options.h"
 #include "reader.h"
 #include "resources.h"
 #include "stack.h"

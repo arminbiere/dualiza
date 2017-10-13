@@ -1,7 +1,6 @@
 #include "headers.h"
 
-int main (int argc, char ** argv) {
-  verbosity = 1;
+void test () {
 #if 0
   const int num_inputs = 5;
   Circuit * c = new_circuit (num_inputs);
@@ -34,6 +33,23 @@ int main (int argc, char ** argv) {
   println_circuit (d);
   delete_circuit (d);
 #endif
+}
+
+int main (int argc, char ** argv) {
+  const char * input_name = 0;
+  usage_options ();
+  for (int i = 1; i < argc; i++)
+    if (argv[i][0] == '-' && argv[i][1] == '-') {
+      if (!parse_option (argv[i]))
+	die ("invalid long option '%s'", argv[i]);
+    } else if (argv[i][0] == '-')
+      die ("invalid short option '%s'", argv[i]);
+    else if (input_name)
+      die ("multiple inputs '%s' and '%s'", input_name, argv[i]);
+    else input_name = argv[i];
+  print_options ();
+  msg (1, "reading from '%s'", input_name);
+  test ();
   print_statistics ();
   return 0;
 }
