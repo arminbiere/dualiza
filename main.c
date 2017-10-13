@@ -26,7 +26,9 @@ void test () {
   delete_circuit (d);
 #endif
 #if 1
-  Circuit * c = parse_formula ("<stdin>", stdin);
+  Reader * r = new_reader ("<stdin>", stdin);
+  Circuit * c = parse_formula (r);
+  delete_reader (r);
   println_circuit (c);
   Circuit * d = negate_circuit (c);
   delete_circuit (c);

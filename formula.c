@@ -109,14 +109,12 @@ static Gate * parse_formula_expr (Reader * r, Circuit * c) {
   return parse_formula_xnor (r, c);
 }
 
-Circuit * parse_formula (const char * name, FILE * file) {
+Circuit * parse_formula (Reader * reader) {
   Circuit * c = new_circuit ();
-  Reader * r = new_reader (name, file);
-  Gate * o = parse_formula_expr (r, c);
-  int ch = next_non_white_space_char (r);
+  Gate * o = parse_formula_expr (reader, c);
+  int ch = next_non_white_space_char (reader);
   if (ch != EOF)
-    parse_error (r, "expected end-of-file after expression");
-  delete_reader (r);
+    parse_error (reader, "expected end-of-file after expression");
   connect_output (c, o);
   return c;
 }

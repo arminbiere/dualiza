@@ -25,10 +25,15 @@ void usage_options () {
   OPTIONS
 }
 
+static void print_option (const char * name, int current, int usually) {
+  if (usually != current) msg (1, "--%s=%d", name, current);
+}
+
 void print_options () {
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  if (NAME != DEFAULT) msg (1, "--%s=%d", #NAME, NAME);
+  print_option (#NAME, NAME, DEFAULT);
+  // if (NAME != DEFAULT) msg (1, "--%s=%d", #NAME, NAME);
   OPTIONS
 }
 
@@ -39,6 +44,7 @@ static int parse_option_aux (char * arg) {
   char * p = strchr (arg, '=');
   if (!p) return 0;
   *p++ = 0;
+  char * q = p;
   if (!*p) return 0;
   while (*p)
     if (!isdigit (*p++))
@@ -46,7 +52,7 @@ static int parse_option_aux (char * arg) {
   int res = 0;
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  if (!mystrcmp (arg, #NAME)) NAME = atoi (p), res = 1;
+  if (!mystrcmp (arg, #NAME)) NAME = atoi (q), res = 1;
   OPTIONS
   return res;
 }

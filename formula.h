@@ -1,3 +1,4 @@
 struct Circuit;
+struct Reader;
 
-struct Circuit * parse_formula (const char * name, FILE *);
+struct Circuit * parse_formula (struct Reader *);
