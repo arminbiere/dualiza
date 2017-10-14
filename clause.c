@@ -16,6 +16,19 @@ Clause * new_clause (const int * literals, const int size) {
   return res;
 }
 
+Clause * new_clause_arg (int first, ...) {
+  va_list ap;
+  STACK (int) literals;
+  va_start (ap, first);
+  int lit;
+  while ((lit = va_arg (ap, int)))
+    PUSH (literals, lit);
+  va_end (ap);
+  Clause * res = new_clause (literals.start, COUNT (literals));
+  RELEASE (literals);
+  return res;
+}
+
 void delete_clause (Clause * c) {
   assert (c);
   long bytes = bytes_clause (c->size);

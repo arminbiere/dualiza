@@ -6,6 +6,7 @@ struct Clause {
 };
 
 Clause * new_clause (const int * literals, const int size);
+Clause * new_clause_arg (int first, ...);
 void delete_clause (Clause *);
 
 void print_clause_to_file (Clause *, FILE *);
