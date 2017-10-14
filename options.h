@@ -6,10 +6,12 @@ OPTION (verbosity,	0, verbose level) \
 
 /*------------------------------------------------------------------------*/
 // List of long options only available in debugging build ('-g').
-
+#ifndef NDEBUG
 #define OPTIONS_DEBUG \
-OPTION (logging,	0, logging level) \
-
+OPTION (logging,	0, logging level)
+#else
+#define OPTIONS_DEBUG /**/
+#endif
 /*------------------------------------------------------------------------*/
 
 #define OPTIONS \

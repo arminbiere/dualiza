@@ -1,7 +1,7 @@
 #include "headers.h"
 
 void print_statistics () {
-  if (!verbosity) return;
+  if (verbosity < 1) return;
   long bytes = maximum_resident_set_size ();
   double seconds = process_time ();
   msg (0, "maximum allocated %ld bytes (%.1f MB)",

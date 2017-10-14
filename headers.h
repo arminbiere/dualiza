@@ -10,6 +10,7 @@
 #include "formula.h"
 #include "clause.h"
 #include "circuit.h"
+#include "cnf.h"
 #include "mem.h"
 #include "msg.h"
 #include "options.h"
