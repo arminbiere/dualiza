@@ -16,6 +16,11 @@ Clause * new_clause (const int * literals, const int size) {
   return res;
 }
 
+Clause * new_binary_clause (int first, int second) {
+  int literals[2] = { first, second };
+  return new_clause (literals, 2);
+}
+
 Clause * new_clause_arg (int first, ...) {
   va_list ap;
   STACK (int) literals;

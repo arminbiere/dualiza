@@ -39,8 +39,9 @@ void test () {
 #if 1
 {
   CNF * cnf = new_cnf ();
+  add_clause_to_cnf (new_clause_arg (0), cnf);
   add_clause_to_cnf (new_clause_arg (-1, 0), cnf);
-  add_clause_to_cnf (new_clause_arg (1, 2, 0), cnf);
+  add_clause_to_cnf (new_binary_clause (1, 2), cnf);
   add_clause_to_cnf (new_clause_arg (1, 3, 0), cnf);
   add_clause_to_cnf (new_clause_arg (-1, -2, -3, 0), cnf);
   print_cnf (cnf);
