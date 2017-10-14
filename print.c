@@ -6,8 +6,10 @@ static void print_gate_to_file (Gate * g, Operator outer, FILE * file) {
   if (g->op == FALSE) fprintf (file, "%c", sign ? '1' : '0');
   else {
     if (sign) fprintf (file, "!");
-    if (g->op == INPUT) fprintf (file, "x%d", g->input);
-    else {
+    if (g->op == INPUT) {
+      if (g->symbol) fprintf (file, "%s", g->symbol->name);
+      else fprintf (file, "<x%d>", g->input);
+    } else {
       int parenthesis;
       if (sign) parenthesis = 1;
       else if (g->op < ITE) parenthesis = (g->op > outer);

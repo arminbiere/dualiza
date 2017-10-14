@@ -63,16 +63,18 @@ void test () {
   delete_cnf (cnf);
 }
 #endif
-#if 0
+#if 1
 {
   Reader * r = new_reader ("<stdin>", stdin);
-  Circuit * c = parse_formula (r);
+  Symbols * t = new_symbols ();
+  Circuit * c = parse_formula (r, t);
   delete_reader (r);
   println_circuit (c);
   Circuit * d = negate_circuit (c);
   delete_circuit (c);
   println_circuit (d);
   delete_circuit (d);
+  delete_symbols (t);
 }
 #endif
 #if 0
