@@ -18,4 +18,5 @@
 #include "resources.h"
 #include "stack.h"
 #include "statistics.h"
+#include "test.h"
 #include "version.h"

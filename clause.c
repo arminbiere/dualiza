@@ -19,9 +19,9 @@ Clause * new_clause (const int * literals, const int size) {
 Clause * new_clause_arg (int first, ...) {
   va_list ap;
   STACK (int) literals;
+  INIT (literals);
   va_start (ap, first);
-  int lit;
-  while ((lit = va_arg (ap, int)))
+  for (int lit = first; lit; lit = va_arg (ap, int))
     PUSH (literals, lit);
   va_end (ap);
   Clause * res = new_clause (literals.start, COUNT (literals));
