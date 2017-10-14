@@ -15,12 +15,12 @@ static int is_symbol_char (int ch) {
 }
 
 static Gate * parse_formula_basic (Reader * r, Symbols * t, Circuit * c) {
-  int ch = next_non_white_space_char (r, '-');
+  int ch = next_non_white_space_char (r);
   Gate * res = 0;
   if (ch == EOF) parse_error (r, "unexpected end-of-file");
   else if (ch == '(') {
     res = parse_formula_expr (r, t, c);
-    ch = next_non_white_space_char (r, '-');
+    ch = next_non_white_space_char (r);
     if (ch != ')') parse_error (r, "expected ')'");
   } else if (ch == '!') {
     res = parse_formula_basic (r, t, c);
@@ -47,7 +47,7 @@ static Gate * parse_formula_basic (Reader * r, Symbols * t, Circuit * c) {
 static Gate * parse_formula_and (Reader * r, Symbols * t, Circuit * c) {
   Gate * res = parse_formula_basic (r, t, c), * and = 0;
   for (;;) {
-    int ch = next_non_white_space_char (r, '-');
+    int ch = next_non_white_space_char (r);
     if (ch != '&') { prev_char (r, ch); return res; }
     Gate * tmp = parse_formula_basic (r, t, c);
     if (!and) {
@@ -61,7 +61,7 @@ static Gate * parse_formula_and (Reader * r, Symbols * t, Circuit * c) {
 
 static Gate * parse_formula_xor (Reader * r, Symbols * t, Circuit * c) {
   Gate * first = parse_formula_and (r, t, c);
-  int ch = next_non_white_space_char (r, '-');
+  int ch = next_non_white_space_char (r);
   if (ch != '^') { prev_char (r, ch); return first; }
   Gate * second = parse_formula_and (r, t, c);
   Gate * xor = new_xor_gate (c);
@@ -73,7 +73,7 @@ static Gate * parse_formula_xor (Reader * r, Symbols * t, Circuit * c) {
 static Gate * parse_formula_or (Reader * r, Symbols * t, Circuit * c) {
   Gate * res = parse_formula_xor (r, t, c), * or = 0;
   for (;;) {
-    int ch = next_non_white_space_char (r, '-');
+    int ch = next_non_white_space_char (r);
     if (ch != '|') { prev_char (r, ch); return res; }
     Gate * tmp = parse_formula_xor (r, t, c);
     if (!or) {
@@ -87,10 +87,10 @@ static Gate * parse_formula_or (Reader * r, Symbols * t, Circuit * c) {
 
 static Gate * parse_formula_ite (Reader * r, Symbols * t, Circuit * c) {
   Gate * cond = parse_formula_or (r, t, c);
-  int ch = next_non_white_space_char (r, '-');
+  int ch = next_non_white_space_char (r);
   if (ch != '?') { prev_char (r, ch); return cond; }
   Gate * pos = parse_formula_or (r, t, c);
-  ch = next_non_white_space_char (r, '-');
+  ch = next_non_white_space_char (r);
   if (ch != ':') parse_error (r, "expected ':'");
   Gate * neg = parse_formula_or (r, t, c);
   Gate * ite = new_ite_gate (c);
@@ -102,7 +102,7 @@ static Gate * parse_formula_ite (Reader * r, Symbols * t, Circuit * c) {
 
 static Gate * parse_formula_xnor (Reader * r, Symbols * t, Circuit * c) {
   Gate * first = parse_formula_ite (r, t, c);
-  int ch = next_non_white_space_char (r, '-');
+  int ch = next_non_white_space_char (r);
   if (ch != '=') { prev_char (r, ch); return first; }
   Gate * second = parse_formula_ite (r, t, c);
   Gate * xnor = new_xnor_gate (c);
@@ -117,8 +117,10 @@ static Gate * parse_formula_expr (Reader * r, Symbols * t, Circuit * c) {
 
 Circuit * parse_formula (Reader * r, Symbols * t) {
   Circuit * c = new_circuit ();
+  assert (!r->comment);
+  r->comment = '-';
   Gate * o = parse_formula_expr (r, t, c);
-  int ch = next_non_white_space_char (r, '-');
+  int ch = next_non_white_space_char (r);
   if (ch != EOF) parse_error (r, "expected end-of-file after expression");
   connect_output (c, o);
   return c;

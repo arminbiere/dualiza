@@ -11,45 +11,50 @@ Reader * new_reader (const char * name, FILE * file) {
   return res;
 }
 
-void delete_reader (Reader * reader) {
-  RELEASE (reader->symbol);
-  DELETE (reader);
+void delete_reader (Reader * r) {
+  RELEASE (r->symbol);
+  DELETE (r);
 }
 
-int next_char (Reader * reader) {
+int next_char (Reader * r) {
   int res;
-  if (reader->buffered) res = reader->buffer, reader->buffered = 0;
-  else res = getc (reader->file);
-  if (res == '\n') reader->lineno++;
-  if (res != EOF) reader->bytes++;
+  if (r->buffered) res = r->buffer, r->buffered = 0;
+  else res = getc (r->file);
+  if (res == '\n') r->lineno++;
+  if (res != EOF) r->bytes++;
   return res;
 }
 
-int next_non_white_space_char (Reader * reader, int comment) {
+static int is_space_character (int ch) {
+  return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n';
+}
+
+int next_non_white_space_char (Reader * r) {
   int ch;
-  do {
-    while (isspace ((ch = next_char (reader))))
+  for (;;) {
+    while (is_space_character (ch = next_char (r)))
       ;
-    if (!comment || ch != comment) break;
-    while ((ch = next_char (reader)) != '\n' && ch != EOF)
-      ;
-  } while (ch != EOF);
+    if (!r->comment || ch != r->comment) break;
+    while ((ch = next_char (r)) != '\n')
+      if (ch == EOF)
+	parse_error (r, "unexpected end-of-file in comment");
+  }
   return ch;
 }
 
-void prev_char (Reader * reader, int ch) {
-  assert (!reader->buffered);
-  reader->buffered = 1;
-  reader->buffer = ch;
-  if (ch == '\n') assert (reader->lineno > 1), reader->lineno--;
-  if (ch != EOF) assert (reader->bytes > 0), reader->bytes--;
+void prev_char (Reader * r, int ch) {
+  assert (!r->buffered);
+  r->buffered = 1;
+  r->buffer = ch;
+  if (ch == '\n') assert (r->lineno > 1), r->lineno--;
+  if (ch != EOF) assert (r->bytes > 0), r->bytes--;
 }
 
-void parse_error (Reader * reader, const char * fmt, ...) {
+void parse_error (Reader * r, const char * fmt, ...) {
   fflush (stdout);
   fprintf (stderr,
     "dualcount: %s:%d: parse error at byte %d: ",
-    reader->name, reader->lineno, reader->bytes);
+    r->name, r->lineno, r->bytes);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
