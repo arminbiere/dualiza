@@ -1,6 +1,6 @@
 #include "headers.h"
 
-void tseitin_encoding (Circuit * c, CNF * f, Encoding * e, int neg) {
+void tseitin_encode (Circuit * c, CNF * f, Encoding * e, int neg) {
   assert (neg || !maximum_variable_index (f));
   cone_of_influence (c);
   int num_inputs = COUNT (c->inputs);
