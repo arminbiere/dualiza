@@ -9,7 +9,7 @@ static int is_symbol_start (int ch) {
   return 0;
 }
 
-static int is_symbol_char (int ch) {
+static int is_symbol_character (int ch) {
   if ('0' <= ch && ch <= '9') return 1;
   return is_symbol_start (ch);
 }
@@ -30,7 +30,7 @@ static Gate * parse_basic (Reader * r, Symbols * t, Circuit * c) {
   else if (is_symbol_start (ch)) {
     assert (EMPTY (r->symbol));
     PUSH (r->symbol, ch);
-    while (is_symbol_char (ch = next_char (r)))
+    while (is_symbol_character (ch = next_char (r)))
       PUSH (r->symbol, ch);
     prev_char (r, ch);
     PUSH (r->symbol, 0);
