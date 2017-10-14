@@ -9,4 +9,4 @@ dualcount: $(OBJ) makefile
 version.c: $(shell ls *.[ch]|grep -v version.c) VERSION makefile version.sh
 	./version.sh > $@
 clean:
-	rm -f `cat .gitignore`
+	rm -f *.o makefile dualcount version.c
