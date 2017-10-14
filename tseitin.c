@@ -7,7 +7,6 @@ void tseitin_encoding (Circuit * circuit, CNF * cnf, int negative) {
   int num_gates = COUNT (circuit->gates);
   int * map;
   ALLOC (map, num_gates);
-  DEALLOC (map, num_gates);
   int idx = 0;
   for (int i = 0; i < num_inputs; i++) {
     Gate * g = circuit->inputs.start[i];
@@ -17,4 +16,5 @@ void tseitin_encoding (Circuit * circuit, CNF * cnf, int negative) {
     map[g->idx] = ++idx;
   }
   msg (2, "encoded %d inputs", idx);
+  DEALLOC (map, num_gates);
 }

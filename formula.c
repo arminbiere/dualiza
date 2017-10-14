@@ -36,7 +36,10 @@ static Gate * parse_formula_basic (Reader * r, Symbols * t, Circuit * c) {
     PUSH (r->symbol, 0);
     Symbol * s = find_or_create_symbol (t, r->symbol.start);
     CLEAR (r->symbol);
-    if (!(res = s->gate)) res = s->gate = new_input_gate (c);
+    if (!(res = s->gate)) {
+      res = s->gate = new_input_gate (c);
+      res->symbol = s;
+    }
   } else parse_error (r, "expected basic expression");
   return res;
 }

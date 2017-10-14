@@ -48,11 +48,12 @@ void test () {
   delete_cnf (cnf);
 }
 #endif
-#if 0
+#if 1
 {
   FILE * file = fopen ("example", "r");
   Reader * reader = new_reader ("example", file);
-  Circuit * circuit = parse_formula (reader);
+  Symbols * t = new_symbols ();
+  Circuit * circuit = parse_formula (reader, t);
   delete_reader (reader);
   fclose (file);
   println_circuit (circuit);
@@ -61,9 +62,10 @@ void test () {
   delete_circuit (circuit);
   print_cnf (cnf);
   delete_cnf (cnf);
+  delete_symbols (t);
 }
 #endif
-#if 1
+#if 0
 {
   Reader * r = new_reader ("<stdin>", stdin);
   Symbols * t = new_symbols ();
