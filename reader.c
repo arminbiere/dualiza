@@ -25,10 +25,15 @@ int next_char (Reader * reader) {
   return res;
 }
 
-int next_non_white_space_char (Reader * reader) {
+int next_non_white_space_char (Reader * reader, int comment) {
   int ch;
-  while (isspace ((ch = next_char (reader))))
-    ;
+  do {
+    while (isspace ((ch = next_char (reader))))
+      ;
+    if (!comment || ch != comment) break;
+    while ((ch = next_char (reader)) != '\n' && ch != EOF)
+      ;
+  } while (ch != EOF);
   return ch;
 }
 
