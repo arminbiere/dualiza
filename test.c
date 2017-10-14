@@ -53,7 +53,7 @@ void test () {
   FILE * file = fopen ("example", "r");
   Reader * reader = new_reader ("example", file);
   Symbols * t = new_symbols ();
-  Circuit * circuit = parse_formula (reader, t);
+  Circuit * circuit = parse_circuit (reader, t);
   delete_reader (reader);
   fclose (file);
   println_circuit (circuit);
@@ -69,7 +69,7 @@ void test () {
 {
   Reader * r = new_reader ("<stdin>", stdin);
   Symbols * t = new_symbols ();
-  Circuit * c = parse_formula (r, t);
+  Circuit * c = parse_circuit (r, t);
   delete_reader (r);
   println_circuit (c);
   Circuit * d = negate_circuit (c);
