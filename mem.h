@@ -33,7 +33,6 @@ do { \
     const long BYTES = (N) * sizeof *(P); \
     DEC_ALLOCATED (BYTES); \
     free (P); \
-    (P) = 0; \
   } else assert (!(N)); \
 } while (0)
 
@@ -54,3 +53,16 @@ do { \
 
 #define DELETE(P) DEALLOC (P, 1)
 
+#define STRDUP(P,S) \
+do { \
+  assert (S); \
+  size_t LEN = strlen (S); \
+  ALLOC ((P), LEN + 1); \
+  strcpy ((P), (S)); \
+} while (0)
+
+#define STRDEL(S) \
+do { \
+  size_t LEN = strlen (S); \
+  DEALLOC ((S), LEN + 1); \
+} while (0)

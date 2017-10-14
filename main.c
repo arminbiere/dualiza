@@ -46,5 +46,6 @@ int main (int argc, char ** argv) {
   if (close_input) fclose (input_file);
   test ();
   print_statistics ();
+  assert (!allocated);
   return 0;
 }

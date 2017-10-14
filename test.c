@@ -1,7 +1,7 @@
 #include "headers.h"
 
 void test () {
-#if 1
+#if 0
 {
   const int num_inputs = 5;
   Circuit * c = new_circuit (num_inputs);
@@ -48,7 +48,7 @@ void test () {
   delete_cnf (cnf);
 }
 #endif
-#if 1
+#if 0
 {
   FILE * file = fopen ("example", "r");
   Reader * reader = new_reader ("example", file);
@@ -73,6 +73,18 @@ void test () {
   delete_circuit (c);
   println_circuit (d);
   delete_circuit (d);
+}
+#endif
+#if 0
+{
+  Symbols * t = new_symbols ();
+  Symbol * a = find_or_create_symbol (t, "a");
+  Symbol * b = find_or_create_symbol (t, "b");
+  Symbol * again = find_or_create_symbol (t, "a");
+  Symbol * bgain = find_or_create_symbol (t, "b");
+  assert (a == again);
+  assert (b == bgain);
+  delete_symbols (t);
 }
 #endif
 }

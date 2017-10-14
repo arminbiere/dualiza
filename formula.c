@@ -31,7 +31,7 @@ static Gate * parse_formula_basic (Reader * r, Circuit * c) {
 	input += digit;
       }
       prev_char (r, ch);
-      res = new_input_gate (c, input);
+      res = new_input_gate (c);
     }
   } else parse_error (r, "expected basic expression");
   return res;

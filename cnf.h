@@ -1,7 +1,5 @@
 #include "stack.h"
 
-struct Clause;
-
 typedef STACK (struct Clause *) Clauses;
 typedef struct CNF CNF;
 

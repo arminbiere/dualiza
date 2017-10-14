@@ -11,7 +11,7 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
         res = NOT (new_false_gate (c));
 	break;
       case INPUT:
-        res = NOT (new_input_gate (c, g->input));
+        res = NOT (new_input_gate (c));
 	break;
       case AND:
         res = new_or_gate (c);

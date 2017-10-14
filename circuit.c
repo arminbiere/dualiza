@@ -16,9 +16,9 @@ Gate * new_false_gate (Circuit * c) {
   return c->zero = new_gate (c, FALSE);
 }
 
-Gate * new_input_gate (Circuit * c, int input) {
+Gate * new_input_gate (Circuit * c) {
   Gate * res = new_gate (c, INPUT);
-  res->input = input;
+  res->input = COUNT (c->inputs);
   PUSH (c->inputs, res);
   return res;
 }

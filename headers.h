@@ -20,6 +20,7 @@
 #include "resources.h"
 #include "stack.h"
 #include "statistics.h"
+#include "symbols.h"
 #include "test.h"
 #include "tseitin.h"
 #include "version.h"
