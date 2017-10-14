@@ -16,6 +16,7 @@
 #include "msg.h"
 #include "negate.h"
 #include "options.h"
+#include "print.h"
 #include "reader.h"
 #include "resources.h"
 #include "stack.h"

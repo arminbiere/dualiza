@@ -48,10 +48,4 @@ Gate * new_xnor_gate (Circuit *);
 
 void connect_gates (Gate * input, Gate * output);
 void connect_output (Circuit *, Gate * output);
-
-void print_circuit_to_file (Circuit *, FILE *);
-void println_circuit_to_file (Circuit *, FILE *);
-void println_circuit (Circuit *);
-void println_gate (Gate *);
-
 void check_circuit_connected (Circuit *);

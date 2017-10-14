@@ -12,6 +12,7 @@ Reader * new_reader (const char * name, FILE * file) {
 }
 
 void delete_reader (Reader * reader) {
+  RELEASE (reader->symbol);
   DELETE (reader);
 }
 

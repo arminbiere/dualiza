@@ -5,6 +5,7 @@ struct Reader {
   FILE * file;
   int lineno, bytes;
   int buffer, buffered;
+  STACK (char) symbol;
 };
 
 Reader * new_reader (const char * name, FILE * file);

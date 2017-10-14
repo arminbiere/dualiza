@@ -1,3 +1,6 @@
+#define STACK(T) \
+struct { T * start; T * top; T * end; }
+
 #define INIT(S) \
 do { \
   (S).start = (S).top = (S).end = 0; \
@@ -10,6 +13,11 @@ do { \
 #define COUNT(S) ((S).top - (S).start)
 
 #define SIZE(S) ((S).end - (S).start)
+
+#define CLEAR(S) \
+do { \
+  (S).top = (S).start; \
+} while (0)
 
 #define ENLARGE(S) \
 do { \
@@ -37,6 +45,3 @@ do { \
   DEALLOC ((S).start, SIZE (S)); \
   (S).top = (S).end = 0; \
 } while (0)
-
-#define STACK(T) \
-  struct { T * start; T * top; T * end; }
