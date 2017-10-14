@@ -141,10 +141,10 @@ static void encode_xor (Gate * g, Encoder * e) {
   int lit = map_gate (g, e);
   int a = map_input (g, 0, e);
   int b = map_input (g, 1, e);
-  encode_ternary (e, lit, a, b);
-  encode_ternary (e, lit, -a, -b);
-  encode_ternary (e, -lit, -a, b);
-  encode_ternary (e, -lit, a, -b);
+  encode_ternary (e, -lit, a, b);
+  encode_ternary (e, -lit, -a, -b);
+  encode_ternary (e, lit, -a, b);
+  encode_ternary (e, lit, a, -b);
 }
 
 static void encode_or (Gate * g, Encoder * e) {
@@ -179,10 +179,10 @@ static void encode_xnor (Gate * g, Encoder * e) {
   int lit = map_gate (g, e);
   int a = map_input (g, 0, e);
   int b = map_input (g, 1, e);
-  encode_ternary (e, -lit, a, b);
-  encode_ternary (e, -lit, -a, -b);
-  encode_ternary (e, lit, -a, b);
-  encode_ternary (e, lit, a, -b);
+  encode_ternary (e, lit, a, b);
+  encode_ternary (e, lit, -a, -b);
+  encode_ternary (e, -lit, -a, b);
+  encode_ternary (e, -lit, a, -b);
 }
 
 static void encode_gate (Gate * g, Encoder *e) {
@@ -239,6 +239,7 @@ void encode_circuit (Circuit * circuit,
   Encoder * encoder = new_encoder (circuit, cnf, encoding, negative);
   int idx = encode_inputs (encoder);
   idx = encode_gates (encoder, idx);
+  encode_unary (encoder, map_gate (circuit->output, encoder));
   delete_encoder (encoder);
   msg (2, "encoded %d gates in total", idx);
 }
