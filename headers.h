@@ -11,6 +11,7 @@
 #include "circuit.h"
 #include "cnf.h"
 #include "coi.h"
+#include "encoding.h"
 #include "mem.h"
 #include "msg.h"
 #include "negate.h"

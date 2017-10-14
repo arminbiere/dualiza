@@ -1,1 +1,1 @@
-void tseitin_encoding (Circuit *, CNF *, int negative);
+void tseitin_encoding (Circuit *, CNF *, Encoding * e, int negative);

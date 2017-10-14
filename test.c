@@ -58,10 +58,12 @@ void test () {
   fclose (file);
   println_circuit (circuit);
   CNF * cnf = new_cnf ();
-  tseitin_encoding (circuit, cnf, 0);
-  delete_circuit (circuit);
+  Encoding * e = new_encoding ();
+  tseitin_encoding (circuit, cnf, e, 0);
   print_cnf (cnf);
   delete_cnf (cnf);
+  delete_encoding (e);
+  delete_circuit (circuit);
   delete_symbols (t);
 }
 #endif

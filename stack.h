@@ -1,3 +1,6 @@
+#ifndef stack_h_INCLUDED
+#define stack_h_INCLUDED
+
 #define STACK(T) \
 struct { T * start; T * top; T * end; }
 
@@ -45,3 +48,5 @@ do { \
   DEALLOC ((S).start, SIZE (S)); \
   (S).top = (S).end = 0; \
 } while (0)
+
+#endif
