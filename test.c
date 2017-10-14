@@ -1,7 +1,7 @@
 #include "headers.h"
 
 void test () {
-#if 0
+#if 1
 {
   const int num_inputs = 5;
   Circuit * c = new_circuit (num_inputs);
@@ -50,9 +50,11 @@ void test () {
 #endif
 #if 1
 {
-  Reader * reader = new_reader ("<stdin>", stdin);
+  FILE * file = fopen ("example", "r");
+  Reader * reader = new_reader ("example", file);
   Circuit * circuit = parse_formula (reader);
   delete_reader (reader);
+  fclose (file);
   println_circuit (circuit);
   CNF * cnf = new_cnf ();
   tseitin_encoding (circuit, cnf, 0);

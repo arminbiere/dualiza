@@ -27,7 +27,7 @@ struct Gate {
 
 struct Circuit {
   Gates inputs, gates;
-  Gate * output;
+  Gate * zero, * output;
 };
 
 #define NOT(G) ((Gate*)(1l^(long)(G)))

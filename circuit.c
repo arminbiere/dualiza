@@ -12,20 +12,14 @@ static Gate * new_gate (Circuit * c, Operator op) {
 }
 
 Gate * new_false_gate (Circuit * c) {
-  if (EMPTY (c->gates)) return new_gate (c, FALSE);
-  else return c->gates.start[0];
+  if (c->zero) return c->zero;
+  return c->zero = new_gate (c, FALSE);
 }
 
 Gate * new_input_gate (Circuit * c, int input) {
-  assert (input >= 0);
-  while (COUNT (c->inputs) <= input)
-    PUSH (c->inputs, 0);
-  Gate * res = c->inputs.start[input];
-  if (!res) {
-    res = new_gate (c, INPUT);
-    res->input = input;
-    c->inputs.start[input] = res;
-  }
+  Gate * res = new_gate (c, INPUT);
+  res->input = input;
+  PUSH (c->inputs, res);
   return res;
 }
 
@@ -38,8 +32,6 @@ Gate * new_xnor_gate (Circuit * c) { return new_gate (c, XNOR); }
 Circuit * new_circuit () {
   Circuit * res;
   NEW (res);
-  new_false_gate (res);
-  PUSH (res->inputs, 0);
   return res;
 }
 

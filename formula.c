@@ -18,11 +18,10 @@ static Gate * parse_formula_basic (Reader * r, Circuit * c) {
   else if (ch == 'x') {
     ch = next_char (r);
     if (!isdigit (ch)) parse_error (r, "expected digit after 'x'");
+    else if (ch == '0') parse_error (r, "unexpected '0' after 'x'");
     else {
       int input = ch - '0';
       while (isdigit (ch = next_char (r))) {
-	if (!input)
-	  parse_error (r, "invalid input index starts with '0'");
 	if (input > INT_MAX/10)
 	  parse_error (r, "input index really too large");
 	input *= 10;
