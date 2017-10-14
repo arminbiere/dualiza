@@ -7,3 +7,5 @@ struct Clause {
 
 Clause * new_clause (const int * literals, const int size);
 void delete_clause (Clause *);
+
+void print_clause (Clause *);

@@ -2,6 +2,7 @@
 
 void test () {
 #if 0
+{
   const int num_inputs = 5;
   Circuit * c = new_circuit (num_inputs);
   Gate * input[num_inputs + 1];
@@ -24,8 +25,19 @@ void test () {
   delete_circuit (c);
   println_circuit (d);
   delete_circuit (d);
+}
 #endif
 #if 1
+{
+  int literals[3] = { -1, 3, -2 };
+  printf ("sizeof (Clause) = %ld\n", sizeof (Clause));
+  Clause * c = new_clause (literals, 3);
+  print_clause (c);
+  delete_clause (c);
+}
+#endif
+#if 0
+{
   Reader * r = new_reader ("<stdin>", stdin);
   Circuit * c = parse_formula (r);
   delete_reader (r);
@@ -34,6 +46,7 @@ void test () {
   delete_circuit (c);
   println_circuit (d);
   delete_circuit (d);
+}
 #endif
 }
 
