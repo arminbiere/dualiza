@@ -7,7 +7,6 @@
 #include <string.h>
 
 #include "aiger.h"
-#include "formula.h"
 #include "clause.h"
 #include "circuit.h"
 #include "cnf.h"
@@ -16,6 +15,7 @@
 #include "msg.h"
 #include "negate.h"
 #include "options.h"
+#include "parse.h"
 #include "print.h"
 #include "reader.h"
 #include "resources.h"
