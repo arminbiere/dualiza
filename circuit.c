@@ -51,7 +51,7 @@ static void delete_gate (Gate * g) {
 }
 
 void delete_circuit (Circuit * c) {
-  msg (1, "deleting circuit with %ld gates", COUNT (c->gates));
+  msg (2, "deleting circuit with %ld gates", COUNT (c->gates));
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
     delete_gate (*p);
   RELEASE (c->inputs);
@@ -71,37 +71,6 @@ void connect_gates (Gate * input, Gate * output) {
   PUSH (stripped_output->inputs, input);
 }
 
-static void coi (Circuit * c, Gate * g, int sign) {
-  if (SIGN (g)) sign = !sign, g = NOT (g);
-  assert (c);
-  assert (g);
-  const int mark = (1<<sign);
-  if (g->mark & mark) return;
-  g->mark |= mark;
-  if (sign) g->neg++; else g->pos++;
-  switch (g->op) {
-    case OR:
-    case AND:
-      for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
-	coi (c, *p, sign);
-      break;
-    case ITE:
-      for (Gate ** p = g->inputs.start; p < g->inputs.top; p++) {
-	coi (c, *p, sign);
-	if (p == g->inputs.start) coi (c, *p, !sign);
-      }
-      break;
-    case XOR:
-    case XNOR:
-      for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
-	coi (c, *p, sign), coi (c, *p, !sign);
-      break;
-    case FALSE:
-    case INPUT:
-      break;
-  }
-}
-
 void connect_output (Circuit * c, Gate * output) {
   assert (c);
   assert (!c->output);
@@ -109,7 +78,7 @@ void connect_output (Circuit * c, Gate * output) {
   c->output = output;
 }
 
-static void check_circuit_connected (Circuit * c) {
+void check_circuit_connected (Circuit * c) {
 #ifndef NDEBUG
   assert (c);
   assert (c->output);
@@ -133,27 +102,6 @@ static void check_circuit_connected (Circuit * c) {
     }
   }
 #endif
-}
-
-void cone_of_influence (Circuit * c) {
-  check_circuit_connected (c);
-  for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
-    Gate * g = *p;
-    g->pos = g->neg = g->mark = 0;
-  }
-  coi (c, c->output, 0);
-  int pos = 0, neg = 0, both = 0, disconnected = 0;
-  for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
-    Gate * g = *p;
-    assert (!SIGN (g));
-    if (g->pos && g->neg) both++;
-    else if (g->pos) pos++;
-    else if (g->neg) neg++;
-    else disconnected++;
-    g->mark = 0;
-  }
-  msg (1, "coi: %d pos, %d neg, %d both, %d disconnected",
-    pos, neg, both, disconnected);
 }
 
 static void print_gate_to_file (Gate * g, Operator outer, FILE * file) {
@@ -208,56 +156,3 @@ void println_circuit (Circuit * c) {
   fputc ('\n', stdout);
 }
 
-static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
-  const int sign = SIGN (g);
-  if (sign) g = NOT (g);
-  Gate * res = map[g->idx];
-  if (!res) {
-    Gate ** inputs = g->inputs.start;
-    switch (g->op) {
-      case FALSE:
-        res = NOT (new_false_gate (c));
-	break;
-      case INPUT:
-        res = NOT (new_input_gate (c, g->input));
-	break;
-      case AND:
-        res = new_or_gate (c);
-	goto CONNECT;
-      case XOR:
-        res = new_xnor_gate (c);
-	goto CONNECT;
-      case OR:
-        res = new_and_gate (c);
-	goto CONNECT;
-      case XNOR:
-        res = new_xor_gate (c);
-      CONNECT:
-	for (Gate ** p = inputs; p < g->inputs.top; p++)
-	  connect_gates (negate_gate (*p, map, c), res);
-	break;
-      case ITE:
-        res = new_ite_gate (c);
-        connect_gates (negate_gate (inputs[0], map, c), res);
-        connect_gates (negate_gate (inputs[2], map, c), res); /* yes 2 !! */
-        connect_gates (negate_gate (inputs[1], map, c), res); /* yes 1 !! */
-        break;
-    }
-    map[g->idx] = res;
-  }
-  if (sign) res = NOT (res);
-  return res;
-}
-
-Circuit * negate_circuit (Circuit * c) {
-  check_circuit_connected (c);
-  Circuit * res = new_circuit ();
-  const int num_gates = COUNT (c->gates);
-  Gate ** map;
-  ALLOC (map, num_gates);
-  Gate * o = negate_gate (c->output, map, res);
-  connect_output (res, o);
-  DEALLOC (map, num_gates);
-  cone_of_influence (res);
-  return res;
-}

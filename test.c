@@ -36,7 +36,7 @@ void test () {
   delete_clause (c);
 }
 #endif
-#if 1
+#if 0
 {
   CNF * cnf = new_cnf ();
   add_clause_to_cnf (new_clause_arg (0), cnf);
@@ -44,6 +44,19 @@ void test () {
   add_clause_to_cnf (new_binary_clause (1, 2), cnf);
   add_clause_to_cnf (new_clause_arg (1, 3, 0), cnf);
   add_clause_to_cnf (new_clause_arg (-1, -2, -3, 0), cnf);
+  print_cnf (cnf);
+  delete_cnf (cnf);
+}
+#endif
+#if 1
+{
+  Reader * reader = new_reader ("<stdin>", stdin);
+  Circuit * circuit = parse_formula (reader);
+  delete_reader (reader);
+  println_circuit (circuit);
+  CNF * cnf = new_cnf ();
+  tseitin_encoding (circuit, cnf, 0);
+  delete_circuit (circuit);
   print_cnf (cnf);
   delete_cnf (cnf);
 }
