@@ -13,6 +13,7 @@
 #include "coi.h"
 #include "encode.h"
 #include "encoding.h"
+#include "logging.h"
 #include "mem.h"
 #include "msg.h"
 #include "negate.h"

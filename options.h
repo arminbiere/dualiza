@@ -1,22 +1,22 @@
 /*------------------------------------------------------------------------*/
-// List of long options (both in debugging and non-debugging build).
+// List of long options available in all build configurations.
 
-#define OPTIONS_NDEBUG \
+#define OPTIONS_ALL \
 OPTION (verbosity,	0, verbose level) \
 
 /*------------------------------------------------------------------------*/
-// List of long options only available in debugging build ('-g').
-#ifndef NDEBUG
-#define OPTIONS_DEBUG \
+// List of long options only available in logging build ('-l').
+#ifndef NLOG
+#define OPTIONS_LOG \
 OPTION (logging,	0, logging level)
 #else
-#define OPTIONS_DEBUG /**/
+#define OPTIONS_LOG /**/
 #endif
 /*------------------------------------------------------------------------*/
 
 #define OPTIONS \
-OPTIONS_NDEBUG \
-OPTIONS_DEBUG
+OPTIONS_ALL \
+OPTIONS_LOG
 
 void usage_options ();
 void print_options ();

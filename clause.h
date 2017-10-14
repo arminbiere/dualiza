@@ -5,9 +5,10 @@ struct Clause {
   int glue, size, literals[];
 };
 
-Clause * new_clause (const int * literals, const int size);
-Clause * new_binary_clause (int first, int second);
-Clause * new_clause_arg (int first, ...);
+Clause * new_clause (const int *, const int size);
+Clause * new_unary_clause (int);
+Clause * new_binary_clause (int, int);
+Clause * new_clause_arg (int, ...);
 void delete_clause (Clause *);
 
 void print_clause_to_file (Clause *, FILE *);

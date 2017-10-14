@@ -16,6 +16,10 @@ Clause * new_clause (const int * literals, const int size) {
   return res;
 }
 
+Clause * new_unary_clause (int unit) {
+  return new_clause (&unit, 1);
+}
+
 Clause * new_binary_clause (int first, int second) {
   int literals[2] = { first, second };
   return new_clause (literals, 2);

@@ -9,6 +9,9 @@ fputs (
 "  -h | --help    print this command line option summary\n"
 "  --version      print version\n"
 "  -v             increase verbosity\n"
+#ifndef NLOG
+#endif
+"  -l             enable logging\n"
 "\n"
 "or one of the following long options with default values\n"
 "\n"
@@ -26,12 +29,18 @@ int main (int argc, char ** argv) {
                !strcmp (argv[i], "--help")) usage (), exit (0);
     else if (!strcmp (argv[i], "--version"))
       printf ("%s\n", get_version ()), exit (0);
-    else if (!strcmp (argv[i], "-v")) verbosity = 1;
+    else if (!strcmp (argv[i], "-v")) verbosity++;
+#ifndef NLOG
+    else if (!strcmp (argv[i], "-l")) logging++;
+#endif
     else if (argv[i][0] == '-')
       die ("invalid short option '%s'", argv[i]);
     else if (input_name)
       die ("multiple inputs '%s' and '%s'", input_name, argv[i]);
     else input_name = argv[i];
+#ifndef NLOG
+  if (logging) verbosity = INT_MAX;
+#endif
   int close_input = 0;
   FILE * input_file;
   if (!input_name) input_name = "<stdin>", input_file = stdin;

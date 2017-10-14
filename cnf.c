@@ -39,6 +39,7 @@ void delete_cnf (CNF * cnf) {
 }
 
 void add_clause_to_cnf (Clause * c, CNF * cnf) {
+  assert (c), assert (cnf);
   if (c->negative) cnf->negative++; else cnf->positive++;
   if (c->redundant) cnf->redundant++; else cnf->irredundant++;
   assert (!c->active);

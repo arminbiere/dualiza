@@ -11,6 +11,18 @@ static Gate * new_gate (Circuit * c, Operator op) {
   return res;
 }
 
+int get_gate_size (Gate * g) {
+  g = STRIP (g);
+  return COUNT (g->inputs);
+}
+
+Gate * get_gate_input (Gate * g, int input) {
+  g = STRIP (g);
+  assert (0 <= input);
+  assert (input < COUNT (g->inputs));
+  return g->inputs.start[input];
+}
+
 Gate * new_false_gate (Circuit * c) {
   if (c->zero) return c->zero;
   return c->zero = new_gate (c, FALSE);

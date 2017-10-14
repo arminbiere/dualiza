@@ -26,6 +26,9 @@ struct Gate {
   struct Symbol * symbol;
 };
 
+int get_gate_size (Gate *);
+Gate * get_gate_input (Gate *, int);
+
 struct Circuit {
   Gates inputs, gates;
   Gate * zero, * output;
