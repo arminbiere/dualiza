@@ -44,6 +44,7 @@ fputs (
 "where <option> is one of the following flags\n"
 "\n"
 "  -h | --help    print this command line option summary\n"
+"  --version      print version\n"
 "  -v             increase verbosity\n"
 "\n"
 "or one of the following long options with default values\n"
@@ -60,6 +61,8 @@ int main (int argc, char ** argv) {
 	die ("invalid long option '%s'", argv[i]);
     } else if (!strcmp (argv[i], "-h") ||
                !strcmp (argv[i], "--help")) usage (), exit (0);
+    else if (!strcmp (argv[i], "--version"))
+      printf ("%s\n", get_version ()), exit (0);
     else if (!strcmp (argv[i], "-v")) verbosity = 1;
     else if (argv[i][0] == '-')
       die ("invalid short option '%s'", argv[i]);

@@ -8,6 +8,7 @@
 
 #include "aiger.h"
 #include "formula.h"
+#include "clause.h"
 #include "circuit.h"
 #include "mem.h"
 #include "msg.h"
