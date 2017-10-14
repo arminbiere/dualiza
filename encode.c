@@ -69,7 +69,7 @@ static void reset_clause (Encoder * e) {
 static int clause_is_trivial (Encoder * e) {
   int * p = e->clause.start, * q = p;
   while (p < e->clause.top) {
-    int lit = *p, tmp = marked_lit (e, lit);
+    int lit = *p++, tmp = marked_lit (e, lit);
     if (tmp < 0) { LOG ("skipping trivial clause"); return 1; }
     if (tmp > 0) continue;
     mark_lit (e, lit);
@@ -86,9 +86,31 @@ static void encode_clause (Encoder * e) {
   if (!clause_is_trivial (e)) {
     const int size = COUNT (e->clause);
     Clause * c = new_clause (e->clause.start, size);
+    c->negative = e->negative;
     add_clause_to_cnf (c, e->cnf);
   }
   reset_clause (e);
+}
+
+static void encode_unary (Encoder * e, int lit) {
+  assert (EMPTY (e->clause));
+  PUSH (e->clause, lit);
+  encode_clause (e);
+}
+
+static void encode_binary (Encoder * e, int a, int b) {
+  assert (EMPTY (e->clause));
+  PUSH (e->clause, a);
+  PUSH (e->clause, b);
+  encode_clause (e);
+}
+
+static void encode_ternary (Encoder * e, int a, int b, int c) {
+  assert (EMPTY (e->clause));
+  PUSH (e->clause, a);
+  PUSH (e->clause, b);
+  PUSH (e->clause, c);
+  encode_clause (e);
 }
 
 static int map_input (Gate * g, int input, Encoder * e) {
@@ -97,36 +119,70 @@ static int map_input (Gate * g, int input, Encoder * e) {
 
 static void encode_false (Gate * g, Encoder * e) {
   LOG ("encoding FALSE gate");
-  int output_lit = map_gate (g, e);
-  add_clause_to_cnf (new_unary_clause (output_lit), e->cnf);
+  encode_unary (e, map_gate (g, e));
 }
 
 static void encode_and (Gate * g, Encoder * e) {
-  int size = get_gate_size (g);
+  const int size = get_gate_size (g);
   LOG ("encoding AND gate of size %ld", size);
-  int output_lit = map_gate (g, e);
-  for (int i = 0; i < size; i++) {
-    int input_lit = map_input (g, i, e);
-    PUSH (e->clause, -output_lit);
-    PUSH (e->clause, input_lit);
-    encode_clause (e);
-  }
+  int lit = map_gate (g, e);
+  for (int i = 0; i < size; i++)
+    encode_binary (e, -lit, map_input (g, i, e));
+  assert (EMPTY (e->clause));
+  PUSH (e->clause, lit);
+  for (int i = 0; i < size; i++)
+    PUSH (e->clause, -map_input (g, i, e));
+  encode_clause (e);
 }
 
 static void encode_xor (Gate * g, Encoder * e) {
+  assert (COUNT (g->inputs) == 2);
   LOG ("encoding XOR gate of size %ld", (long) COUNT (g->inputs));
+  int lit = map_gate (g, e);
+  int a = map_input (g, 0, e);
+  int b = map_input (g, 1, e);
+  encode_ternary (e, lit, a, b);
+  encode_ternary (e, lit, -a, -b);
+  encode_ternary (e, -lit, -a, b);
+  encode_ternary (e, -lit, a, -b);
 }
 
 static void encode_or (Gate * g, Encoder * e) {
+  const int size = get_gate_size (g);
   LOG ("encoding OR gate of size %ld", (long) COUNT (g->inputs));
+  int lit = map_gate (g, e);
+  for (int i = 0; i < size; i++)
+    encode_binary (e, lit, -map_input (g, i, e));
+  assert (EMPTY (e->clause));
+  PUSH (e->clause, -lit);
+  for (int i = 0; i < size; i++)
+    PUSH (e->clause, map_input (g, i, e));
+  encode_clause (e);
 }
 
 static void encode_ite (Gate * g, Encoder * e) {
+  assert (COUNT (g->inputs) == 3);
   LOG ("encoding ITE gate of size %ld", (long) COUNT (g->inputs));
+  int lit = map_gate (g, e);
+  int cond = map_input (g, 0, e);
+  int pos = map_input (g, 1, e);
+  int neg = map_input (g, 2, e);
+  encode_ternary (e, lit, -cond, -pos);
+  encode_ternary (e, lit, cond, -neg);
+  encode_ternary (e, -lit, -cond, pos);
+  encode_ternary (e, -lit, cond, neg);
 }
 
 static void encode_xnor (Gate * g, Encoder * e) {
+  assert (COUNT (g->inputs) == 2);
   LOG ("encoding XNOR gate of size %ld", (long) COUNT (g->inputs));
+  int lit = map_gate (g, e);
+  int a = map_input (g, 0, e);
+  int b = map_input (g, 1, e);
+  encode_ternary (e, -lit, a, b);
+  encode_ternary (e, -lit, -a, -b);
+  encode_ternary (e, lit, -a, b);
+  encode_ternary (e, lit, a, -b);
 }
 
 static void encode_gate (Gate * g, Encoder *e) {
@@ -137,7 +193,7 @@ static void encode_gate (Gate * g, Encoder *e) {
     case OR: encode_or (g, e); break;
     case ITE: encode_ite (g, e); break;
     case XNOR: encode_xnor (g, e); break;
-    case INPUT: break;
+    case INPUT: /* UNREACHABLE */ break;
   }
 }
 
