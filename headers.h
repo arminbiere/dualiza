@@ -11,6 +11,7 @@
 #include "circuit.h"
 #include "cnf.h"
 #include "coi.h"
+#include "encode.h"
 #include "encoding.h"
 #include "mem.h"
 #include "msg.h"
@@ -24,5 +25,4 @@
 #include "statistics.h"
 #include "symbols.h"
 #include "test.h"
-#include "tseitin.h"
 #include "version.h"

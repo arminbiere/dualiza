@@ -1,5 +1,10 @@
 #include "stack.h"
-typedef STACK (struct Gate *) Encoding;
+
+typedef struct Encoding Encoding;
+
+struct Encoding {
+  STACK (struct Gate *) stack;
+};
 
 Encoding * new_encoding ();
 void encode_gate (Encoding *, Gate *, int);

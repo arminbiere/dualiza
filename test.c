@@ -53,17 +53,17 @@ void test () {
   FILE * file = fopen ("example", "r");
   Reader * reader = new_reader ("example", file);
   Symbols * t = new_symbols ();
-  Circuit * circuit = parse_circuit (reader, t);
+  Circuit * c = parse_circuit (reader, t);
   delete_reader (reader);
   fclose (file);
-  println_circuit (circuit);
-  CNF * cnf = new_cnf ();
+  println_circuit (c);
+  CNF * f = new_cnf ();
   Encoding * e = new_encoding ();
-  tseitin_encoding (circuit, cnf, e, 0);
-  print_cnf (cnf);
-  delete_cnf (cnf);
+  encode_circuit (c, f, e, 0);
+  print_cnf (f);
+  delete_cnf (f);
   delete_encoding (e);
-  delete_circuit (circuit);
+  delete_circuit (c);
   delete_symbols (t);
 }
 #endif
