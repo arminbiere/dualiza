@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "aiger.h"
+#include "buffer.h"
 #include "clause.h"
 #include "circuit.h"
 #include "cnf.h"

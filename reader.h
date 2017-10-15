@@ -2,9 +2,10 @@ typedef struct Reader Reader;
 
 struct Reader {
   FILE * file;
+  Buffer * buffer;
   const char * name;
   STACK (char) symbol;
-  int comment, lineno, bytes, buffer, buffered;
+  int comment, lineno, bytes;
 };
 
 Reader * new_reader (const char * name, FILE * file);

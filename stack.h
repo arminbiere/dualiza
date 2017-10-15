@@ -43,6 +43,12 @@ do { \
 #define POP(S) \
   (assert (!EMPTY (S)), *--(S).top)
 
+#define RESIZE(S,N) \
+do { \
+  assert ((N) <= COUNT (S)); \
+  (S).top = (S).start + (N); \
+} while (0)
+
 #define RELEASE(S) \
 do { \
   DEALLOC ((S).start, SIZE (S)); \

@@ -69,6 +69,26 @@ void test () {
 #endif
 #if 0
 {
+  Buffer * b = new_buffer ();
+  enqueue_buffer (b, '1');
+  enqueue_buffer (b, '2');
+  enqueue_buffer (b, '3');
+  printf ("%c\n", dequeue_buffer (b));
+  enqueue_buffer (b, '4');
+  printf ("%c\n", dequeue_buffer (b));
+  enqueue_buffer (b, '5');
+  enqueue_buffer (b, '6');
+  printf ("%c\n", dequeue_buffer (b));
+  printf ("%c\n", dequeue_buffer (b));
+  enqueue_buffer (b, '7');
+  enqueue_buffer (b, '8');
+  while (!empty_buffer (b))
+    printf ("%c\n", dequeue_buffer (b));
+  delete_buffer (b);
+}
+#endif
+#if 0
+{
   Reader * r = new_reader ("<stdin>", stdin);
   Symbols * t = new_symbols ();
   Circuit * c = parse_circuit (r, t);

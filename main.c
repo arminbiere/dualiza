@@ -76,6 +76,15 @@ static void check_options () {
   if (!printing && negate)
     die ("can not use%s without printing option", NEGATE);
   assert (!(enumerate && negate));
+#undef FORMULA
+#undef AIGER
+#undef DIMACS
+#undef SAT
+#undef TAUTOLOGY
+#undef ENUMERATE
+#undef NEGATE
+#undef PRINTING
+#undef CHECKING
 }
 
 static int is_non_negative_number_string (const char * s) {

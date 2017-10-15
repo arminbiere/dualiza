@@ -6,20 +6,22 @@ Reader * new_reader (const char * name, FILE * file) {
   Reader * res;
   NEW (res);
   res->name = name;
+  res->buffer = new_buffer ();
   res->file = file;
   res->lineno = 1;
   return res;
 }
 
 void delete_reader (Reader * r) {
+  delete_buffer (r->buffer);
   RELEASE (r->symbol);
   DELETE (r);
 }
 
 int next_char (Reader * r) {
   int res;
-  if (r->buffered) res = r->buffer, r->buffered = 0;
-  else res = getc (r->file);
+  if (empty_buffer (r->buffer)) res = getc (r->file);
+  else res = dequeue_buffer (r->buffer);
   if (res == '\n') r->lineno++;
   if (res != EOF) r->bytes++;
   return res;
@@ -43,9 +45,7 @@ int next_non_white_space_char (Reader * r) {
 }
 
 void prev_char (Reader * r, int ch) {
-  assert (!r->buffered);
-  r->buffered = 1;
-  r->buffer = ch;
+  enqueue_buffer (r->buffer, ch);
   if (ch == '\n') assert (r->lineno > 1), r->lineno--;
   if (ch != EOF) assert (r->bytes > 0), r->bytes--;
 }
