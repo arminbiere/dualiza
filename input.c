@@ -35,6 +35,7 @@ static FILE * open_pipe (const char * name,
   sprintf (cmd, fmt, name);
   FILE * res = popen (cmd, "r");
   DEALLOC (cmd, bytes);
+  if (!res) die ("failed to open pipe to read compressed '%s'", name);
   return res;
 }
 

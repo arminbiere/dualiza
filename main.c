@@ -142,18 +142,15 @@ int main (int argc, char ** argv) {
   if (logging) verbosity = INT_MAX;
 #endif
   check_options ();
-  int close_input = 0;
-  FILE * input_file;
-  if (!input_name) input_name = "<stdin>", input_file = stdin;
-  else if (!(input_file = fopen (input_name, "r")))
-    die ("can not open '%s' for reading", input_name); 
-  else close_input = 1;
   msg (1, "DualCount #SAT Solver");
   msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
   print_version ();
   print_options ();
-  msg (1, "reading from '%s'", input_name);
-  if (close_input) fclose (input_file);
+  Input * input;
+  if (input_name) input = open_new_input (input_name);
+  else input = new_input_from_stdin ();
+  msg (1, "reading from '%s'", input->name);
+  delete_input (input);
   test ();
   print_statistics ();
   assert (!allocated);
