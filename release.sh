@@ -19,4 +19,7 @@ sed \
   -e "s,^RELEASED=.*,RELEASED=\"$RELEASED\"," \
 version.sh > $DIR/version.sh
 chmod 755 $DIR/version.sh
-cat $DIR/version.sh
+cd /tmp
+TAR=/tmp/$NAME.tar.xz
+tar cfJ $TAR $NAME
+ls -l $TAR
