@@ -18,7 +18,7 @@ void usage_options () {
   sprintf (buffer, "%s=%d", #NAME, DEFAULT); \
   fputs ("  --", stdout); \
   fputs (buffer, stdout); \
-  for (int i = strlen (buffer) - 2; i < len; i++) \
+  for (int i = strlen (buffer) - 5; i < len; i++) \
     fputc (' ', stdout); \
   fputs (#DESCRIPTION, stdout); \
   fputc ('\n', stdout);

@@ -2,25 +2,54 @@
 
 static void usage () {
 fputs (
-"usage: dualcount [ <option> ... ] [ <dimacs> | <aiger> | <formula> ]\n"
+"usage: dualcount [ <option> ... ] [ <file> ] [ <models> ]\n"
 "\n"
-"where <option> is one of the following flags\n"
+"where '<option>' is one of the following flags\n"
 "\n"
-"  -h | --help    print this command line option summary\n"
-"  --version      print version\n"
-"  -v             increase verbosity\n"
-#ifndef NLOG
-#endif
-"  -l             enable logging\n"
+"  -h | --help       print this command line option summary\n"
+"  --version         print version\n"
+"  -v                increase verbosity\n"
+#ifndef NLOG       
+"  -l                enable logging\n"
+#endif             
 "\n"
-"or one of the following long options with default values\n"
+"The default mode is to count and print the number of all models.\n"
+"Alternatively the input can either just be parsed and printed with\n"
+"\n"               
+"  -f | --formula    print formula\n"
+"  -a | --aiger      print AIGER\n"
+"  -d | --dimacs     print DIMACS\n"
+"  -n | --negate     negate before printing\n"
+"\n"
+"or checked to have a model or counter-model which are printed with\n"
+"\n"
+"  -s | --sat        only check to be satisfiable\n"
+"  -t | --tautology  only check to be tautological\n"
+"  -e | --enumerate  enumerate and print models\n"
+"\n"
+"Then '<option> can also be one of the following long options\n"
+"which all require to use an explicit argument (default values given)\n"
 "\n"
 , stdout);
+
   usage_options ();
+
+fputs (
+"\n"
+"The '<file>' argument is a path to a file of the following formats\n"
+"\n"
+"  <formula>         ASCII format with standard operators\n"
+"  <aiger>           and-inverter graph circuit in AIGER format\n"
+"  <dimacs>          CNF in DIMACS format\n"
+"\n"
+"If no '<file>' argument is given '<stdin>' is assumed.\n"
+"Finally '<models>' is a limit on the number of models.\n"
+, stdout);
 }
 
 int main (int argc, char ** argv) {
   const char * input_name = 0;
+  int print_dimacs = 0;
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
