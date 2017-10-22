@@ -71,9 +71,16 @@ void delete_reader (Reader * r) {
   DELETE (r);
 }
 
+static int get_char (Reader * r) {
+  if (r->eof) return EOF;
+  int res = getc (r->file);
+  if (res == EOF) r->eof = 1;
+  return res;
+}
+
 int next_char (Reader * r) {
   int res;
-  if (empty_buffer (r->buffer)) res = getc (r->file);
+  if (empty_buffer (r->buffer)) res = get_char (r);
   else res = dequeue_buffer (r->buffer);
   if (res == '\n') r->lineno++;
   if (res != EOF) r->bytes++;
@@ -81,7 +88,7 @@ int next_char (Reader * r) {
 }
 
 int peek_char (Reader * r) {
-  int res = getc (r->file);
+  int res = get_char (r);
   if (res != EOF) enqueue_buffer (r->buffer, res);
   return res;
 }

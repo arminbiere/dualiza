@@ -1,8 +1,8 @@
 typedef struct Reader Reader;
 
 struct Reader {
-  int close;
   FILE * file;
+  int close, eof;
   Buffer * buffer;
   const char * name;
   STACK (char) symbol;
