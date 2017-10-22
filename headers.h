@@ -29,4 +29,6 @@
 #include "symbols.h"
 #include "test.h"
 #include "type.h"
+#include "utils.h"
 #include "version.h"
+#include "writer.h"

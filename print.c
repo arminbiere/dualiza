@@ -49,6 +49,11 @@ void print_circuit_to_file (Circuit * c, FILE * file) {
   print_gate_to_file (c->output, -1, file);
 }
 
+void println_circuit_to_file (Circuit * c, FILE * file) {
+  print_circuit_to_file (c, file);
+  fputc ('\n', file);
+}
+
 void println_circuit (Circuit * c) {
   print_circuit_to_file (c, stdout);
   fputc ('\n', stdout);

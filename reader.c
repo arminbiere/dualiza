@@ -5,7 +5,7 @@ static Reader * new_reader (const char * name, FILE * file, int close) {
   assert (file);
   Reader * res;
   NEW (res);
-  res->name = name;
+  STRDUP (res->name, name);
   res->buffer = new_buffer ();
   res->close = close;
   res->file = file;
@@ -17,32 +17,11 @@ Reader * new_reader_from_stdin () {
   return new_reader ("<stdin>", stdin, 0);
 }
 
-static int has_suffix (const char * s, const char * t) {
-  size_t k = strlen (s), l = strlen (t);
-  return k >= l && !strcmp (s + k - l, t);
-}
-
-static FILE * open_pipe (const char * name,
-                         const char * suffix, const char * fmt)
-{
+static FILE * match_and_read_pipe (const char * name,
+				   const char * suffix,
+				   const char * fmt) {
   if (!has_suffix (name, suffix)) return 0;
-  long bytes = strlen (fmt) + strlen (name);
-  char * cmd;
-  ALLOC (cmd, bytes);
-  sprintf (cmd, fmt, name);
-  FILE * res = popen (cmd, "r");
-  DEALLOC (cmd, bytes);
-  if (!res) die ("failed to open pipe to read compressed '%s'", name);
-  return res;
-}
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-static int file_exists (const char * name) {
-  struct stat buf;
-  return !stat (name, &buf);
+  return read_pipe (fmt, name);
 }
 
 Reader * open_new_reader (const char * name) {
@@ -50,10 +29,10 @@ Reader * open_new_reader (const char * name) {
     die ("input file '%s' does not exist", name);
   int close = 2;
   FILE * file;
-  if ((file = open_pipe (name, ".bz2", "bzip2 -c -d %s"))
-  ||  (file = open_pipe (name, ".gz",  "gzip -c -d %s"))
-  ||  (file = open_pipe (name, ".xz",  "xz -c -d %s"))
-  ||  (file = open_pipe (name, ".7z",  "7z x -so %s 2>/dev/null")))
+  if ((file = match_and_read_pipe (name, ".bz2", "bzip2 -c -d %s"))
+  ||  (file = match_and_read_pipe (name, ".gz",  "gzip -c -d %s"))
+  ||  (file = match_and_read_pipe (name, ".xz",  "xz -c -d %s"))
+  ||  (file = match_and_read_pipe (name, ".7z",  "7z x -so %s 2>/dev/null")))
     msg (2, "opened pipe to read compressed file '%s'", name);
   else file = fopen (name, "r"), close = 1;
   if (!file) die ("failed to open '%s'", name);
@@ -67,6 +46,7 @@ void delete_reader (Reader * r) {
   delete_buffer (r->buffer);
   if (r->close == 1) fclose (r->file);
   if (r->close == 2) pclose (r->file);
+  STRDEL (r->name);
   RELEASE (r->symbol);
   DELETE (r);
 }
@@ -119,7 +99,7 @@ void prev_char (Reader * r, int ch) {
 void parse_error (Reader * r, const char * fmt, ...) {
   fflush (stdout);
   fprintf (stderr,
-    "dualcount: %s:%d: parse error at byte %d: ",
+    "dualcount: %s:%ld: parse error at byte %ld: ",
     r->name, r->lineno, r->bytes);
   va_list ap;
   va_start (ap, fmt);

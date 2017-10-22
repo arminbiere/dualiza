@@ -1,12 +1,13 @@
 typedef struct Reader Reader;
 
 struct Reader {
+  char * name;
   FILE * file;
   int close, eof;
   Buffer * buffer;
-  const char * name;
   STACK (char) symbol;
-  int comment, lineno, bytes;
+  long lineno, bytes;
+  int comment;
 };
 
 Reader * new_reader_from_stdin ();

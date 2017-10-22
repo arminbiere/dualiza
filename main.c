@@ -21,6 +21,10 @@ fputs (
 "  -d | --dimacs     print DIMACS\n"
 "  -n | --negate     negate before printing\n"
 "\n"
+"optionally to a file specified as\n"
+"\n"
+"  -o <file> \n"
+"\n"
 "or checked to have a model or counter-model which are printed with\n"
 "\n"
 "  -s | --sat        only check to be satisfiable\n"
@@ -50,7 +54,7 @@ static int sat, tautology, enumerate, limited;
 static int printing, checking;
 static long limit;
  
-static void check_options () {
+static void check_options (const char * output_name) {
   printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
   checking = (sat != 0) + (tautology != 0);
 # define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
@@ -76,6 +80,8 @@ static void check_options () {
     die ("can not combine%s%s and%s", CHECKING, NEGATE);
   if (!printing && negate)
     die ("can not use%s without printing option", NEGATE);
+  if (!printing && output_name)
+    die ("can output specified without printing option");
   assert (!(enumerate && negate));
 # undef FORMULA
 # undef AIGER
@@ -130,21 +136,32 @@ void check () {
   die ("checking not implement yet");
 }
 
-void print () {
+void print (const char * output_name) {
+  Writer * output;
+  if (output_name) {
+    msg (1, "opening and writing to '%s'", output_name);
+    output = open_new_writer (output_name);
+  } else {
+    msg (1, "opening and writing to '<stdout>'");
+    output = new_writer_from_stdout ();
+  }
   Circuit * c = primal;
   if (negate) {
     msg (1, "computing dual negated circuit");
     c = dual = negate_circuit (primal);
   }
   if (formula) {
-    msg (1, "printing formula");
-    println_circuit (c);
+    msg (1, "printing formula to '%s'", output->name);
+    println_circuit_to_file (c, output->file);
   } else if (dimacs) {
     die ("printing of DIMACS files not implement yet");
   } else {
     assert (aiger);
     die ("printing of AIGER files not implemented yet");
   }
+  delete_writer (output);
+  msg (1, "finished writing '%s'",
+    output_name ? output_name : "<stdout>");
 }
 
 void count () {
@@ -157,8 +174,18 @@ void reset () {
   if (symbols) delete_symbols (symbols);
 }
 
+static void setup_messages (const char * output_name) {
+  if (!printing) return;
+  if (!output_name) return;
+       if (dimacs)  message_prefix = "c ";
+  else if (formula) message_prefix = "-- ";
+  else if (aiger && verbosity) message_file = stderr;
+
+}
+
 int main (int argc, char ** argv) {
   const char * input_name = 0;
+  const char * output_name = 0;
   for (int i = 1; i < argc; i++)
     if (!strcmp (argv[i], "-h") ||
         !strcmp (argv[i], "--help")) usage (), exit (0);
@@ -185,6 +212,11 @@ int main (int argc, char ** argv) {
     else if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
 	die ("invalid long option '%s'", argv[i]);
+    } else if (!strcmp (argv[i], "-o")) {
+      if (++i == argc) die ("output file argument to '-o' missing'");
+      if (output_name)
+	die ("multiple output files '%s' and '%s'", output_name, argv[i]);
+      output_name = argv[i];
     } else if (argv[i][0] == '-')
       die ("invalid short option '%s'", argv[i]);
     else if (is_non_negative_number_string (argv[i])) {
@@ -197,7 +229,8 @@ int main (int argc, char ** argv) {
 #ifndef NLOG
   if (logging) verbosity = INT_MAX;
 #endif
-  check_options ();
+  check_options (output_name);
+  setup_messages (output_name);
   msg (1, "DualCount #SAT Solver");
   msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
   print_version ();
@@ -211,7 +244,7 @@ int main (int argc, char ** argv) {
   parse ();
   delete_reader (input);
        if (checking) check ();
-  else if (printing) print ();
+  else if (printing) print (output_name);
   else               count ();
   reset ();
 #endif

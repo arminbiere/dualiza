@@ -1,7 +1,10 @@
 #include "headers.h"
 
+const char * mesage_prefix;
+FILE * message_file;
+
 void die (const char * fmt, ...) {
-  fflush (stdout);
+  fflush (message_file ? message_file : stdout);
   fputs ("*** dualcount: ", stderr);
   va_list ap;
   va_start (ap, fmt);
@@ -13,11 +16,13 @@ void die (const char * fmt, ...) {
 
 void msg (int level, const char * fmt, ...) {
   if (verbosity < level) return;
-  fputs ("c [dualcount] ", stdout);
+  if (!message_file) message_file = stdout;
+  if (message_prefix) fputs (message_prefix, message_file);
+  fputs ("[dualcount] ", message_file);
   va_list ap;
   va_start (ap, fmt);
-  vprintf (fmt, ap);
+  vfprintf (message_file, fmt, ap);
   va_end (ap);
-  fputc ('\n', stdout);
-  fflush (stdout);
+  fputc ('\n', message_file);
+  fflush (message_file);
 }
