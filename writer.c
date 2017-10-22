@@ -12,7 +12,7 @@ static Writer * new_writer (const char * name, FILE * file, int close) {
 }
 
 Writer * new_writer_from_stdout () {
-  return new_writer_from_stdout ("<stdout>", stdout, 0);
+  return new_writer ("<stdout>", stdout, 0);
 }
 
 static FILE * match_and_write_pipe (const char * name,

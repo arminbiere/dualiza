@@ -13,17 +13,29 @@ fputs (
 "  -l                enable logging\n"
 #endif             
 "\n"
+"The '<file>' argument is a path to a file of the following formats\n"
+"\n"
+"  <formula>         ASCII format with standard operators\n"
+"  <aiger>           and-inverter graph circuit in AIGER format\n"
+"  <dimacs>          CNF in DIMACS format\n"
+"\n"
+"If no '<file>' argument is given '<stdin>' is assumed.  An input\n"
+"file which has a '.bz2', '.gz', '.xz' or '.7z' extension is assumed\n"
+"to be compressed and is decompressed during parsing on-the-fly.\n"
+"The parsed input is negated after parsing with the following option\n"
+"\n"
+"  -n | --negate     negate before printing\n"
+"\n"
 "The default mode is to count and print the number of all models.\n"
 "Alternatively the input can either just be parsed and printed with\n"
 "\n"               
 "  -f | --formula    print formula\n"
 "  -a | --aiger      print AIGER\n"
 "  -d | --dimacs     print DIMACS\n"
-"  -n | --negate     negate before printing\n"
 "\n"
-"optionally to a file specified as\n"
+"to '<stdout>' or optionally to a (compressed) file specified with\n"
 "\n"
-"  -o <file> \n"
+"  -o <file>\n"
 "\n"
 "or checked to have a model or counter-model which are printed with\n"
 "\n"
@@ -38,13 +50,6 @@ fputs (
   usage_options ();
 fputs (
 "\n"
-"The '<file>' argument is a path to a file of the following formats\n"
-"\n"
-"  <formula>         ASCII format with standard operators\n"
-"  <aiger>           and-inverter graph circuit in AIGER format\n"
-"  <dimacs>          CNF in DIMACS format\n"
-"\n"
-"If no '<file>' argument is given '<stdin>' is assumed.\n"
 "Finally '<limit>' is a limit on the number of partial models.\n"
 , stdout);
 }
@@ -63,7 +68,6 @@ static void check_options (const char * output_name) {
 # define SAT       (sat      >0?" '--sat'"      :(sat<0      ?" '-s'":""))
 # define TAUTOLOGY (tautology>0?" '--tautology'":(tautology<0?" '-t'":""))
 # define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
-# define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
 # define PRINTING FORMULA,AIGER,DIMACS
 # define CHECKING SAT,TAUTOLOGY
   if (printing > 1)
@@ -76,13 +80,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and%s", PRINTING, ENUMERATE);
   if (checking && enumerate)
     die ("can not combine%s%s and%s", CHECKING, ENUMERATE);
-  if (checking && negate)
-    die ("can not combine%s%s and%s", CHECKING, NEGATE);
-  if (!printing && negate)
-    die ("can not use%s without printing option", NEGATE);
   if (!printing && output_name)
     die ("can output specified without printing option");
-  assert (!(enumerate && negate));
 # undef FORMULA
 # undef AIGER
 # undef DIMACS
@@ -195,7 +194,6 @@ static void setup_messages (const char * output_name) {
        if (dimacs)  message_prefix = "c ";
   else if (formula) message_prefix = "-- ";
   else if (aiger && verbosity) message_file = stderr;
-
 }
 
 int main (int argc, char ** argv) {
