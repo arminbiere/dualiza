@@ -1,5 +1,15 @@
 #include "headers.h"
 
+static Gate * copy_input_gate (Gate * g, Circuit * c) {
+  Gate * res = new_input_gate (c);
+  if (g->symbol) {
+    res->symbol = g->symbol;
+    LOG ("copying input %d gate %d symbol '%s'",
+      res->input, res->idx, res->symbol->name);
+  }
+  return res;
+}
+
 static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
   const int sign = SIGN (g);
   if (sign) g = NOT (g);
@@ -11,7 +21,7 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
         res = NOT (new_false_gate (c));
 	break;
       case INPUT:
-        res = NOT (new_input_gate (c));
+        res = NOT (copy_input_gate (g, c));
 	break;
       case AND:
         res = new_or_gate (c);
@@ -47,6 +57,8 @@ Circuit * negate_circuit (Circuit * c) {
   const int num_gates = COUNT (c->gates);
   Gate ** map;
   ALLOC (map, num_gates);
+  for (Gate ** p = c->gates.start; p < c->gates.top; p++)
+    (void) negate_gate (*p, map, res);
   Gate * o = negate_gate (c->output, map, res);
   connect_output (res, o);
   DEALLOC (map, num_gates);

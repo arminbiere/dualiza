@@ -29,6 +29,7 @@ static Symbol * new_symbol (const char * name) {
   Symbol * res;
   NEW (res);
   STRDUP (res->name, name);
+  LOG ("new symbol '%s'", name);
   return res;
 }
 
