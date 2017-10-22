@@ -31,7 +31,7 @@ Writer * open_new_writer (const char * name) {
   ||  (file = match_and_write_pipe (name, ".7z",
 		"7z a -an -txz -si -so > %s 2>/dev/null")))
     msg (2, "opened pipe to write compressed file '%s'", name);
-  else file = fopen (name, "r"), close = 1;
+  else file = fopen (name, "w"), close = 1;
   if (!file) die ("failed to open '%s'", name);
   return new_writer (name, file, close);
 }
