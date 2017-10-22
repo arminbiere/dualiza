@@ -168,7 +168,13 @@ static void print (const char * output_name) {
     msg (1, "printing formula to '%s'", output->name);
     println_circuit_to_file (primal, output->file);
   } else if (dimacs) {
-    die ("printing of DIMACS files not implement yet");
+    CNF * f = new_cnf ();
+    Encoding * e = new_encoding ();
+    encode_circuit (primal, f, e, 0);
+    print_dimacs_encoding_to_file (e, output->file);
+    print_cnf_to_file (f, output->file);
+    delete_cnf (f);
+    delete_encoding (e);
   } else {
     assert (aiger);
     die ("printing of AIGER files not implemented yet");

@@ -18,7 +18,7 @@ void encode_input (Encoding * e, Gate * g, int idx) {
     PUSH (e->stack, 0);
   assert (!e->stack.start[idx]);
   e->stack.start[idx] = g;
-  LOG ("input %d (gate %d) encoded with literal %d",
+  LOG ("input %d gate %d encoded with literal %d",
     g->input, g->idx, idx);
 }
 
@@ -27,4 +27,25 @@ Gate * decode_literal (Encoding * e, int idx) {
   Gate * res  = e->stack.start[idx];
   assert (res);
   return res;
+}
+
+void print_dimacs_encoding_to_file (Encoding * e, FILE * file) {
+  const int num_encoded = COUNT (e->stack);
+  for (int i = 0; i < num_encoded; i++) {
+    Gate * g = e->stack.start[i];
+    if (!g) continue;
+    if (g->op != INPUT) continue;
+    fprintf (file, "c index %d input %d gate %d", i, g->input, g->idx);
+    if (g->symbol) {
+      fputs (" symbol ", file);
+      const char * name = g->symbol->name;
+      assert (name);
+      fputs (name, file);
+    }
+    fputc ('\n', file);
+  }
+}
+
+void print_dimacs_encoding (Encoding * e) {
+  print_dimacs_encoding_to_file (e, stdout);
 }
