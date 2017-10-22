@@ -50,7 +50,7 @@ void test () {
   delete_cnf (cnf);
 }
 #endif
-#if 1
+#if 0
 {
   Reader * reader = open_new_reader ("example");
   Symbols * t = new_symbols ();
@@ -112,6 +112,16 @@ void test () {
   assert (b == bgain);
   delete_symbols (t);
 }
+#endif
+#if 1
+  Number * n = new_number ();
+  println_number (n);
+  add_power_of_two_to_number (n, 7);
+  add_power_of_two_to_number (n, 13);
+  add_power_of_two_to_number (n, 32);
+  add_power_of_two_to_number (n, 32);
+  println_number (n);
+  delete_number (n);
 #endif
 }
 #endif
