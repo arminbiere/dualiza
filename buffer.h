@@ -1,5 +1,3 @@
-#include "stack.h"
-
 typedef struct Buffer Buffer;
 
 struct Buffer {

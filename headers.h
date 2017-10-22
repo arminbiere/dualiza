@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "macros.h"
+
 #include "aiger.h"
 #include "buffer.h"
 #include "circuit.h"
@@ -23,7 +25,6 @@
 #include "print.h"
 #include "reader.h"
 #include "resources.h"
-#include "stack.h"
 #include "statistics.h"
 #include "symbols.h"
 #include "test.h"

@@ -1,5 +1,3 @@
-#include "stack.h"
-
 typedef enum Operator Operator;
 typedef struct Gate Gate;
 typedef struct Circuit Circuit;
