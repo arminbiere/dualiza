@@ -33,6 +33,6 @@ Type get_file_type (Reader * reader) {
     }
   }
   msg (2, "assuming %s file type after peeking at %ld characters",
-    (res==AIGER ? "AIGER" : (res==DIMACS ? "DIMACS" : "FORMULA")), count);
+    (res==AIGER ? "AIGER" : (res==DIMACS ? "DIMACS" : "formula")), count);
   return res;
 }
