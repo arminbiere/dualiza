@@ -1,6 +1,7 @@
 typedef struct Reader Reader;
 
 struct Reader {
+  int close;
   FILE * file;
   Buffer * buffer;
   const char * name;
@@ -8,7 +9,9 @@ struct Reader {
   int comment, lineno, bytes;
 };
 
-Reader * new_reader (const char * name, FILE * file);
+Reader * new_reader_from_stdin ();
+Reader * open_new_reader (const char * path);
+
 void delete_reader (Reader *);
 
 int next_char (Reader *);

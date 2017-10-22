@@ -50,12 +50,10 @@ void test () {
 #endif
 #if 1
 {
-  FILE * file = fopen ("example", "r");
-  Reader * reader = new_reader ("example", file);
+  Reader * reader = open_new_reader ("example");
   Symbols * t = new_symbols ();
   Circuit * c = parse_circuit (reader, t);
   delete_reader (reader);
-  fclose (file);
   println_circuit (c);
   CNF * f = new_cnf ();
   Encoding * e = new_encoding ();

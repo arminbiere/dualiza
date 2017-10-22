@@ -47,11 +47,12 @@ fputs (
 
 static int formula, aiger, dimacs, negate;
 static int sat, tautology, enumerate, limited;
+static int printing, checking;
 static long limit;
  
 static void check_options () {
-  const int printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
-  const int checking = (sat != 0) + (tautology != 0);
+  printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
+  checking = (sat != 0) + (tautology != 0);
 #define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
 #define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
 #define DIMACS    (dimacs   >0?" '--dimacs'"   :(dimacs<0   ?" '-d'":""))
@@ -110,6 +111,24 @@ static long parse_non_negative_number (const char * s) {
   return res;
 }
 
+static Reader * input;
+
+static void parse () {
+  assert (input);
+}
+
+static void check () {
+  msg (1, "checking");
+}
+
+static void print () {
+  msg (1, "printing");
+}
+
+static void count () {
+  msg (1, "printing");
+}
+
 int main (int argc, char ** argv) {
   const char * input_name = 0;
   for (int i = 1; i < argc; i++)
@@ -155,12 +174,15 @@ int main (int argc, char ** argv) {
   msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
   print_version ();
   print_options ();
-  Input * input;
-  if (input_name) input = open_new_input (input_name);
-  else input = new_input_from_stdin ();
+  if (input_name) input = open_new_reader (input_name);
+  else input = new_reader_from_stdin ();
   msg (1, "reading from '%s'", input->name);
-  delete_input (input);
+  parse ();
+  delete_reader (input);
   test ();
+  if (checking) check ();
+  else if (printing) print ();
+  else count ();
   print_statistics ();
   assert (!allocated);
   return 0;
