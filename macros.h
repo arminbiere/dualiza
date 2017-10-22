@@ -1,8 +1,8 @@
 #include "stack.h"
 
-#define SWAP(TYPE,A,B) { \
+#define SWAP(TYPE,A,B) \
 do { \
   TYPE TMP = (A); \
   (A) = (B); \
-  (B) = (A); \
+  (B) = TMP; \
 } while (0)

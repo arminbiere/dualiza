@@ -121,7 +121,14 @@ static Reader * input;
 static Symbols * symbols;
 static Circuit * primal, * dual;
 
-void parse () {
+static void setup_input (const char * input_name) {
+  if (input_name) input = open_new_reader (input_name);
+  else input = new_reader_from_stdin ();
+  msg (1, "reading from '%s'", input->name);
+}
+
+static void parse (const char * input_name) {
+  setup_input (input_name);
   assert (input);
   symbols = new_symbols ();
   Type type = get_file_type (input);
@@ -132,11 +139,24 @@ void parse () {
   else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
 }
 
-void check () {
+static void generate_dual () {
+  assert (primal);
+  assert (!dual);
+  msg (1, "generating dual circuit");
+  dual = negate_circuit (primal);
+  if (negate) {
+    SWAP (Circuit *, primal, dual);
+    msg (1,
+      "swapped dual and primal due since '%s' specified",
+      (negate>0? "--negate" : "-n"));
+  }
+}
+
+static void check () {
   die ("checking not implement yet");
 }
 
-void print (const char * output_name) {
+static void print (const char * output_name) {
   Writer * output;
   if (output_name) {
     msg (1, "opening and writing to '%s'", output_name);
@@ -145,14 +165,9 @@ void print (const char * output_name) {
     msg (1, "opening and writing to '<stdout>'");
     output = new_writer_from_stdout ();
   }
-  Circuit * c = primal;
-  if (negate) {
-    msg (1, "computing dual negated circuit");
-    c = dual = negate_circuit (primal);
-  }
   if (formula) {
     msg (1, "printing formula to '%s'", output->name);
-    println_circuit_to_file (c, output->file);
+    println_circuit_to_file (primal, output->file);
   } else if (dimacs) {
     die ("printing of DIMACS files not implement yet");
   } else {
@@ -164,11 +179,11 @@ void print (const char * output_name) {
     output_name ? output_name : "<stdout>");
 }
 
-void count () {
+static void count () {
   die ("counting not implement yet");
 }
 
-void reset () {
+static void reset () {
   if (primal)  delete_circuit (primal);
   if (dual)    delete_circuit (dual);
   if (symbols) delete_symbols (symbols);
@@ -176,7 +191,7 @@ void reset () {
 
 static void setup_messages (const char * output_name) {
   if (!printing) return;
-  if (!output_name) return;
+  if (output_name) return;
        if (dimacs)  message_prefix = "c ";
   else if (formula) message_prefix = "-- ";
   else if (aiger && verbosity) message_file = stderr;
@@ -238,11 +253,9 @@ int main (int argc, char ** argv) {
 #ifdef TEST
   test ();
 #else
-  if (input_name) input = open_new_reader (input_name);
-  else input = new_reader_from_stdin ();
-  msg (1, "reading from '%s'", input->name);
-  parse ();
+  parse (input_name);
   delete_reader (input);
+  generate_dual ();
        if (checking) check ();
   else if (printing) print (output_name);
   else               count ();
