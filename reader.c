@@ -61,6 +61,9 @@ Reader * open_new_reader (const char * name) {
 }
 
 void delete_reader (Reader * r) {
+  msg (2,
+    "deleting input reader of '%s' after reading %ld bytes",
+    r->name, r->bytes);
   delete_buffer (r->buffer);
   if (r->close == 1) fclose (r->file);
   if (r->close == 2) pclose (r->file);

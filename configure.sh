@@ -2,6 +2,7 @@
 debug=no
 check=undefined
 log=undefined
+testing=no
 die () {
   echo "*** configure.sh: $*" 1>&2
   exit 1
@@ -16,6 +17,7 @@ where '<option>' is one of the following
 -g | --debug  compile with debugging information
 -c | --check  include assertion checking code (default for '-g')
 -l | --log    include logging code (default for '-g')
+-t | --test   include testing code
 EOF
 exit 0
 }
@@ -26,6 +28,7 @@ do
     -g | --debug) debug=yes;;
     -l | --log | --logging) log=yes;;
     -c | --chk | --check | --checking) check=yes;;
+    -t | --test | --testing) testing=yes;;
     *) die "invalid option '$1' (try '-h')";;
   esac
   shift
@@ -42,6 +45,7 @@ else
 fi
 [ $check = no ] && CFLAGS="$CFLAGS -DNDEBUG"
 [ $log = no ] && CFLAGS="$CFLAGS -DNLOG"
+[ $testing = yes ] && CFLAGS="$CFLAGS -DTEST"
 echo "$CC $CFLAGS"
 rm -f makefile
 sed -e "s,@CC@,$CC," -e "s,@CFLAGS@,$CFLAGS," makefile.in > makefile

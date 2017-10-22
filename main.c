@@ -53,15 +53,15 @@ static long limit;
 static void check_options () {
   printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
   checking = (sat != 0) + (tautology != 0);
-#define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
-#define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
-#define DIMACS    (dimacs   >0?" '--dimacs'"   :(dimacs<0   ?" '-d'":""))
-#define SAT       (sat      >0?" '--sat'"      :(sat<0      ?" '-s'":""))
-#define TAUTOLOGY (tautology>0?" '--tautology'":(tautology<0?" '-t'":""))
-#define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
-#define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
-#define PRINTING FORMULA,AIGER,DIMACS
-#define CHECKING SAT,TAUTOLOGY
+# define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
+# define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
+# define DIMACS    (dimacs   >0?" '--dimacs'"   :(dimacs<0   ?" '-d'":""))
+# define SAT       (sat      >0?" '--sat'"      :(sat<0      ?" '-s'":""))
+# define TAUTOLOGY (tautology>0?" '--tautology'":(tautology<0?" '-t'":""))
+# define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
+# define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
+# define PRINTING FORMULA,AIGER,DIMACS
+# define CHECKING SAT,TAUTOLOGY
   if (printing > 1)
     die ("too many printing options:%s%s%s", PRINTING);
   if (checking > 1)
@@ -77,15 +77,15 @@ static void check_options () {
   if (!printing && negate)
     die ("can not use%s without printing option", NEGATE);
   assert (!(enumerate && negate));
-#undef FORMULA
-#undef AIGER
-#undef DIMACS
-#undef SAT
-#undef TAUTOLOGY
-#undef ENUMERATE
-#undef NEGATE
-#undef PRINTING
-#undef CHECKING
+# undef FORMULA
+# undef AIGER
+# undef DIMACS
+# undef SAT
+# undef TAUTOLOGY
+# undef ENUMERATE
+# undef NEGATE
+# undef PRINTING
+# undef CHECKING
 }
 
 static int is_non_negative_number_string (const char * s) {
@@ -112,21 +112,49 @@ static long parse_non_negative_number (const char * s) {
 }
 
 static Reader * input;
+static Symbols * symbols;
+static Circuit * primal, * dual;
 
-static void parse () {
+void parse () {
   assert (input);
+  symbols = new_symbols ();
+  Type type = get_file_type (input);
+  if (type == FORMULA) {
+    msg (1, "parsing input as formula");
+    primal = parse_circuit (input, symbols);
+  } else    if (type == DIMACS)  die ("can not parse DIMACS files yet");
+  else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
 }
 
-static void check () {
-  msg (1, "checking");
+void check () {
+  die ("checking not implement yet");
 }
 
-static void print () {
-  msg (1, "printing");
+void print () {
+  Circuit * c = primal;
+  if (negate) {
+    msg (1, "computing dual negated circuit");
+    c = dual = negate_circuit (primal);
+  }
+  if (formula) {
+    msg (1, "printing formula");
+    println_circuit (c);
+  } else if (dimacs) {
+    die ("printing of DIMACS files not implement yet");
+  } else {
+    assert (aiger);
+    die ("printing of AIGER files not implemented yet");
+  }
 }
 
-static void count () {
-  msg (1, "printing");
+void count () {
+  die ("counting not implement yet");
+}
+
+void reset () {
+  if (primal)  delete_circuit (primal);
+  if (dual)    delete_circuit (dual);
+  if (symbols) delete_symbols (symbols);
 }
 
 int main (int argc, char ** argv) {
@@ -174,15 +202,19 @@ int main (int argc, char ** argv) {
   msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
   print_version ();
   print_options ();
+#ifdef TEST
+  test ();
+#else
   if (input_name) input = open_new_reader (input_name);
   else input = new_reader_from_stdin ();
   msg (1, "reading from '%s'", input->name);
   parse ();
   delete_reader (input);
-  test ();
-  if (checking) check ();
+       if (checking) check ();
   else if (printing) print ();
-  else count ();
+  else               count ();
+  reset ();
+#endif
   print_statistics ();
   assert (!allocated);
   return 0;

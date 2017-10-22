@@ -1,4 +1,6 @@
+#ifdef TEST
 #include "headers.h"
+
 
 void test () {
 #if 0
@@ -112,4 +114,5 @@ void test () {
 }
 #endif
 }
+#endif
 

@@ -1,3 +1,3 @@
 typedef enum Type Type;
-enum Type { NOTYPE = 0, DIMACS, AIGER, FORMULA };
-Type get_file_info (Reader *);
+enum Type { DIMACS, AIGER, FORMULA };
+Type get_file_type (Reader *);
