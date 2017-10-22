@@ -77,6 +77,12 @@ int next_char (Reader * r) {
   return res;
 }
 
+int peek_char (Reader * r) {
+  int res = getc (r->file);
+  if (res != EOF) enqueue_buffer (r->buffer, res);
+  return res;
+}
+
 static int is_space_character (int ch) {
   return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n';
 }
