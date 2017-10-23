@@ -270,7 +270,6 @@ int main (int argc, char ** argv) {
   else               count ();
   reset ();
 #endif
-  sleep (1000);
   reset_signal_handlers ();
   print_statistics ();
   assert (!allocated);

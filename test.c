@@ -121,6 +121,12 @@ void test () {
   add_power_of_two_to_number (n, 32);
   add_power_of_two_to_number (n, 32);
   println_number (n);
+  sub_power_of_two_from_number (n, 32);
+  println_number (n);
+  sub_power_of_two_from_number (n, 30);
+  println_number (n);
+  sub_power_of_two_from_number (n, 30);
+  println_number (n);
   delete_number (n);
 #endif
 }

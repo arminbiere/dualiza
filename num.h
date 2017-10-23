@@ -5,8 +5,10 @@ struct Number {
 };
 
 Number * new_number ();
-void add_power_of_two_to_number (Number * number, int);
 void delete_number (Number *);
+
+void add_power_of_two_to_number (Number *, int exponent);
+void sub_power_of_two_from_number (Number *, int exponent);
 
 void print_number_to_file (Number *, FILE *);
 void println_number_to_file (Number *, FILE *);

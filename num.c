@@ -33,16 +33,36 @@ void println_number (Number * n) {
   println_number_to_file (n, stdout);
 }
 
-void add_power_of_two_to_number (Number * n, int p) {
+void add_power_of_two_to_number (Number * n, int e) {
   assert (n);
-  assert (p >= 0);
-  long word = p >> 5;
-  const int bit = p & 31;
+  assert (e >= 0);
+  long word = e >> 5;
+  const int bit = e & 31;
   unsigned inc = 1u << bit;
   for (;;) {
     if (word < COUNT (n->stack)) {
-      if ((n->stack.start[word] += inc)) break;
+      unsigned before = n->stack.start[word];
+      unsigned after = before + inc;
+      n->stack.start[word] = after;
+      if (after) break;
       inc = 1, word++;
     } else PUSH (n->stack, 0);
+  }
+}
+
+void sub_power_of_two_from_number (Number * n, int e) {
+  assert (n);
+  assert (e >= 0);
+  long word = e >> 5;
+  const int bit = e & 31;
+  unsigned dec = 1u << bit;
+  unsigned * words = n->stack.start;
+  while (dec) {
+    assert (word < COUNT (n->stack));
+    unsigned before = words[word];
+    unsigned after = before - dec;
+    words[word] = after;
+    if (after < before) break;
+    dec = 1, word++;
   }
 }
