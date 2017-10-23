@@ -40,6 +40,9 @@ do { \
 #define POP(S) \
   (assert (!EMPTY (S)), *--(S).top)
 
+#define TOP(S) \
+  (assert (!EMPTY (S)), (S).top[-1])
+
 #define RESIZE(S,N) \
 do { \
   assert ((N) <= COUNT (S)); \
