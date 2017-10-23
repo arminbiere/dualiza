@@ -4,9 +4,9 @@ MAKEFLAGS=-j
 %.o: %.c $(shell ls *.h) makefile
 	$(CC) $(CFLAGS) -c $<
 OBJ=$(shell ls *.c|grep -v version|sed -e 's,.c$$,.o,g') version.o
-dualcount: $(OBJ) makefile
+dualiza: $(OBJ) makefile
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
 version.c: $(shell ls *.[ch]|grep -v version.c) VERSION makefile version.sh
 	./version.sh > $@
 clean:
-	rm -f makefile version.c *.o dualcount
+	rm -f makefile version.c *.o dualiza

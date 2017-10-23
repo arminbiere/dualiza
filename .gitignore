@@ -1,4 +1,4 @@
 makefile
 *.o
-dualcount
+dualiza
 version.c
