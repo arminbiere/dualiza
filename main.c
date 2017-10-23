@@ -6,7 +6,7 @@
 
 static void usage () {
 fputs (
-"usage: dualcount [ <option> ... ] [ <file> ] [ <limit> ]\n"
+"usage: dualiza [ <option> ... ] [ <file> ] [ <limit> ]\n"
 "\n"
 "where '<option>' is one of the following flags\n"
 "\n"

@@ -99,7 +99,7 @@ void prev_char (Reader * r, int ch) {
 void parse_error (Reader * r, const char * fmt, ...) {
   fflush (stdout);
   fprintf (stderr,
-    "dualcount: %s:%ld: parse error at byte %ld: ",
+    "dualiza: %s:%ld: parse error at byte %ld: ",
     r->name, r->lineno, r->bytes);
   va_list ap;
   va_start (ap, fmt);

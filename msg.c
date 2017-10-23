@@ -4,8 +4,8 @@ const char * mesage_prefix;
 FILE * message_file;
 
 void die (const char * fmt, ...) {
-  fflush (message_file ? message_file : stdout);
-  fputs ("*** dualcount: ", stderr);
+  fflush (stdout);
+  fputs ("*** dualiza: ", stderr);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
@@ -18,7 +18,7 @@ void msg (int level, const char * fmt, ...) {
   if (verbosity < level) return;
   if (!message_file) message_file = stdout;
   if (message_prefix) fputs (message_prefix, message_file);
-  fputs ("[dualcount] ", message_file);
+  fputs ("[dualiza] ", message_file);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (message_file, fmt, ap);
