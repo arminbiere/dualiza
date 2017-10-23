@@ -1,2 +1,7 @@
+This is a model counter, model enumerator and SAT solver.
+It works with DIMACS and AIGER files as well as plain formulas.
+
 To compile run './configure.sh && make'.
 
+Armin Biere
+Mo 23. Oct. 08:20:11 CEST 2017
