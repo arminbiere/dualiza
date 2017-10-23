@@ -36,12 +36,10 @@ static void catch_signal (int sig) {
   if (!catched_signal) {
     catched_signal = 1;
     msg (1, "");
-    msg (1, "CAUGHT SIGNAL %d %s", sig, signal_name (sig));
-    msg (1, "result");
-    msg (1, "s UNKNOWN");
+    msg (1, "caught signal(%d) '%s'", sig, signal_name (sig));
     print_statistics ();
   }
-  msg (1, "RERAISING SIGNAL %d %s", sig, signal_name (sig));
+  msg (1, "reraising signal(%d) '%s'", sig, signal_name (sig));
   reset_signal_handlers ();
   raise (sig);
 }

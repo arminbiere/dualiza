@@ -257,6 +257,7 @@ int main (int argc, char ** argv) {
   msg (1, "DualCount #SAT Solver");
   msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
   print_version ();
+  set_signal_handlers ();
   print_options ();
 #ifdef TEST
   test ();
@@ -269,6 +270,8 @@ int main (int argc, char ** argv) {
   else               count ();
   reset ();
 #endif
+  sleep (1000);
+  reset_signal_handlers ();
   print_statistics ();
   assert (!allocated);
   return 0;
