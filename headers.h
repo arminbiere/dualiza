@@ -26,6 +26,7 @@
 #include "print.h"
 #include "reader.h"
 #include "resources.h"
+#include "signal.h"
 #include "statistics.h"
 #include "symbols.h"
 #include "test.h"

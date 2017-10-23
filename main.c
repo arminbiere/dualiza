@@ -1,5 +1,9 @@
 #include "headers.h"
 
+#ifdef TEST
+#define static /**/
+#endif
+
 static void usage () {
 fputs (
 "usage: dualcount [ <option> ... ] [ <file> ] [ <limit> ]\n"
