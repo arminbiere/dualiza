@@ -116,17 +116,20 @@ void test () {
 #if 1
   Number * n = new_number ();
   println_number (n);
-  add_power_of_two_to_number (n, 7);
-  add_power_of_two_to_number (n, 13);
-  add_power_of_two_to_number (n, 32);
-  add_power_of_two_to_number (n, 32);
-  println_number (n);
-  sub_power_of_two_from_number (n, 32);
-  println_number (n);
-  sub_power_of_two_from_number (n, 30);
-  println_number (n);
-  sub_power_of_two_from_number (n, 30);
-  println_number (n);
+  int exp[] = { 7, 13, 13, 30, 32, 32, 63, 68 };
+  const int nexp = sizeof exp / sizeof *exp;
+  for (int i = 0; i < nexp; i++)
+    add_power_of_two_to_number (n, exp[i]),
+    println_number (n);
+  for (int i = nexp-1; i >= 0; i--)
+    sub_power_of_two_from_number (n, exp[i]),
+    println_number (n);
+  for (int i = 0; i < nexp; i++)
+    add_power_of_two_to_number (n, exp[i]),
+    println_number (n);
+  for (int i = 0; i < nexp; i++)
+    sub_power_of_two_from_number (n, exp[i]),
+    println_number (n);
   delete_number (n);
 #endif
 }
