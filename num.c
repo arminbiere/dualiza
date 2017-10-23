@@ -11,9 +11,8 @@ void delete_number (Number * n) {
   DELETE (n);
 }
 
-#if 0
-
-void print_number_to_file (Number * n, FILE * file) {
+void print_number_as_sum_of_powers_of_two_to_file (Number * n,
+                                                   FILE * file) {
   const int size = COUNT (n->stack);
   int non_zero = 0;
   for (int i = size-1; i >= 0; i--) {
@@ -25,8 +24,6 @@ void print_number_to_file (Number * n, FILE * file) {
   }
   if (!non_zero) fputc ('0', file);
 }
-
-#else
 
 void print_number_to_file (Number * n, FILE * file) {
   int k = COUNT (n->stack);
@@ -64,8 +61,6 @@ void print_number_to_file (Number * n, FILE * file) {
   fputs (p, file);
   DEALLOC (s, l + 1);
 }
-
-#endif
 
 void println_number_to_file (Number * n, FILE * file) {
   print_number_to_file (n, file);
@@ -109,5 +104,5 @@ void sub_power_of_two_from_number (Number * n, int e) {
     dec = 1, word++;
   }
   while (!EMPTY (n->stack) && !TOP (n->stack))
-    POP (n->stack);
+    (void) POP (n->stack);
 }
