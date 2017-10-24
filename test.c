@@ -113,7 +113,7 @@ void test () {
   delete_symbols (t);
 }
 #endif
-#if 1
+#if 0
   Number * n = new_number ();
   println_number (n);
   int exp[] = { 7, 13, 13, 30, 32, 32, 63, 68 };
@@ -130,6 +130,15 @@ void test () {
   for (int i = 0; i < nexp; i++)
     sub_power_of_two_from_number (n, exp[i]),
     println_number (n);
+  delete_number (n);
+#endif
+#if 1
+  Number * n = new_number ();
+  for (int i = 0; i < 100000; i++)
+    add_power_of_two_to_number (n, i);
+#if 1
+  println_number (n);
+#endif
   delete_number (n);
 #endif
 }
