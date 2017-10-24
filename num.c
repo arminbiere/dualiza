@@ -25,15 +25,9 @@ void print_number_as_sum_of_powers_of_two_to_file (Number * n,
   if (!non_zero) fputc ('0', file);
 }
 
-void print_number_to_file (Number * n, FILE * file) {
+static void print_number_to_stack (Number * n, CharStack * s) {
   int k = COUNT (n->stack);
-  if (!k) { fputc ('0', file); return; }
-  if (k == 1) { fprintf (file, "%u", n->stack.start[0]); return; }
-  int l = 10 * k;
-  char * s;
-  ALLOC (s, l + 1);
-  char * p = s + l;
-  *p = 0;
+  if (!k) { PUSH (*s, '0'); return; }
   unsigned * q;
   ALLOC (q, k);
   memcpy (q, n->stack.start, k * sizeof (unsigned));
@@ -54,12 +48,18 @@ void print_number_to_file (Number * n, FILE * file) {
     }
     assert (r < 10);
     unsigned char c = r + '0';
-    assert (s < p);
-    *--p = c;
+    PUSH (*s, c);
   }
   DEALLOC (q, k);
-  fputs (p, file);
-  DEALLOC (s, l + 1);
+}
+
+void print_number_to_file (Number * n, FILE * file) {
+  CharStack stack;
+  INIT (stack);
+  print_number_to_stack (n, &stack);
+  while (!EMPTY (stack))
+    fputc (POP (stack), stdout);
+  RELEASE (stack);
 }
 
 void println_number_to_file (Number * n, FILE * file) {

@@ -1,7 +1,7 @@
 typedef struct Number Number;
 
 struct Number {
-  STACK (unsigned) stack;
+  UnsignedStack stack;
 };
 
 Number * new_number ();

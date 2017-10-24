@@ -5,7 +5,7 @@ struct Reader {
   FILE * file;
   int close, eof;
   Buffer * buffer;
-  STACK (char) symbol;
+  CharStack symbol;
   long lineno, bytes;
   int comment;
 };

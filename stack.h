@@ -54,3 +54,7 @@ do { \
   DEALLOC ((S).start, SIZE (S)); \
   (S).top = (S).end = 0; \
 } while (0)
+
+typedef STACK (int) IntStack;
+typedef STACK (char) CharStack;
+typedef STACK (unsigned) UnsignedStack;
