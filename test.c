@@ -133,13 +133,14 @@ void test () {
   delete_number (n);
 #endif
 #if 1
-  Number * n = new_number ();
+  Number n;
+  init_number (n);
   for (int i = 0; i < 100000; i++)
     add_power_of_two_to_number (n, i);
 #if 1
   println_number (n);
 #endif
-  delete_number (n);
+  reset_number (n);
 #endif
 }
 #endif

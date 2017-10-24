@@ -6,17 +6,20 @@ Number * new_number () {
   return res;
 }
 
-void delete_number (Number * n) {
-  RELEASE (n->stack);
-  DELETE (n);
+void init_number (Number n) {
+  INIT (*n);
 }
 
-void print_number_as_sum_of_powers_of_two_to_file (Number * n,
+void reset_number (Number n) {
+  RELEASE (n[0]);
+}
+
+void print_number_as_sum_of_powers_of_two_to_file (Number n,
                                                    FILE * file) {
-  const int size = COUNT (n->stack);
+  const int size = COUNT (n[0]);
   int non_zero = 0;
   for (int i = size-1; i >= 0; i--) {
-    unsigned m = n->stack.start[i];
+    unsigned m = n[0].start[i];
     if (!m) continue;
     if (non_zero++) fputs (" + ", file);
     fprintf (file, "%u", m);
@@ -25,12 +28,12 @@ void print_number_as_sum_of_powers_of_two_to_file (Number * n,
   if (!non_zero) fputc ('0', file);
 }
 
-static void print_number_to_stack (Number * n, CharStack * s) {
-  int k = COUNT (n->stack);
+static void print_number_to_stack (Number n, CharStack * s) {
+  int k = COUNT (n[0]);
   if (!k) { PUSH (*s, '0'); return; }
   unsigned * q;
   ALLOC (q, k);
-  memcpy (q, n->stack.start, k * sizeof (unsigned));
+  memcpy (q, n[0].start, k * sizeof (unsigned));
   int i = k-1;
   for (;;) {
     unsigned r = 0;
@@ -53,7 +56,7 @@ static void print_number_to_stack (Number * n, CharStack * s) {
   DEALLOC (q, k);
 }
 
-void print_number_to_file (Number * n, FILE * file) {
+void print_number_to_file (Number n, FILE * file) {
   CharStack stack;
   INIT (stack);
   print_number_to_stack (n, &stack);
@@ -62,47 +65,47 @@ void print_number_to_file (Number * n, FILE * file) {
   RELEASE (stack);
 }
 
-void println_number_to_file (Number * n, FILE * file) {
+void println_number_to_file (Number n, FILE * file) {
   print_number_to_file (n, file);
   fputc ('\n', file);
 }
 
-void println_number (Number * n) {
+void println_number (Number n) {
   println_number_to_file (n, stdout);
 }
 
-void add_power_of_two_to_number (Number * n, int e) {
+void add_power_of_two_to_number (Number n, int e) {
   assert (n);
   assert (e >= 0);
   long word = e >> 5;
   const int bit = e & 31;
   unsigned inc = 1u << bit;
   for (;;) {
-    if (word < COUNT (n->stack)) {
-      unsigned before = n->stack.start[word];
+    if (word < COUNT (n[0])) {
+      unsigned before = n[0].start[word];
       unsigned after = before + inc;
-      n->stack.start[word] = after;
+      n[0].start[word] = after;
       if (after) break;
       inc = 1, word++;
-    } else PUSH (n->stack, 0);
+    } else PUSH (n[0], 0);
   }
 }
 
-void sub_power_of_two_from_number (Number * n, int e) {
+void sub_power_of_two_from_number (Number n, int e) {
   assert (n);
   assert (e >= 0);
   long word = e >> 5;
   const int bit = e & 31;
   unsigned dec = 1u << bit;
-  unsigned * words = n->stack.start;
+  unsigned * words = n[0].start;
   while (dec) {
-    assert (word < COUNT (n->stack));
+    assert (word < COUNT (n[0]));
     unsigned before = words[word];
     unsigned after = before - dec;
     words[word] = after;
     if (after < before) break;
     dec = 1, word++;
   }
-  while (!EMPTY (n->stack) && !TOP (n->stack))
-    (void) POP (n->stack);
+  while (!EMPTY (n[0]) && !TOP (n[0]))
+    (void) POP (n[0]);
 }
