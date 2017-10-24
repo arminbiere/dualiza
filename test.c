@@ -135,12 +135,12 @@ void test () {
 #if 1
   Number n;
   init_number (n);
-  for (int i = 0; i < 100000; i++)
+  for (int i = 0; i < 1000000; i++)
     add_power_of_two_to_number (n, i);
-#if 1
+#if 0
   println_number (n);
 #endif
-  reset_number (n);
+  clear_number (n);
 #endif
 }
 #endif

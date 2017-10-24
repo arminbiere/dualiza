@@ -1,18 +1,28 @@
 #include "headers.h"
 
-Number * new_number () {
-  Number * res;
-  NEW (res);
-  return res;
+#ifdef GMP
+
+void init_number (Number n) { mpz_init (n); }
+
+void clear_number (Number n) { mpz_clear (n); }
+
+void add_power_of_two_to_number (Number n, int e) {
+  mpz_t tmp;
+  mpz_init_set_ui (tmp, 1);
+  mpz_mul_2exp (tmp, tmp, e);
+  mpz_add (n, n, tmp);
+  mpz_clear (tmp);
 }
 
-void init_number (Number n) {
-  INIT (*n);
+void print_number_to_file (Number n, FILE * file) {
+  mpz_out_str (file, 10, n);
 }
 
-void reset_number (Number n) {
-  RELEASE (n[0]);
-}
+#else
+
+void init_number (Number n) { INIT (*n); }
+
+void clear_number (Number n) { RELEASE (n[0]); }
 
 void print_number_as_sum_of_powers_of_two_to_file (Number n,
                                                    FILE * file) {
@@ -56,24 +66,6 @@ static void print_number_to_stack (Number n, CharStack * s) {
   DEALLOC (q, k);
 }
 
-void print_number_to_file (Number n, FILE * file) {
-  CharStack stack;
-  INIT (stack);
-  print_number_to_stack (n, &stack);
-  while (!EMPTY (stack))
-    fputc (POP (stack), stdout);
-  RELEASE (stack);
-}
-
-void println_number_to_file (Number n, FILE * file) {
-  print_number_to_file (n, file);
-  fputc ('\n', file);
-}
-
-void println_number (Number n) {
-  println_number_to_file (n, stdout);
-}
-
 void add_power_of_two_to_number (Number n, int e) {
   assert (n);
   assert (e >= 0);
@@ -108,4 +100,24 @@ void sub_power_of_two_from_number (Number n, int e) {
   }
   while (!EMPTY (n[0]) && !TOP (n[0]))
     (void) POP (n[0]);
+}
+
+void print_number_to_file (Number n, FILE * file) {
+  CharStack stack;
+  INIT (stack);
+  print_number_to_stack (n, &stack);
+  while (!EMPTY (stack))
+    fputc (POP (stack), stdout);
+  RELEASE (stack);
+}
+
+#endif
+
+void println_number_to_file (Number n, FILE * file) {
+  print_number_to_file (n, file);
+  fputc ('\n', file);
+}
+
+void println_number (Number n) {
+  println_number_to_file (n, stdout);
 }
