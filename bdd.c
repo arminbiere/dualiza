@@ -258,11 +258,12 @@ static void print_bdd_recursive (BDD * b, FILE * file) {
   if (b->mark) return;
   if (b->idx == 0) { assert (b == false_bdd_node); return; }
   if (b->idx == 1) { assert (b == true_bdd_node); return; }
+  assert (b->var > 1);
   print_bdd_recursive (b->then, file);
   print_bdd_recursive (b->other, file);
   fprintf (file,
-    "bdd%lu = x%u ? bdd%lu : bdd%lu\n",
-    b->idx, b->var, b->then->idx, b->other->idx);
+    "%lu %u %lu %lu\n",
+    b->idx, b->var-2, b->then->idx, b->other->idx);
   b->mark = 1;
 }
 
