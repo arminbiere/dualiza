@@ -393,3 +393,9 @@ BDD * and_bdd (BDD * a, BDD * b) {
   reset_cache ();
   return res;
 }
+
+void count_bdd (Number n, BDD * b, int max_var) {
+  // TODO
+  init_cache ();
+  reset_cache ();
+}
