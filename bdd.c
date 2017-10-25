@@ -342,6 +342,27 @@ void visualize_bdd (BDD * b) {
   DEALLOC (base, path_len);
 }
 
+static BDD * not_bdd_recursive (BDD * a) {
+  if (a == false_bdd_node) return inc (true_bdd_node);
+  if (a == true_bdd_node) return inc (false_bdd_node);
+  BDD * res = cached_bdd (a, 0, 0);
+  if (res) return res;
+  BDD * then = not_bdd_recursive (a->then);
+  BDD * other = not_bdd_recursive (a->other);
+  res = new_bdd_node (a->var, then, other);
+  cache_bdd (a, 0, 0, res);
+  dec (other);
+  dec (then);
+  return res;
+}
+
+BDD * not_bdd (BDD * a) {
+  init_cache ();
+  BDD * res = not_bdd_recursive (a);
+  reset_cache ();
+  return res;
+}
+
 static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   if (a == false_bdd_node || b == false_bdd_node)
     return inc (false_bdd_node);
@@ -361,6 +382,8 @@ static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   BDD * other = and_bdd_recursive (a_other, b_other);
   res = new_bdd_node (var, then, other);
   cache_bdd (a, b, 0, res);
+  dec (other);
+  dec (then);
   return res;
 }
 
