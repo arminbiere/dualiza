@@ -18,3 +18,4 @@ BDD * ite_bdd (BDD *, BDD *, BDD *);
 BDD * xnor_bdd (BDD *, BDD *, BDD *);
 
 extern long bdd_lookups, bdd_collisions;
+extern long cache_lookups, cache_collisions;
