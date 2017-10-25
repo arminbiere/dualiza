@@ -78,7 +78,7 @@ void connect_gates (Gate * input, Gate * output) {
 void connect_output (Circuit * c, Gate * output) {
   assert (c);
   assert (!c->output);
-  assert (STRIP (output)->circuit == c);
+  assert (((Gate*)STRIP (output))->circuit == c);
   c->output = output;
 }
 

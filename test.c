@@ -132,7 +132,7 @@ void test () {
     println_number (n);
   delete_number (n);
 #endif
-#if 1
+#if 0
   Number n;
   init_number (n);
   for (int i = 0; i < 10000000; i++)
@@ -141,6 +141,18 @@ void test () {
   println_number (n);
 #endif
   clear_number (n);
+#endif
+#if 1
+  init_bdds ();
+  BDD * a = new_bdd (0);
+  BDD * b = new_bdd (1);
+  assert (a != b);
+  BDD * c = new_bdd (0);
+  assert (a == c);
+  delete_bdd (a);
+  delete_bdd (b);
+  delete_bdd (c);
+  reset_bdds ();
 #endif
 }
 #endif

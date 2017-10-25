@@ -9,6 +9,7 @@
 #include "macros.h"
 
 #include "aiger.h"
+#include "bdd.h"
 #include "buffer.h"
 #include "circuit.h"
 #include "clause.h"

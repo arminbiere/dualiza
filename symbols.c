@@ -1,6 +1,6 @@
 #include "headers.h"
 
-long lookups, collisions;
+long symbol_lookups, symbol_collisions;
 
 Symbols * new_symbols () {
   Symbols * res;
@@ -33,12 +33,6 @@ static Symbol * new_symbol (const char * name) {
   return res;
 }
 
-static unsigned primes[] = {
-  1000003u, 10000019u, 100000007u, 1000000007u, 2000000011u, 3000000019u
-};
-
-static const unsigned num_primes = sizeof primes / sizeof (unsigned);
-
 static unsigned hash_string (const char * name) {
   unsigned res = 0, i = 0;
   for (const char * p = name; *p; p++) {
@@ -51,11 +45,11 @@ static unsigned hash_string (const char * name) {
 }
 
 static Symbol ** lookup_symbol (Symbols * t, const char * name) {
-  lookups++;
+  symbol_lookups++;
   unsigned h = hash_string (name) & (t->size - 1);
   Symbol ** p, * s;
   for (p = t->table + h; (s = *p) && strcmp (name, s->name); p = &s->next)
-    collisions++;
+    symbol_collisions++;
   return p;
 }
 

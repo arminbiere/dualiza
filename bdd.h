@@ -1,17 +1,20 @@
-typedef struct Bdd Bdd;
+typedef struct BDD BDD;
 
 void init_bdds ();
 void reset_bdds ();
 
-void delete_bdd (Bdd *);
+BDD * copy_bdd (BDD *);
+void delete_bdd (BDD *);
 
-Bdd * false_bdd (Bdd *);
-Bdd * true_bdd (Bdd *);
-Bdd * new_bdd_var (int var);
-Bdd * not_bdd (Bdd *);
+BDD * false_bdd ();
+BDD * true_bdd ();
+BDD * new_bdd (int var);
+BDD * not_bdd (BDD *);
 
-Bdd * and_bdd (Bdd *, Bdd *);
-Bdd * xor_bdd (Bdd *, Bdd *);
-Bdd * or_bdd (Bdd *, Bdd *);
-Bdd * ite_bdd (Bdd *, Bdd *, Bdd *);
-Bdd * xnor_bdd (Bdd *, Bdd *, Bdd *);
+BDD * and_bdd (BDD *, BDD *);
+BDD * xor_bdd (BDD *, BDD *);
+BDD * or_bdd (BDD *, BDD *);
+BDD * ite_bdd (BDD *, BDD *, BDD *);
+BDD * xnor_bdd (BDD *, BDD *, BDD *);
+
+extern long bdd_lookups, bdd_collisions;
