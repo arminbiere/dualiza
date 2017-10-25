@@ -149,6 +149,9 @@ void test () {
   assert (a != b);
   BDD * c = new_bdd (0);
   assert (a == c);
+  print_bdd (a);
+  print_bdd (b);
+  print_bdd (c);
   delete_bdd (a);
   delete_bdd (b);
   delete_bdd (c);
