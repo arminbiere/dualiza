@@ -57,7 +57,7 @@ static void mark_lit (Encoder * e, int lit) {
   e->marks.start[idx] = lit;
 }
 
-static void reset_clause (Encoder * e) {
+static void unmark_clause_literals (Encoder * e) {
   int size = COUNT (e->marks);
   while (!EMPTY (e->clause)) {
     int lit = POP (e->clause);
@@ -89,7 +89,7 @@ static void encode_clause (Encoder * e) {
     c->negative = e->negative;
     add_clause_to_cnf (c, e->cnf);
   }
-  reset_clause (e);
+  unmark_clause_literals (e);
 }
 
 static void encode_unary (Encoder * e, int lit) {

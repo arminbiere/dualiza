@@ -135,7 +135,7 @@ void test () {
 #if 1
   Number n;
   init_number (n);
-  for (int i = 0; i < 1000000; i++)
+  for (int i = 0; i < 10000000; i++)
     add_power_of_two_to_number (n, i);
 #if 0
   println_number (n);

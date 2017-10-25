@@ -32,10 +32,6 @@ struct Circuit {
   Gate * zero, * output;
 };
 
-#define NOT(G) ((Gate*)(1l^(long)(G)))
-#define SIGN(G) ((int)(1l&(long)(G)))
-#define STRIP(G) ((Gate*)(~1l&(long)(G)))
-
 Circuit * new_circuit ();
 void delete_circuit (Circuit *);
 
