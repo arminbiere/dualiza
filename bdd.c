@@ -218,8 +218,18 @@ static Line ** find_cache (BDD * a, BDD * b, BDD * c) {
   return res;
 }
 
-static void insert_cache (BDD * arg0, BDD * res) {
+static void cache_bdd (BDD * a, BDD * b, BDD * c, BDD * res) {
   if (cache_count == cache_size) enlarge_cache ();
+  Line ** p = find_cache (a, b, c), * l = *p;;
+  if (l) { assert (l->res == res); return; }
+  *p = l = alloc_line (a, b, c);
+  l->res = inc (res);
+}
+
+static BDD * cached_bdd (BDD * a, BDD * b, BDD * c) {
+  if (!cache_count) return 0;
+  Line * l = *find_cache (a, b, c);
+  return l ? inc (l->res) : 0;
 }
 
 static void init_cache () {
@@ -330,4 +340,33 @@ void visualize_bdd (BDD * b) {
   DEALLOC (dot, path_len);
   DEALLOC (pdf, path_len);
   DEALLOC (base, path_len);
+}
+
+static BDD * and_bdd_recursive (BDD * a, BDD * b) {
+  if (a == false_bdd_node || b == false_bdd_node)
+    return inc (false_bdd_node);
+  if (a == true_bdd_node || a == b)
+    return inc (b);
+  if (b == true_bdd_node)
+    return inc (a);
+  if (a->idx > b->idx) SWAP (BDD*, a, b);
+  BDD * res = cached_bdd (a, b, 0);
+  if (res) return res;
+  unsigned var = MAX (a->var, b->var);
+  BDD * a_then = a->var == var ? a->then : a;
+  BDD * b_then = b->var == var ? b->then : b;
+  BDD * then = and_bdd_recursive (a_then, b_then);
+  BDD * a_other = a->var == var ? a->other : a;
+  BDD * b_other = b->var == var ? b->other : b;
+  BDD * other = and_bdd_recursive (a_other, b_other);
+  res = new_bdd_node (var, then, other);
+  cache_bdd (a, b, 0, res);
+  return res;
+}
+
+BDD * and_bdd (BDD * a, BDD * b) {
+  init_cache ();
+  BDD * res = and_bdd_recursive (a, b);
+  reset_cache ();
+  return res;
 }

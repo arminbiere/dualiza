@@ -150,13 +150,14 @@ void test () {
   BDD * c = new_bdd (0);
   assert (a == c);
   print_bdd (a);
-  visualize_bdd (a);
   print_bdd (b);
-  visualize_bdd (b);
-  print_bdd (c);
+  BDD * d = and_bdd (a, b);
+  print_bdd (d);
+  visualize_bdd (d);
   delete_bdd (a);
   delete_bdd (b);
   delete_bdd (c);
+  delete_bdd (d);
   reset_bdds ();
 #endif
 }

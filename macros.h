@@ -11,3 +11,4 @@ do { \
 #define SIGN(P) ((int)(1l&(long)(P)))
 #define STRIP(P) ((void*)(~1l&(long)(P)))
 
+#define MAX(A,B) ((A) < (B) ? (B) : (A))
