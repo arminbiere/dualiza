@@ -20,6 +20,8 @@ BDD * xnor_bdd (BDD *, BDD *, BDD *);
 void print_bdd_to_file (BDD *, FILE *);
 void print_bdd (BDD *);
 
+void visualize_bdd (BDD *);
+
 #include "num.h"
 void count_bdd (Number res, BDD *, int max_var_idx);
 

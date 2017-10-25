@@ -9,6 +9,7 @@ struct BDD {
 typedef struct Line Line;
 struct Line { BDD * a, * b, * c, * res; Line * next; Number n; };
 
+static unsigned bdd_mark;
 static BDD ** bdd_table, * false_bdd_node, * true_bdd_node;
 static unsigned bdd_size, bdd_count;
 static unsigned long bdd_nodes;
@@ -245,17 +246,9 @@ static void reset_cache () {
 #endif
 }
 
-static void unmark_bdd (BDD * b) {
-  assert (b);
-  if (!b->mark) return;
-  b->mark = 0;
-  if (b->then) unmark_bdd (b->then);
-  if (b->other) unmark_bdd (b->other);
-}
-
 static void print_bdd_recursive (BDD * b, FILE * file) {
   assert (b);
-  if (b->mark) return;
+  if (b->mark == bdd_mark) return;
   if (b->idx == 0) { assert (b == false_bdd_node); return; }
   if (b->idx == 1) { assert (b == true_bdd_node); return; }
   assert (b->var > 1);
@@ -264,12 +257,77 @@ static void print_bdd_recursive (BDD * b, FILE * file) {
   fprintf (file,
     "%lu %u %lu %lu\n",
     b->idx, b->var-2, b->then->idx, b->other->idx);
-  b->mark = 1;
+  b->mark = bdd_mark;
+}
+
+static void inc_bdd_mark () {
+  if (!++bdd_mark) die ("out of BDD marks");
 }
 
 void print_bdd_to_file (BDD * b, FILE * file) {
+  inc_bdd_mark ();
   print_bdd_recursive (b, file);
-  unmark_bdd (b);
 }
 
 void print_bdd (BDD * b) { print_bdd_to_file (b, stdout); }
+
+static void visualize_bdd_recursive (BDD * b, FILE * file) {
+  assert (b);
+  if (b->mark == bdd_mark) return;
+  b->mark = bdd_mark;
+  if (b->idx <= 1) {
+    fprintf (file,
+      "b%lu [label=\"%d\",shape=none];\n",
+      b->idx, b->var);
+  } else {
+    visualize_bdd_recursive (b->then, file);
+    visualize_bdd_recursive (b->other, file);
+    assert (b->var > 1);
+    fprintf (file,
+      "b%lu [label=\"%d\",shape=circle];\n",
+      b->idx, b->var - 2);
+    fprintf (file,
+      "b%lu -> b%lu [style=solid];\n",
+      b->idx, b->then->idx);
+    fprintf (file,
+      "b%lu -> b%lu [style=dashed];\n",
+      b->idx, b->other->idx);
+  }
+}
+
+#include <sys/types.h>
+#include <unistd.h>
+
+void visualize_bdd (BDD * b) {
+  assert (b);
+  const int path_len = 80;
+  const int cmd_len = 3*path_len;
+  char * base, * dot, * pdf, * cmd;
+  ALLOC (base, path_len);
+  ALLOC (dot, path_len);
+  ALLOC (pdf, path_len);
+  ALLOC (cmd, cmd_len);
+  unsigned long pid = getpid ();
+  sprintf (base, "/tmp/dualiza-bdd-%lu-%lu", b->idx, pid);
+  sprintf (dot, "%s.dot", base);
+  FILE * file = fopen (dot, "w");
+  if (!file) die ("failed to open '%s'", dot);
+  fputs ("digraph {\n", file);
+  inc_bdd_mark ();
+  visualize_bdd_recursive (b, file);
+  fputs ("}\n", file);
+  fclose (file);
+  sprintf (pdf, "%s.pdf", base);
+  sprintf (cmd, "dot -Tpdf %s > %s", dot, pdf);
+  int res = system (cmd);
+  msg (2, "system call returns %d", res);
+  sprintf (cmd, "evince %s", pdf);
+  res = system (cmd);
+  msg (2, "system call returns %d", res);
+  DEALLOC (cmd, cmd_len);
+  unlink (dot);
+  unlink (pdf);
+  DEALLOC (dot, path_len);
+  DEALLOC (pdf, path_len);
+  DEALLOC (base, path_len);
+}

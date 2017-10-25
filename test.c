@@ -150,7 +150,9 @@ void test () {
   BDD * c = new_bdd (0);
   assert (a == c);
   print_bdd (a);
+  visualize_bdd (a);
   print_bdd (b);
+  visualize_bdd (b);
   print_bdd (c);
   delete_bdd (a);
   delete_bdd (b);
