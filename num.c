@@ -57,6 +57,19 @@ static void print_number_to_stack (Number n, CharStack * s) {
       r = t % 10;
       t = t / 10;
       assert (t <= (unsigned long) UINT_MAX);
+      {
+	unsigned tt = q[j];
+	assert (r < 10);
+	unsigned s = tt % 10;
+	tt -= r * 429496729;
+	tt = tt / 10;
+	s += r;
+	if (s > 9) s -= 10;
+	tt += r;
+	assert (tt == t);
+	assert (s == r);
+      }
+      assert (r < 10);
       q[j] = t;
     }
     assert (r < 10);

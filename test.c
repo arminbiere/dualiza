@@ -113,8 +113,9 @@ void test () {
   delete_symbols (t);
 }
 #endif
-#if 0
-  Number * n = new_number ();
+#if 1
+  Number n;
+  init_number (n);
   println_number (n);
   int exp[] = { 7, 13, 13, 30, 32, 32, 63, 68 };
   const int nexp = sizeof exp / sizeof *exp;
@@ -130,19 +131,19 @@ void test () {
   for (int i = 0; i < nexp; i++)
     sub_power_of_two_from_number (n, exp[i]),
     println_number (n);
-  delete_number (n);
+  clear_number (n);
 #endif
 #if 0
   Number n;
   init_number (n);
-  for (int i = 0; i < 10000000; i++)
+  for (int i = 0; i < 500000; i++)
     add_power_of_two_to_number (n, i);
-#if 0
+#if 1
   println_number (n);
 #endif
   clear_number (n);
 #endif
-#if 1
+#if 0
   init_bdds ();
   BDD * a = new_bdd (0);
   BDD * b = new_bdd (1);
