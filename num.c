@@ -51,24 +51,29 @@ static void print_number_to_stack (Number n, CharStack * s) {
       i--;
     if (i < 0) break;
     for (int j = i; j >= 0; j--) {
-      unsigned long t = q[j];
-      assert (r < 10);
-      t += ((unsigned long) r) << 32;
-      r = t % 10;
-      t = t / 10;
-      assert (t <= (unsigned long) UINT_MAX);
-      {
-	unsigned tt = q[j];
-	assert (r < 10);
-	unsigned s = tt % 10;
-	tt -= r * 429496729;
-	tt = tt / 10;
-	s += r;
-	if (s > 9) s -= 10;
-	tt += r;
-	assert (tt == t);
-	assert (s == r);
-      }
+      unsigned old_t = q[j], old_r = r, t;
+      assert (old_r < 10);
+#if 1
+      unsigned long tl = old_t, rl;
+      tl += ((unsigned long) old_r) << 32;
+      rl = tl % 10;
+      tl = tl / 10;
+      assert (tl <= (unsigned long) UINT_MAX);
+      r = rl, t = tl;
+#endif
+#if 0
+      unsigned tu = old_t, ru = tu % 10;
+      tu = tu / 10;
+      tu += old_r * 429496729;
+      ru += old_r * 6;
+      tu += ru/10;
+      ru %= 10;
+      r = ru, t = tu;
+#endif
+#if 0
+      assert (tl == tu);
+      assert (rl == ru);
+#endif
       assert (r < 10);
       q[j] = t;
     }
