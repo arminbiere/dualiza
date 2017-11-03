@@ -6,6 +6,9 @@ void init_number (Number n) { mpz_init (n); }
 
 void clear_number (Number n) { mpz_clear (n); }
 
+void multiply_number_by_power_of_two (Number n, int e) {
+  mpz_mul_2exp (n, n, e);
+}
 void add_power_of_two_to_number (Number n, int e) {
   mpz_t tmp;
   mpz_init_set_ui (tmp, 1);
