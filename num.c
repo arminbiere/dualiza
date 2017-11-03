@@ -87,27 +87,29 @@ static void print_number_to_stack (Number n, CharStack * s) {
   DEALLOC (q, k);
 }
 
+static void normalize_number (Number n) {
+  while (!EMPTY (n[0]) && !TOP (n[0]))
+    (void) POP (n[0]);
+}
+
 void multiply_number_by_power_of_two (Number n, Exponent e) {
   const unsigned long old_count = COUNT (n[0]);
   if (!old_count) return;
   const unsigned long word = e >> 5;
   const unsigned bit = e & 31;
   const unsigned long new_count = old_count + word + (bit != 0);
-  while (new_count < SIZE (n[0])) ENLARGE (n[0]);
+  while (new_count > SIZE (n[0])) ENLARGE (n[0]);
   n[0].top = n[0].start + new_count;
   unsigned src = old_count, dst = new_count;
   unsigned * start = n[0].start;
-  if (bit) {
-    assert (src != dst);
-    const unsigned tmp = start[src-1] >> (32 - bit);
-    start[--dst] = tmp;
-  }
+  if (bit) start[--dst] = start[src-1] >> (32 - bit);
   while (src) {
-    assert (src != dst);
     const unsigned data = start[--src];
     const unsigned prev = bit && src ? start[src-1] : 0;
-    start[--dst] = (data >> bit) | (prev >> (32 - bit));
+    start[--dst] = (data << bit) | (prev >> (32 - bit));
   }
+  while (dst) start[--dst] = 0;
+  normalize_number (n);
 }
 
 void add_power_of_two_to_number (Number n, Exponent e) {
@@ -140,8 +142,7 @@ void sub_power_of_two_from_number (Number n, Exponent e) {
     if (after < before) break;
     dec = 1, word++;
   }
-  while (!EMPTY (n[0]) && !TOP (n[0]))
-    (void) POP (n[0]);
+  normalize_number (n);
 }
 
 void print_number_to_file (Number n, FILE * file) {

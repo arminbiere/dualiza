@@ -66,7 +66,7 @@ CFLAGS=-Wall
 [ $log = undefined ] && log=$debug
 if [ $debug = yes ]
 then
-  CFLAGS="$CFLAGS -g"
+  CFLAGS="$CFLAGS -g3"
 else
   CFLAGS="$CFLAGS -O3"
 fi
