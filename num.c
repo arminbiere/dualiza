@@ -4,6 +4,9 @@
 
 void init_number (Number n) { mpz_init (n); }
 
+void copy_number (Number dst, Number src) {
+}
+
 void clear_number (Number n) { mpz_clear (n); }
 
 void multiply_number_by_power_of_two (Number n, Exponent e) {

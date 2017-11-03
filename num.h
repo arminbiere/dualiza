@@ -8,6 +8,7 @@ typedef UnsignedStack Number[1];
 typedef unsigned long Exponent;
 
 void init_number (Number);
+void copy_number (Number dst, Number src);
 void clear_number (Number);
 
 void multiply_number_by_power_of_two (Number, Exponent);

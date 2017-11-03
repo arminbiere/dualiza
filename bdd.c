@@ -394,6 +394,21 @@ BDD * and_bdd (BDD * a, BDD * b) {
   return res;
 }
 
+static void count_bdd (BDD * a, BDD * b, BDD * c, Num n) {
+  if (cache_count == cache_size) enlarge_cache ();
+  Line ** p = find_cache (a, b, c), * l = *p;;
+  if (l) { assert (l->res == res); return; }
+  *p = l = alloc_line (a, b, c);
+  assert (!l->res);
+  l->n = n;
+}
+
+static int counted_bdd (Num n, BDD * a, BDD * b, BDD * c) {
+  if (!cache_count) return 0;
+  Line * l = *find_cache (a, b, c);
+  if (l) copy_number (n, l->n);
+}
+
 void count_bdd (Number n, BDD * b, int max_var) {
   // TODO
   init_cache ();

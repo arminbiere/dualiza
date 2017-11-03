@@ -143,7 +143,7 @@ void test () {
 #endif
   clear_number (n);
 #endif
-#if 1
+#if 0
   Number n;
   init_number (n);
   add_power_of_two_to_number (n, 0);
@@ -153,7 +153,7 @@ void test () {
   println_number (n);
   clear_number (n);
 #endif
-#if 0
+#if 1
   init_bdds ();
   BDD * a = new_bdd (0);
   BDD * b = new_bdd (1);
