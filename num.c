@@ -6,10 +6,10 @@ void init_number (Number n) { mpz_init (n); }
 
 void clear_number (Number n) { mpz_clear (n); }
 
-void multiply_number_by_power_of_two (Number n, int e) {
+void multiply_number_by_power_of_two (Number n, Exponent e) {
   mpz_mul_2exp (n, n, e);
 }
-void add_power_of_two_to_number (Number n, int e) {
+void add_power_of_two_to_number (Number n, Exponent e) {
   mpz_t tmp;
   mpz_init_set_ui (tmp, 1);
   mpz_mul_2exp (tmp, tmp, e);
@@ -87,11 +87,33 @@ static void print_number_to_stack (Number n, CharStack * s) {
   DEALLOC (q, k);
 }
 
-void add_power_of_two_to_number (Number n, int e) {
+void multiply_number_by_power_of_two (Number n, Exponent e) {
+  const unsigned long old_count = COUNT (n[0]);
+  if (!old_count) return;
+  const unsigned long word = e >> 5;
+  const unsigned bit = e & 31;
+  const unsigned long new_count = old_count + word + (bit != 0);
+  while (new_count < SIZE (n[0])) ENLARGE (n[0]);
+  n[0].top = n[0].start + new_count;
+  unsigned src = old_count, dst = new_count;
+  unsigned * start = n[0].start;
+  if (bit) {
+    assert (src != dst);
+    const unsigned tmp = start[src-1] >> (32 - bit);
+    start[--dst] = tmp;
+  }
+  while (src) {
+    assert (src != dst);
+    const unsigned data = start[--src];
+    const unsigned prev = bit && src ? start[src-1] : 0;
+    start[--dst] = (data >> bit) | (prev >> (32 - bit));
+  }
+}
+
+void add_power_of_two_to_number (Number n, Exponent e) {
   assert (n);
-  assert (e >= 0);
-  long word = e >> 5;
-  const int bit = e & 31;
+  unsigned long word = e >> 5;
+  const unsigned bit = e & 31;
   unsigned inc = 1u << bit;
   for (;;) {
     if (word < COUNT (n[0])) {
@@ -104,11 +126,10 @@ void add_power_of_two_to_number (Number n, int e) {
   }
 }
 
-void sub_power_of_two_from_number (Number n, int e) {
+void sub_power_of_two_from_number (Number n, Exponent e) {
   assert (n);
-  assert (e >= 0);
-  long word = e >> 5;
-  const int bit = e & 31;
+  unsigned long word = e >> 5;
+  const unsigned bit = e & 31;
   unsigned dec = 1u << bit;
   unsigned * words = n[0].start;
   while (dec) {

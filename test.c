@@ -133,7 +133,7 @@ void test () {
     println_number (n);
   clear_number (n);
 #endif
-#if 0
+#if 1
   Number n;
   init_number (n);
   for (int i = 0; i < 500000; i++)
@@ -143,7 +143,7 @@ void test () {
 #endif
   clear_number (n);
 #endif
-#if 1
+#if 0
   Number n;
   init_number (n);
   add_power_of_two_to_number (n, 0);
