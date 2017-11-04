@@ -4,8 +4,7 @@
 
 void init_number (Number n) { mpz_init (n); }
 
-void copy_number (Number dst, Number src) {
-}
+void copy_number (Number dst, Number src) { mpz_set (dst, src); }
 
 void clear_number (Number n) { mpz_clear (n); }
 

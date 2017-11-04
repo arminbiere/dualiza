@@ -6,8 +6,11 @@ struct BDD {
   BDD * next, * then, * other;
 };
 
-typedef struct Line Line;
-struct Line { BDD * a, * b, * c, * res; Line * next; Number n; };
+typedef struct Unary Unary;
+struct Unary { BDD * a, * res; Unary * next; };
+
+typedef struct Binary Binary;
+struct Binary { BDD * a, * b, * res; Binary * next; };
 
 static unsigned bdd_mark;
 static BDD ** bdd_table, * false_bdd_node, * true_bdd_node;
@@ -17,8 +20,11 @@ static unsigned long bdd_nodes;
 long bdd_lookups, bdd_collisions;
 long cache_lookups, cache_collisions;
 
-static Line ** cache_table;
-static unsigned cache_size, cache_count;
+static Unary ** unary_table;
+static unsigned unary_size, unary_count;
+
+static Binary ** binary_table;
+static unsigned binary_size, binary_count;
 
 static BDD * inc (BDD * b) {
   assert (b);
@@ -159,102 +165,7 @@ BDD * new_bdd (int var) {
   return new_bdd_node (internal, true_bdd_node, false_bdd_node);
 }
 
-static Line * alloc_line (BDD * a, BDD * b, BDD * c) {
-  Line * res;
-  NEW (res);
-  res->a = inc (a);
-  res->b = b ? inc (b) : 0;
-  res->c = c ? inc (c) : 0;
-  cache_count++;
-  return res;
-}
-
-static void dealloc_line (Line * l) {
-  assert (l);
-  assert (cache_count);
-  cache_count--;
-  dec (l->a);
-  if (l->b) dec (l->b);
-  if (l->c) dec (l->c);
-  if (l->res) dec (l->res);
-  else clear_number (l->n);
-  DELETE (l);
-}
-
-static unsigned hash_cache (BDD * a, BDD * b, BDD * c) {
-  unsigned res = hash_bdd_ptr (a);
-  res += hash_bdd_ptr (b);
-  res += hash_bdd_ptr (c);
-  return res;
-}
-
-static void enlarge_cache () {
-  unsigned new_cache_size = cache_size ? 2*cache_size : 1;
-  msg (2, "enlarging cache from %u to %u", cache_size, new_cache_size);
-  Line ** new_cache_table;
-  ALLOC (new_cache_table, new_cache_size);
-  for (unsigned i = 0; i < cache_size; i++) {
-    for (Line * l = cache_table[i], * next; l; l = next) {
-      next = l->next;
-      unsigned h = hash_cache (l->a, l->b, l->c);
-      h &= (new_cache_size - 1);
-      l->next = new_cache_table[h];
-      new_cache_table[h] = l;
-    }
-  }
-  DEALLOC (cache_table, cache_size);
-  cache_table = new_cache_table;
-  cache_size = new_cache_size;
-}
-
-static Line ** find_cache (BDD * a, BDD * b, BDD * c) {
-  cache_lookups++;
-  unsigned h = hash_cache (a, b, c) & (cache_size - 1);
-  Line ** res, * l;
-  for (res = cache_table + h;
-       (l = *res) && (l->a != a || l->b != b || l->c != c);
-       res = &l->next);
-    cache_collisions++;
-  return res;
-}
-
-static void cache_bdd (BDD * a, BDD * b, BDD * c, BDD * res) {
-  if (cache_count == cache_size) enlarge_cache ();
-  Line ** p = find_cache (a, b, c), * l = *p;;
-  if (l) { assert (l->res == res); return; }
-  *p = l = alloc_line (a, b, c);
-  l->res = inc (res);
-}
-
-static BDD * cached_bdd (BDD * a, BDD * b, BDD * c) {
-  if (!cache_count) return 0;
-  Line * l = *find_cache (a, b, c);
-  return l ? inc (l->res) : 0;
-}
-
-static void init_cache () {
-  assert (!cache_table);
-  assert (!cache_size);
-  assert (!cache_count);
-}
-
-static void reset_cache () {
-#ifndef LOG
-  unsigned lines = cache_count, old_bdd_count = bdd_count;
-#endif
-  for (unsigned i = 0; i < cache_size; i++)
-    for (Line * l = cache_table[i], * next; l; l = next)
-      next = l->next, dealloc_line (l);
-  assert (!cache_count);
-  DEALLOC (cache_table, cache_size);
-  cache_size = 0;
-  cache_table = 0;
-#ifndef LOG
-  assert (old_bdd_count >= bdd_count);
-  LOG ("deleted %u BDD nodes referenced in %u cache entries",
-    lines, old_bdd_count - bdd_count);
-#endif
-}
+/*------------------------------------------------------------------------*/
 
 static void print_bdd_recursive (BDD * b, FILE * file) {
   assert (b);
@@ -342,25 +253,205 @@ void visualize_bdd (BDD * b) {
   DEALLOC (base, path_len);
 }
 
+/*------------------------------------------------------------------------*/
+
+static Unary * alloc_unary (BDD * a) {
+  Unary * res;
+  NEW (res);
+  res->a = inc (a);
+  unary_count++;
+  return res;
+}
+
+static void dealloc_unary (Unary * l) {
+  assert (l);
+  assert (unary_count);
+  unary_count--;
+  dec (l->a);
+  dec (l->res);
+  DELETE (l);
+}
+
+static unsigned hash_unary (BDD * a) { return hash_bdd_ptr (a); }
+
+static void enlarge_unary () {
+  unsigned new_unary_size = unary_size ? 2*unary_size : 1;
+  msg (2, "enlarging unary cache from %u to %u", unary_size, new_unary_size);
+  Unary ** new_unary_table;
+  ALLOC (new_unary_table, new_unary_size);
+  for (unsigned i = 0; i < unary_size; i++) {
+    for (Unary * l = unary_table[i], * next; l; l = next) {
+      next = l->next;
+      unsigned h = hash_unary (l->a);
+      h &= (new_unary_size - 1);
+      l->next = new_unary_table[h];
+      new_unary_table[h] = l;
+    }
+  }
+  DEALLOC (unary_table, unary_size);
+  unary_table = new_unary_table;
+  unary_size = new_unary_size;
+}
+
+static Unary ** find_unary (BDD * a) {
+  cache_lookups++;
+  unsigned h = hash_unary (a) & (unary_size - 1);
+  Unary ** res, * l;
+  for (res = unary_table + h; (l = *res) && l->a != a; res = &l->next);
+    cache_collisions++;
+  return res;
+}
+
+static void cache_unary (BDD * a, BDD * res) {
+  if (unary_count == unary_size) enlarge_unary ();
+  Unary ** p = find_unary (a), * l = *p;;
+  if (l) { assert (l->res == res); return; }
+  *p = l = alloc_unary (a);
+  l->res = inc (res);
+}
+
+static BDD * cached_unary (BDD * a) {
+  if (!unary_count) return 0;
+  Unary * l = *find_unary (a);
+  return l ? inc (l->res) : 0;
+}
+
+static void init_unary () {
+  assert (!unary_table);
+  assert (!unary_size);
+  assert (!unary_count);
+}
+
+static void reset_unary () {
+#ifndef LOG
+  unsigned lines = unary_count, old_bdd_count = bdd_count;
+#endif
+  for (unsigned i = 0; i < unary_size; i++)
+    for (Unary * l = unary_table[i], * next; l; l = next)
+      next = l->next, dealloc_unary (l);
+  assert (!unary_count);
+  DEALLOC (unary_table, unary_size);
+  unary_size = 0;
+  unary_table = 0;
+#ifndef LOG
+  assert (old_bdd_count >= bdd_count);
+  LOG ("deleted %u BDD nodes referenced in %u unary cache entries",
+    lines, old_bdd_count - bdd_count);
+#endif
+}
+
 static BDD * not_bdd_recursive (BDD * a) {
   if (a == false_bdd_node) return inc (true_bdd_node);
   if (a == true_bdd_node) return inc (false_bdd_node);
-  BDD * res = cached_bdd (a, 0, 0);
+  BDD * res = cached_unary (a);
   if (res) return res;
   BDD * then = not_bdd_recursive (a->then);
   BDD * other = not_bdd_recursive (a->other);
   res = new_bdd_node (a->var, then, other);
-  cache_bdd (a, 0, 0, res);
+  cache_unary (a, res);
   dec (other);
   dec (then);
   return res;
 }
 
 BDD * not_bdd (BDD * a) {
-  init_cache ();
+  init_unary ();
   BDD * res = not_bdd_recursive (a);
-  reset_cache ();
+  reset_unary ();
   return res;
+}
+
+/*------------------------------------------------------------------------*/
+
+static Binary * alloc_binary (BDD * a, BDD * b) {
+  Binary * res;
+  NEW (res);
+  res->a = inc (a);
+  res->b = inc (b);
+  binary_count++;
+  return res;
+}
+
+static void dealloc_binary (Binary * l) {
+  assert (l);
+  assert (binary_count);
+  binary_count--;
+  dec (l->a);
+  dec (l->b);
+  dec (l->res);
+  DELETE (l);
+}
+
+static unsigned hash_binary (BDD * a, BDD * b) {
+  return hash_bdd_ptr (a) * primes[0] + hash_bdd_ptr (b);
+}
+
+static void enlarge_binary () {
+  unsigned new_binary_size = binary_size ? 2*binary_size : 1;
+  msg (2, "enlarging binary cache from %u to %u", binary_size, new_binary_size);
+  Binary ** new_binary_table;
+  ALLOC (new_binary_table, new_binary_size);
+  for (unsigned i = 0; i < binary_size; i++) {
+    for (Binary * l = binary_table[i], * next; l; l = next) {
+      next = l->next;
+      unsigned h = hash_binary (l->a, l->b);
+      h &= (new_binary_size - 1);
+      l->next = new_binary_table[h];
+      new_binary_table[h] = l;
+    }
+  }
+  DEALLOC (binary_table, binary_size);
+  binary_table = new_binary_table;
+  binary_size = new_binary_size;
+}
+
+static Binary ** find_binary (BDD * a, BDD * b) {
+  cache_lookups++;
+  unsigned h = hash_binary (a, b) & (binary_size - 1);
+  Binary ** res, * l;
+  for (res = binary_table + h;
+       (l = *res) && (l->a != a || l->b != b);
+       res = &l->next);
+    cache_collisions++;
+  return res;
+}
+
+static void cache_binary (BDD * a, BDD * b, BDD * res) {
+  if (binary_count == binary_size) enlarge_binary ();
+  Binary ** p = find_binary (a, b), * l = *p;;
+  if (l) { assert (l->res == res); return; }
+  *p = l = alloc_binary (a, b);
+  l->res = inc (res);
+}
+
+static BDD * cached_binary (BDD * a, BDD * b) {
+  if (!binary_count) return 0;
+  Binary * l = *find_binary (a, b);
+  return l ? inc (l->res) : 0;
+}
+
+static void init_binary () {
+  assert (!binary_table);
+  assert (!binary_size);
+  assert (!binary_count);
+}
+
+static void reset_binary () {
+#ifndef LOG
+  unsigned lines = binary_count, old_bdd_count = bdd_count;
+#endif
+  for (unsigned i = 0; i < binary_size; i++)
+    for (Binary * l = binary_table[i], * next; l; l = next)
+      next = l->next, dealloc_binary (l);
+  assert (!binary_count);
+  DEALLOC (binary_table, binary_size);
+  binary_size = 0;
+  binary_table = 0;
+#ifndef LOG
+  assert (old_bdd_count >= bdd_count);
+  LOG ("deleted %u BDD nodes referenced in %u binary cache entries",
+    lines, old_bdd_count - bdd_count);
+#endif
 }
 
 static BDD * and_bdd_recursive (BDD * a, BDD * b) {
@@ -371,7 +462,7 @@ static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   if (b == true_bdd_node)
     return inc (a);
   if (a->idx > b->idx) SWAP (BDD*, a, b);
-  BDD * res = cached_bdd (a, b, 0);
+  BDD * res = cached_binary (a, b);
   if (res) return res;
   unsigned var = MAX (a->var, b->var);
   BDD * a_then = a->var == var ? a->then : a;
@@ -381,36 +472,21 @@ static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   BDD * b_other = b->var == var ? b->other : b;
   BDD * other = and_bdd_recursive (a_other, b_other);
   res = new_bdd_node (var, then, other);
-  cache_bdd (a, b, 0, res);
+  cache_binary (a, b, res);
   dec (other);
   dec (then);
   return res;
 }
 
 BDD * and_bdd (BDD * a, BDD * b) {
-  init_cache ();
+  init_binary ();
   BDD * res = and_bdd_recursive (a, b);
-  reset_cache ();
+  reset_binary ();
   return res;
 }
 
-static void count_bdd (BDD * a, BDD * b, BDD * c, Num n) {
-  if (cache_count == cache_size) enlarge_cache ();
-  Line ** p = find_cache (a, b, c), * l = *p;;
-  if (l) { assert (l->res == res); return; }
-  *p = l = alloc_line (a, b, c);
-  assert (!l->res);
-  l->n = n;
-}
-
-static int counted_bdd (Num n, BDD * a, BDD * b, BDD * c) {
-  if (!cache_count) return 0;
-  Line * l = *find_cache (a, b, c);
-  if (l) copy_number (n, l->n);
-}
+/*------------------------------------------------------------------------*/
 
 void count_bdd (Number n, BDD * b, int max_var) {
   // TODO
-  init_cache ();
-  reset_cache ();
 }
