@@ -186,13 +186,15 @@ static BDD * simulate_primal () {
 
 static void check () {
   if (bdd) {
+    msg (1, "checking with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
     if (sat) { 
       if (is_false_bdd (b)) printf ("s UNSATISFIABLE\n");
       else {
-	printf ("s SATISFIABLE\nv ");
+	printf ("s SATISFIABLE\n");
 	fflush (stdout);
+	printf ("v ");
 	print_one_satisfying_cube (b, name_bdd);
 	fputc ('\n', stdout);
 	fflush (stdout);
@@ -203,6 +205,7 @@ static void check () {
       else {
 	printf ("s INVALID\n");
 	fflush (stdout);
+	printf ("v ");
 	print_one_falsifying_cube (b, name_bdd);
 	fputc ('\n', stdout);
 	fflush (stdout);
@@ -242,8 +245,22 @@ static void print (const char * output_name) {
     output_name ? output_name : "<stdout>");
 }
 
+static void all () {
+  if (bdd) {
+    msg (1, "enumerating with BDD engine");
+    init_bdds ();
+    BDD * b = simulate_primal ();
+    printf ("s ALL SATISFYING ASSIGNMENTS\n");
+    fflush (stdout);
+    print_all_satisfying_cubes (b, name_bdd, "v ");
+    delete_bdd (b);
+    reset_bdds ();
+  } else die ("enumerating with SAT engine not implement yet");
+}
+
 static void count () {
   if (bdd) {
+    msg (1, "counting with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
     printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
@@ -253,14 +270,14 @@ static void count () {
       Number n;
       init_number (n);
       count_bdd (n, b, num_inputs-1);
-      printf ("m ");
+      printf ("v ");
       println_number (n);
       clear_number (n);
-    } else printf ("m 0\n");
+    } else printf ("v 0\n");
     fflush (stdout);
     delete_bdd (b);
     reset_bdds ();
-  } else die ("counting with SAT ending not implement yet");
+  } else die ("counting with SAT engine not implement yet");
 }
 
 static void reset () {
@@ -338,9 +355,10 @@ int main (int argc, char ** argv) {
   parse (input_name);
   delete_reader (input);
   generate_dual ();
-       if (checking) check ();
-  else if (printing) print (output_name);
-  else               count ();
+       if (checking)  check ();
+  else if (printing)  print (output_name);
+  else if (enumerate) all ();
+  else                count ();
   reset ();
 #endif
   reset_signal_handlers ();

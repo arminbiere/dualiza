@@ -26,6 +26,7 @@ void print_bdd (BDD *);
 typedef const char * (*Name)(unsigned);
 void print_one_satisfying_cube (BDD *, Name);
 void print_one_falsifying_cube (BDD *, Name);
+void print_all_satisfying_cubes (BDD *, Name, const char*);
 
 void visualize_bdd (BDD *);
 

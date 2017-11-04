@@ -918,13 +918,49 @@ static void print_one_falsifying_cube_to_file_recursively (
   fputs (name (a->var - 2), file);
 }
 
-static void
-print_one_falsifying_cube_to_file (BDD * a,
-				   FILE * file,
-				   Name name) {
-  print_one_falsifying_cube_to_file_recursively (a, file, name);
+void print_one_falsifying_cube (BDD * a, Name name) {
+  print_one_falsifying_cube_to_file_recursively (a, stdout, name);
 }
 
-void print_one_falsifying_cube (BDD * a, Name name) {
-  print_one_falsifying_cube_to_file (a, stdout, name);
+/*------------------------------------------------------------------------*/
+
+typedef struct Link Link;
+struct Link { BDD * bdd; Link * link; };
+
+static void print_linked_bdd_cube (Link * l, FILE* file, Name name) {
+  assert (l);
+  Link * k = l->link;
+  if (!k) return;
+  BDD * c = l->bdd;
+  BDD * p = k->bdd;
+  if (c != true_bdd_node) fputc (' ', file);
+  if (p->other == c) fputc ('!', file);
+  else assert (p->then == c);
+  assert (p->var > 1);
+  fputs (name (p->var - 2), file);
+  print_linked_bdd_cube (k, file, name);
 }
+
+static void
+print_all_satisfying_cubes_to_file_recursively (
+  BDD * a, FILE* file, Link * parent, Name name, const char * prefix)
+{
+  if (a == false_bdd_node) return;
+  Link link = { a, parent };
+  if (a == true_bdd_node) {
+    fputs (prefix, file);
+    print_linked_bdd_cube (&link, file, name);
+    fputc ('\n', stdout);
+    return;
+  }
+  print_all_satisfying_cubes_to_file_recursively (
+    a->then, file, &link, name, prefix);
+  print_all_satisfying_cubes_to_file_recursively (
+    a->other, file, &link, name, prefix);
+}
+
+void
+print_all_satisfying_cubes (BDD * a, Name name, const char * prefix) {
+  print_all_satisfying_cubes_to_file_recursively (a, stdout, 0, name, prefix);
+}
+
