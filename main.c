@@ -246,8 +246,7 @@ static void count () {
   if (bdd) {
     init_bdds ();
     BDD * b = simulate_primal ();
-    if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
-    else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
+    printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
     unsigned num_inputs = COUNT (primal->inputs);
     if (num_inputs) {
