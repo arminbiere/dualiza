@@ -92,7 +92,7 @@ static void check_options (const char * output_name) {
   if (!printing && output_name)
     die ("can output specified without printing option");
   if (printing && bdd)
-    die ("can not use %s and %s", PRINTING, BDD);
+    die ("can not use%s%s%s and%s", PRINTING, BDD);
 # undef FORMULA
 # undef AIGER
 # undef DIMACS

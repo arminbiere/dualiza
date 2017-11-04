@@ -24,23 +24,68 @@ static BDD * simulate_circuit_recursive (Gate * g, BDD ** cache, Circuit * c) {
   if (SIGN (g)) {
     BDD * tmp = simulate_circuit_recursive (NOT (g), cache, c);
     res = not_bdd (tmp);
-    delete_bdd (res);
+    delete_bdd (tmp);
   } else {
+    long num_inputs = COUNT (g->inputs);
+    Gate ** inputs = g->inputs.start;
     switch (g->op) {
       case FALSE:
 	res = false_bdd ();
         break;
       case INPUT:
+        res = new_bdd (g->input);
         break;
       case AND:
+        res = true_bdd ();
+	for (long i = 0; i < num_inputs; i++) {
+	  BDD * tmp = simulate_circuit_recursive (inputs[i], cache, c);
+	  BDD * and = and_bdd (res, tmp);
+	  delete_bdd (tmp);
+	  delete_bdd (res);
+	  res = and;
+	}
         break;
       case XOR:
+	assert (num_inputs == 2);
+	{
+	  BDD * l = simulate_circuit_recursive (inputs[0], cache, c);
+	  BDD * r = simulate_circuit_recursive (inputs[1], cache, c);
+	  res = xor_bdd (l, r);
+	  delete_bdd (l);
+	  delete_bdd (r);
+	}
         break;
       case OR:
+        res = false_bdd ();
+	for (long i = 0; i < num_inputs; i++) {
+	  BDD * tmp = simulate_circuit_recursive (inputs[i], cache, c);
+	  BDD * or = or_bdd (res, tmp);
+	  delete_bdd (tmp);
+	  delete_bdd (res);
+	  res = or;
+	}
         break;
       case ITE:
+	assert (num_inputs == 3);
+	{
+	  BDD * cond = simulate_circuit_recursive (inputs[0], cache, c);
+	  BDD * then = simulate_circuit_recursive (inputs[1], cache, c);
+	  BDD * other = simulate_circuit_recursive (inputs[2], cache, c);
+	  res = ite_bdd (cond, then, other);
+	  delete_bdd (cond);
+	  delete_bdd (then);
+	  delete_bdd (other);
+	}
         break;
       case XNOR:
+	assert (num_inputs == 2);
+	{
+	  BDD * l = simulate_circuit_recursive (inputs[0], cache, c);
+	  BDD * r = simulate_circuit_recursive (inputs[1], cache, c);
+	  res = xnor_bdd (l, r);
+	  delete_bdd (l);
+	  delete_bdd (r);
+	}
         break;
     }
   }
