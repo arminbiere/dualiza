@@ -47,6 +47,10 @@ fputs (
 "  -t | --tautology  only check to be tautological\n"
 "  -e | --enumerate  enumerate and print models\n"
 "\n"
+"By default the SAT engine is used, or alternatively the BDD engine.\n"
+"\n"
+"  -b | --bdd        use BDD engine instead of SAT engine\n"
+"\n"
 "Then '<option>' can also be one of the following long options\n"
 "which all require to use an explicit argument (default values given)\n"
 "\n"
@@ -60,7 +64,7 @@ fputs (
 
 static int formula, aiger, dimacs, negate;
 static int sat, tautology, enumerate, limited;
-static int printing, checking;
+static int printing, checking, bdd;
 static long limit;
  
 static void check_options (const char * output_name) {
@@ -72,6 +76,7 @@ static void check_options (const char * output_name) {
 # define SAT       (sat      >0?" '--sat'"      :(sat<0      ?" '-s'":""))
 # define TAUTOLOGY (tautology>0?" '--tautology'":(tautology<0?" '-t'":""))
 # define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
+# define BDD       (bdd      >0?" '--bdd'"      :(bdd<0      ?" '-b'":""))
 # define PRINTING FORMULA,AIGER,DIMACS
 # define CHECKING SAT,TAUTOLOGY
   if (printing > 1)
@@ -86,6 +91,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s and%s", CHECKING, ENUMERATE);
   if (!printing && output_name)
     die ("can output specified without printing option");
+  if (printing && bdd)
+    die ("can not use %s and %s", PRINTING, BDD);
 # undef FORMULA
 # undef AIGER
 # undef DIMACS
@@ -225,6 +232,7 @@ int main (int argc, char ** argv) {
     else if (!strcmp (argv[i], "-s"))                sat = -1;
     else if (!strcmp (argv[i], "-t"))          tautology = -1;
     else if (!strcmp (argv[i], "-e"))          enumerate = -1;
+    else if (!strcmp (argv[i], "-b"))                bdd = -1;
     else if (!strcmp (argv[i], "--formula"))     formula = +1;
     else if (!strcmp (argv[i], "--aiger"))         aiger = +1;
     else if (!strcmp (argv[i], "--dimacs"))       dimacs = +1;
@@ -232,6 +240,7 @@ int main (int argc, char ** argv) {
     else if (!strcmp (argv[i], "--sat"))             sat = +1;
     else if (!strcmp (argv[i], "--tautology")) tautology = +1;
     else if (!strcmp (argv[i], "--enumerate")) enumerate = +1;
+    else if (!strcmp (argv[i], "--bdd"))             bdd = +1;
     else if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
 	die ("invalid long option '%s'", argv[i]);
