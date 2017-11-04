@@ -174,10 +174,20 @@ static const char * name_bdd (unsigned i) {
   return res;
 }
 
+static BDD * simulate_primal () {
+  double start = process_time ();
+  assert (primal);
+  BDD * res = simulate_circuit (primal);
+  double time = process_time ();
+  double delta = time - start;
+  msg (1, "BDD simulation of primal circuit in %.3f seconds", delta);
+  return res;
+}
+
 static void check () {
   if (bdd) {
     init_bdds ();
-    BDD * b = simulate_circuit (primal);
+    BDD * b = simulate_primal ();
     if (sat) { 
       if (is_false_bdd (b)) printf ("s UNSATISFIABLE\n");
       else {
@@ -233,7 +243,25 @@ static void print (const char * output_name) {
 }
 
 static void count () {
-  die ("counting not implement yet");
+  if (bdd) {
+    init_bdds ();
+    BDD * b = simulate_primal ();
+    if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
+    else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
+    fflush (stdout);
+    unsigned num_inputs = COUNT (primal->inputs);
+    if (num_inputs) {
+      Number n;
+      init_number (n);
+      count_bdd (n, b, num_inputs-1);
+      printf ("m ");
+      println_number (n);
+      clear_number (n);
+    } else printf ("m 0\n");
+    fflush (stdout);
+    delete_bdd (b);
+    reset_bdds ();
+  } else die ("counting with SAT ending not implement yet");
 }
 
 static void reset () {
