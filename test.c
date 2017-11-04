@@ -157,22 +157,42 @@ void test () {
   init_bdds ();
   BDD * a = new_bdd (0);
   BDD * b = new_bdd (1);
+  BDD * c = new_bdd (2);
   assert (a != b);
-  BDD * c = new_bdd (0);
-  assert (a == c);
-  print_bdd (a);
-  print_bdd (b);
-  BDD * d = and_bdd (a, b);
-  print_bdd (d);
-  visualize_bdd (d);
-  BDD * e = not_bdd (b);
-  print_bdd (e);
-  visualize_bdd (e);
+  assert (a != c);
+
+  BDD * a_again = new_bdd (0);
+  assert (a_again == a);
+
+  printf ("and (0, 1)\n");
+  BDD * and = and_bdd (a, b);
+  print_bdd (and);
+  visualize_bdd (and);
+
+  printf ("xor (0, 1)\n");
+  BDD * xor = xor_bdd (a, b);
+  print_bdd (xor);
+  visualize_bdd (xor);
+
+  printf ("ite (0, 1, 2)\n");
+  BDD * ite1 = ite_bdd (a, b, c);
+  print_bdd (ite1);
+  visualize_bdd (ite1);
+
+  printf ("ite (2, 1, 1)\n");
+  BDD * ite2 = ite_bdd (c, b, a);
+  print_bdd (ite2);
+  visualize_bdd (ite2);
+
+  delete_bdd (ite1);
+  delete_bdd (ite2);
+  delete_bdd (xor);
+  delete_bdd (and);
+  delete_bdd (a_again);
   delete_bdd (a);
   delete_bdd (b);
   delete_bdd (c);
-  delete_bdd (d);
-  delete_bdd (e);
+
   reset_bdds ();
 #endif
 }

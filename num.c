@@ -1,10 +1,12 @@
 #include "headers.h"
 
+/*------------------------------------------------------------------------*/
 #ifdef GMP
+/*------------------------------------------------------------------------*/
 
 void init_number (Number n) { mpz_init (n); }
 
-void copy_number (Number dst, Number src) { mpz_set (dst, src); }
+void copy_number (Number dst, const Number src) { mpz_set (dst, src); }
 
 void clear_number (Number n) { mpz_clear (n); }
 
@@ -23,9 +25,17 @@ void print_number_to_file (Number n, FILE * file) {
   mpz_out_str (file, 10, n);
 }
 
-#else
+/*------------------------------------------------------------------------*/
+#else // our own home-made multiple precision number library
+/*------------------------------------------------------------------------*/
 
 void init_number (Number n) { INIT (*n); }
+
+void copy_number (Number dst, const Number src) {
+  CLEAR (dst[0]);
+  for (unsigned * p = src[0].start; p < src[0].top; p++)
+    PUSH (dst[0], *p);
+}
 
 void clear_number (Number n) { RELEASE (n[0]); }
 
@@ -156,7 +166,9 @@ void print_number_to_file (Number n, FILE * file) {
   RELEASE (stack);
 }
 
-#endif
+/*------------------------------------------------------------------------*/
+#endif // end of our own multiple precision number
+/*------------------------------------------------------------------------*/
 
 void println_number_to_file (Number n, FILE * file) {
   print_number_to_file (n, file);

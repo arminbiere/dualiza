@@ -43,7 +43,7 @@ alloc_bdd (unsigned var, BDD * then, BDD * other, unsigned hash) {
   bdd_count++;
 #ifndef NLOG
   if (then) {
-    LOG ("allocating BDD %lu var %d then %lu other %lu hash 0x%08x",
+    LOG ("allocating BDD %lu var %u then %lu other %lu hash 0x%08x",
       res->idx, var, then->idx, other->idx, hash);
   } else
     LOG ("allocating BDD %lu %s hash 0x%08x",
@@ -153,7 +153,7 @@ void reset_bdds () {
   true_bdd_node = 0;
 }
 
-BDD * new_bdd (int var) {
+BDD * new_bdd (unsigned var) {
   assert (var >= 0);
   assert (true_bdd_node);
   assert (false_bdd_node);
@@ -194,14 +194,14 @@ static void visualize_bdd_recursive (BDD * b, FILE * file) {
   b->mark = bdd_mark;
   if (b->idx <= 1) {
     fprintf (file,
-      "b%lu [label=\"%d\",shape=none];\n",
+      "b%lu [label=\"%u\",shape=none];\n",
       b->idx, b->var);
   } else {
     visualize_bdd_recursive (b->then, file);
     visualize_bdd_recursive (b->other, file);
     assert (b->var > 1);
     fprintf (file,
-      "b%lu [label=\"%d\",shape=circle];\n",
+      "b%lu [label=\"%u\",shape=circle];\n",
       b->idx, b->var - 2);
     fprintf (file,
       "b%lu -> b%lu [style=solid];\n",
@@ -736,6 +736,107 @@ BDD * ite_bdd (BDD * a, BDD * b, BDD * c) {
 
 /*------------------------------------------------------------------------*/
 
-void count_bdd (Number n, BDD * b, int max_var) {
-  // TODO
+typedef struct Count Count;
+struct Count { BDD * a; Count * next; Number res; };
+
+static Count ** count_table;
+static unsigned count_size, count_count;
+
+static Count * alloc_count (BDD * a) {
+  Count * res;
+  NEW (res);
+  res->a = inc (a);
+  init_number (res->res);
+  count_count++;
+  return res;
+}
+
+static void dealloc_count (Count * l) {
+  assert (l);
+  assert (count_count);
+  count_count--;
+  dec (l->a);
+  clear_number (l->res);
+  DELETE (l);
+}
+
+static unsigned hash_count (BDD * a) { return hash_bdd_ptr (a); }
+
+static void enlarge_count () {
+  unsigned new_count_size = count_size ? 2*count_size : 1;
+  msg (2, "enlarging count cache from %u to %u", count_size, new_count_size);
+  Count ** new_count_table;
+  ALLOC (new_count_table, new_count_size);
+  for (unsigned i = 0; i < count_size; i++) {
+    for (Count * l = count_table[i], * next; l; l = next) {
+      next = l->next;
+      unsigned h = hash_count (l->a);
+      h &= (new_count_size - 1);
+      l->next = new_count_table[h];
+      new_count_table[h] = l;
+    }
+  }
+  DEALLOC (count_table, count_size);
+  count_table = new_count_table;
+  count_size = new_count_size;
+}
+
+static Count ** find_count (BDD * a) {
+  cache_lookups++;
+  unsigned h = hash_count (a) & (count_size - 1);
+  Count ** res, * l;
+  for (res = count_table + h; (l = *res) && l->a != a; res = &l->next);
+    cache_collisions++;
+  return res;
+}
+
+static void cache_count (BDD * a, const Number res) {
+  if (count_count == count_size) enlarge_count ();
+  Count ** p = find_count (a), * l = *p;;
+  if (l) return;
+  *p = l = alloc_count (a);
+  copy_number (l->res, res);
+}
+
+static int cached_count (Number res, BDD * a) {
+  if (!count_count) return 0;
+  Count * l = *find_count (a);
+  if (!l) return 0;
+  copy_number (res, l->res);
+  return 1;
+}
+
+static void init_count () {
+  assert (!count_table);
+  assert (!count_size);
+  assert (!count_count);
+}
+
+static void reset_count () {
+#ifndef LOG
+  unsigned lines = count_count, old_bdd_count = bdd_count;
+#endif
+  for (unsigned i = 0; i < count_size; i++)
+    for (Count * l = count_table[i], * next; l; l = next)
+      next = l->next, dealloc_count (l);
+  assert (!count_count);
+  DEALLOC (count_table, count_size);
+  count_size = 0;
+  count_table = 0;
+#ifndef LOG
+  assert (old_bdd_count >= bdd_count);
+  LOG ("deleted %u BDD nodes referenced in %u count cache entries",
+    lines, old_bdd_count - bdd_count);
+#endif
+}
+
+void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
+}
+
+void count_bdd (Number res, BDD * b, unsigned max_var) {
+  assert (b);
+  assert (b->idx <= max_var + 2);
+  init_count ();
+  count_bdd_recursive (res, b, max_var);
+  reset_count ();
 }
