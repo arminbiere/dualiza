@@ -23,7 +23,9 @@ BDD * xnor_bdd (BDD *, BDD *);
 void print_bdd_to_file (BDD *, FILE *);
 void print_bdd (BDD *);
 
-void println_one_cube (BDD *, const char * (*)(unsigned));
+typedef const char * (*Name)(unsigned);
+void print_one_satisfying_cube (BDD *, Name);
+void print_one_falsifying_cube (BDD *, Name);
 
 void visualize_bdd (BDD *);
 

@@ -182,14 +182,20 @@ static void check () {
       if (is_false_bdd (b)) printf ("s UNSATISFIABLE\n");
       else {
 	printf ("s SATISFIABLE\nv ");
-	println_one_cube (b, name_bdd);
+	fflush (stdout);
+	print_one_satisfying_cube (b, name_bdd);
+	fputc ('\n', stdout);
+	fflush (stdout);
       }
     } else {
       assert (tautology);
       if (is_true_bdd (b)) printf ("s TAUTOLOGY\n");
       else {
 	printf ("s INVALID\n");
-	// TODO print falsifying assignment
+	fflush (stdout);
+	print_one_falsifying_cube (b, name_bdd);
+	fputc ('\n', stdout);
+	fflush (stdout);
       }
     }
     delete_bdd (b);

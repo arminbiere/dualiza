@@ -871,17 +871,16 @@ void count_bdd (Number res, BDD * b, unsigned max_var) {
 
 /*------------------------------------------------------------------------*/
 
-static void
-print_one_cube_to_file_recursive (BDD * a,
-                                  FILE * file,
-                                  const char * (*name)(unsigned)) {
+static void print_one_satisfying_cube_to_file_recursively (
+  BDD * a, FILE * file, Name name)
+{
   assert (false_bdd_node);
   assert (a != false_bdd_node);
   if (a == true_bdd_node) return;
   BDD * c = a->then;
   if (c == false_bdd_node) c = a->other;
   if (c != true_bdd_node) {
-    print_one_cube_to_file_recursive (c, file, name);
+    print_one_satisfying_cube_to_file_recursively (c, file, name);
     fputc (' ', stdout);
   }
   if (c != a->then) fputc ('!', stdout);
@@ -889,13 +888,43 @@ print_one_cube_to_file_recursive (BDD * a,
   fputs (name (a->var - 2), file);
 }
 
-static void print_one_cube_to_file (BDD * a,
-                                    FILE * file,
-                                    const char * (*name)(unsigned)) {
-  print_one_cube_to_file_recursive (a, file, name);
+static void
+print_one_satisfying_cube_to_file (BDD * a,
+				   FILE * file,
+				   Name name) {
+  print_one_satisfying_cube_to_file_recursively (a, file, name);
 }
 
-void println_one_cube (BDD * a, const char * (*name)(unsigned)) {
-  print_one_cube_to_file (a, stdout, name);
-  fputc ('\n', stdout);
+void print_one_satisfying_cube (BDD * a, Name name) {
+  print_one_satisfying_cube_to_file (a, stdout, name);
+}
+
+/*------------------------------------------------------------------------*/
+
+static void print_one_falsifying_cube_to_file_recursively (
+  BDD * a, FILE * file, Name name)
+{
+  assert (true_bdd_node);
+  assert (a != true_bdd_node);
+  if (a == false_bdd_node) return;
+  BDD * c = a->then;
+  if (c == true_bdd_node) c = a->other;
+  if (c != false_bdd_node) {
+    print_one_falsifying_cube_to_file_recursively (c, file, name);
+    fputc (' ', stdout);
+  }
+  if (c != a->then) fputc ('!', stdout);
+  assert (a->var > 1);
+  fputs (name (a->var - 2), file);
+}
+
+static void
+print_one_falsifying_cube_to_file (BDD * a,
+				   FILE * file,
+				   Name name) {
+  print_one_falsifying_cube_to_file_recursively (a, file, name);
+}
+
+void print_one_falsifying_cube (BDD * a, Name name) {
+  print_one_falsifying_cube_to_file (a, stdout, name);
 }
