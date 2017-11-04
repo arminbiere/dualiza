@@ -163,6 +163,17 @@ static void generate_dual () {
   }
 }
 
+static const char * name_bdd (unsigned i) {
+  assert (primal);
+  assert (i < COUNT (primal->inputs));
+  Gate * g = primal->inputs.start[i];
+  Symbol * s = g->symbol;
+  assert (s);
+  const char * res = s->name;
+  assert (res);
+  return res;
+}
+
 static void check () {
   if (bdd) {
     init_bdds ();
@@ -170,8 +181,8 @@ static void check () {
     if (sat) { 
       if (is_false_bdd (b)) printf ("s UNSATISFIABLE\n");
       else {
-	printf ("s SATISFIABLE\n");
-	// TODO print satisfying assignment
+	printf ("s SATISFIABLE\nv ");
+	println_one_cube (b, name_bdd);
       }
     } else {
       assert (tautology);

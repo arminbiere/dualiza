@@ -868,3 +868,34 @@ void count_bdd (Number res, BDD * b, unsigned max_var) {
   count_bdd_recursive (res, b, max_var + 2);
   reset_count ();
 }
+
+/*------------------------------------------------------------------------*/
+
+static void
+print_one_cube_to_file_recursive (BDD * a,
+                                  FILE * file,
+                                  const char * (*name)(unsigned)) {
+  assert (false_bdd_node);
+  assert (a != false_bdd_node);
+  if (a == true_bdd_node) return;
+  BDD * c = a->then;
+  if (c == false_bdd_node) c = a->other;
+  if (c != true_bdd_node) {
+    print_one_cube_to_file_recursive (c, file, name);
+    fputc (' ', stdout);
+  }
+  if (c != a->then) fputc ('!', stdout);
+  assert (a->var > 1);
+  fputs (name (a->var - 2), file);
+}
+
+static void print_one_cube_to_file (BDD * a,
+                                    FILE * file,
+                                    const char * (*name)(unsigned)) {
+  print_one_cube_to_file_recursive (a, file, name);
+}
+
+void println_one_cube (BDD * a, const char * (*name)(unsigned)) {
+  print_one_cube_to_file (a, stdout, name);
+  fputc ('\n', stdout);
+}

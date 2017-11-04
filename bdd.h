@@ -23,6 +23,8 @@ BDD * xnor_bdd (BDD *, BDD *);
 void print_bdd_to_file (BDD *, FILE *);
 void print_bdd (BDD *);
 
+void println_one_cube (BDD *, const char * (*)(unsigned));
+
 void visualize_bdd (BDD *);
 
 #include "num.h"
