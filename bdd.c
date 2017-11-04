@@ -1,30 +1,26 @@
 #include "headers.h"
 
+/*------------------------------------------------------------------------*/
+
 struct BDD {
   unsigned var, ref, hash, mark;
   unsigned long idx;
   BDD * next, * then, * other;
 };
 
-typedef struct Unary Unary;
-struct Unary { BDD * a, * res; Unary * next; };
-
-typedef struct Binary Binary;
-struct Binary { BDD * a, * b, * res; Binary * next; };
+/*------------------------------------------------------------------------*/
 
 static unsigned bdd_mark;
 static BDD ** bdd_table, * false_bdd_node, * true_bdd_node;
 static unsigned bdd_size, bdd_count;
 static unsigned long bdd_nodes;
 
+/*------------------------------------------------------------------------*/
+
 long bdd_lookups, bdd_collisions;
 long cache_lookups, cache_collisions;
 
-static Unary ** unary_table;
-static unsigned unary_size, unary_count;
-
-static Binary ** binary_table;
-static unsigned binary_size, binary_count;
+/*------------------------------------------------------------------------*/
 
 static BDD * inc (BDD * b) {
   assert (b);
@@ -255,6 +251,12 @@ void visualize_bdd (BDD * b) {
 
 /*------------------------------------------------------------------------*/
 
+typedef struct Unary Unary;
+struct Unary { BDD * a, * res; Unary * next; };
+
+static Unary ** unary_table;
+static unsigned unary_size, unary_count;
+
 static Unary * alloc_unary (BDD * a) {
   Unary * res;
   NEW (res);
@@ -362,6 +364,12 @@ BDD * not_bdd (BDD * a) {
 }
 
 /*------------------------------------------------------------------------*/
+
+typedef struct Binary Binary;
+struct Binary { BDD * a, * b, * res; Binary * next; };
+
+static Binary ** binary_table;
+static unsigned binary_size, binary_count;
 
 static Binary * alloc_binary (BDD * a, BDD * b) {
   Binary * res;
@@ -478,10 +486,251 @@ static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   return res;
 }
 
+static BDD * xor_bdd_recursive (BDD * a, BDD * b) {
+  if (a == false_bdd_node) return inc (b);
+  if (b == false_bdd_node) return inc (a);
+  if (a == b) return inc (false_bdd_node);
+  if (a->idx > b->idx) SWAP (BDD*, a, b);
+  BDD * res = cached_binary (a, b);
+  if (res) return res;
+  unsigned var = MAX (a->var, b->var);
+  BDD * a_then = a->var == var ? a->then : a;
+  BDD * b_then = b->var == var ? b->then : b;
+  BDD * then = xor_bdd_recursive (a_then, b_then);
+  BDD * a_other = a->var == var ? a->other : a;
+  BDD * b_other = b->var == var ? b->other : b;
+  BDD * other = xor_bdd_recursive (a_other, b_other);
+  res = new_bdd_node (var, then, other);
+  cache_binary (a, b, res);
+  dec (other);
+  dec (then);
+  return res;
+}
+
+static BDD * or_bdd_recursive (BDD * a, BDD * b) {
+  if (a == true_bdd_node || b == true_bdd_node)
+    return inc (true_bdd_node);
+  if (a == false_bdd_node || a == b)
+    return inc (b);
+  if (b == false_bdd_node)
+    return inc (a);
+  if (a->idx > b->idx) SWAP (BDD*, a, b);
+  BDD * res = cached_binary (a, b);
+  if (res) return res;
+  unsigned var = MAX (a->var, b->var);
+  BDD * a_then = a->var == var ? a->then : a;
+  BDD * b_then = b->var == var ? b->then : b;
+  BDD * then = or_bdd_recursive (a_then, b_then);
+  BDD * a_other = a->var == var ? a->other : a;
+  BDD * b_other = b->var == var ? b->other : b;
+  BDD * other = or_bdd_recursive (a_other, b_other);
+  res = new_bdd_node (var, then, other);
+  cache_binary (a, b, res);
+  dec (other);
+  dec (then);
+  return res;
+}
+
+static BDD * xnor_bdd_recursive (BDD * a, BDD * b) {
+  if (a == true_bdd_node) return inc (b);
+  if (b == true_bdd_node) return inc (a);
+  if (a == b) return inc (true_bdd_node);
+  if (a->idx > b->idx) SWAP (BDD*, a, b);
+  BDD * res = cached_binary (a, b);
+  if (res) return res;
+  unsigned var = MAX (a->var, b->var);
+  BDD * a_then = a->var == var ? a->then : a;
+  BDD * b_then = b->var == var ? b->then : b;
+  BDD * then = xnor_bdd_recursive (a_then, b_then);
+  BDD * a_other = a->var == var ? a->other : a;
+  BDD * b_other = b->var == var ? b->other : b;
+  BDD * other = xnor_bdd_recursive (a_other, b_other);
+  res = new_bdd_node (var, then, other);
+  cache_binary (a, b, res);
+  dec (other);
+  dec (then);
+  return res;
+}
+
 BDD * and_bdd (BDD * a, BDD * b) {
   init_binary ();
   BDD * res = and_bdd_recursive (a, b);
   reset_binary ();
+  return res;
+}
+
+BDD * xor_bdd (BDD * a, BDD * b) {
+  init_binary ();
+  BDD * res = xor_bdd_recursive (a, b);
+  reset_binary ();
+  return res;
+}
+
+BDD * or_bdd (BDD * a, BDD * b) {
+  init_binary ();
+  BDD * res = or_bdd_recursive (a, b);
+  reset_binary ();
+  return res;
+}
+
+BDD * xnor_bdd (BDD * a, BDD * b) {
+  init_binary ();
+  BDD * res = xnor_bdd_recursive (a, b);
+  reset_binary ();
+  return res;
+}
+
+/*------------------------------------------------------------------------*/
+
+typedef struct Ternary Ternary;
+struct Ternary { BDD * a, * b, * c, * res; Ternary * next; };
+
+static Ternary ** ternary_table;
+static unsigned ternary_size, ternary_count;
+
+static Ternary * alloc_ternary (BDD * a, BDD * b, BDD * c) {
+  Ternary * res;
+  NEW (res);
+  res->a = inc (a);
+  res->b = inc (b);
+  res->c = inc (c);
+  ternary_count++;
+  return res;
+}
+
+static void dealloc_ternary (Ternary * l) {
+  assert (l);
+  assert (ternary_count);
+  ternary_count--;
+  dec (l->a);
+  dec (l->b);
+  dec (l->c);
+  dec (l->res);
+  DELETE (l);
+}
+
+static unsigned hash_ternary (BDD * a, BDD * b, BDD * c) {
+  unsigned res = hash_bdd_ptr (a) * primes[0];
+  res = res*primes[0] + hash_bdd_ptr (b);
+  res = res*primes[1] + hash_bdd_ptr (c);
+  return res;
+}
+
+static void enlarge_ternary () {
+  unsigned new_ternary_size = ternary_size ? 2*ternary_size : 1;
+  msg (2, "enlarging ternary cache from %u to %u", ternary_size, new_ternary_size);
+  Ternary ** new_ternary_table;
+  ALLOC (new_ternary_table, new_ternary_size);
+  for (unsigned i = 0; i < ternary_size; i++) {
+    for (Ternary * l = ternary_table[i], * next; l; l = next) {
+      next = l->next;
+      unsigned h = hash_ternary (l->a, l->b, l->c);
+      h &= (new_ternary_size - 1);
+      l->next = new_ternary_table[h];
+      new_ternary_table[h] = l;
+    }
+  }
+  DEALLOC (ternary_table, ternary_size);
+  ternary_table = new_ternary_table;
+  ternary_size = new_ternary_size;
+}
+
+static Ternary ** find_ternary (BDD * a, BDD * b, BDD * c) {
+  cache_lookups++;
+  unsigned h = hash_ternary (a, b, c) & (ternary_size - 1);
+  Ternary ** res, * l;
+  for (res = ternary_table + h;
+       (l = *res) && (l->a != a || l->b != b || l->c != c);
+       res = &l->next);
+    cache_collisions++;
+  return res;
+}
+
+static void cache_ternary (BDD * a, BDD * b, BDD * c, BDD * res) {
+  if (ternary_count == ternary_size) enlarge_ternary ();
+  Ternary ** p = find_ternary (a, b, c), * l = *p;;
+  if (l) { assert (l->res == res); return; }
+  *p = l = alloc_ternary (a, b, c);
+  l->res = inc (res);
+}
+
+static BDD * cached_ternary (BDD * a, BDD * b, BDD * c) {
+  if (!ternary_count) return 0;
+  Ternary * l = *find_ternary (a, b, c);
+  return l ? inc (l->res) : 0;
+}
+
+static void init_ternary () {
+  assert (!ternary_table);
+  assert (!ternary_size);
+  assert (!ternary_count);
+}
+
+static void reset_ternary () {
+#ifndef LOG
+  unsigned lines = ternary_count, old_bdd_count = bdd_count;
+#endif
+  for (unsigned i = 0; i < ternary_size; i++)
+    for (Ternary * l = ternary_table[i], * next; l; l = next)
+      next = l->next, dealloc_ternary (l);
+  assert (!ternary_count);
+  DEALLOC (ternary_table, ternary_size);
+  ternary_size = 0;
+  ternary_table = 0;
+#ifndef LOG
+  assert (old_bdd_count >= bdd_count);
+  LOG ("deleted %u BDD nodes referenced in %u ternary cache entries",
+    lines, old_bdd_count - bdd_count);
+#endif
+}
+
+static BDD * ite_bdd_recursive (BDD * a, BDD * b, BDD * c) {
+  if (a == true_bdd_node) return inc (b);
+  if (a == false_bdd_node) return inc (c);
+  if (b == c) return inc (b);
+  // a ? a : c == a&a | !a&c = a | !a & c == a | c
+  // a ? 1 : c == a&1 | !a&c = a | !a & c == a | c
+  if (a == b || b == true_bdd_node) {
+    if (a == true_bdd_node || c == true_bdd_node)
+      return inc (true_bdd_node);
+    if (a == false_bdd_node || a == c)
+      return inc (c);
+    if (c == false_bdd_node)
+      return inc (a);
+  }
+  // a ? b : a == a&b | !a&a = a & b | 0 == a | b
+  // a ? b : 0 == a&b | !a&0 = a & b | 0 == a | b
+  if (a == c || c == false_bdd_node) {
+    if (a == false_bdd_node || b == false_bdd_node)
+      return inc (false_bdd_node);
+    if (a == b)
+      return inc (b);
+    if (b == true_bdd_node)
+      return inc (a);
+    }
+  BDD * res = cached_ternary (a, b, c);
+  if (res) return res;
+  unsigned var = MAX (b->var, c->var);
+  if (var < a->var) var = a->var;
+  BDD * a_then = a->var == var ? a->then : a;
+  BDD * b_then = b->var == var ? b->then : b;
+  BDD * c_then = c->var == var ? c->then : c;
+  BDD * then = ite_bdd_recursive (a_then, b_then, c_then);
+  BDD * a_other = a->var == var ? a->other : a;
+  BDD * b_other = b->var == var ? b->other : b;
+  BDD * c_other = c->var == var ? c->other : c;
+  BDD * other = ite_bdd_recursive (a_other, b_other, c_other);
+  res = new_bdd_node (var, then, other);
+  cache_ternary (a, b, c, res);
+  dec (other);
+  dec (then);
+  return res;
+}
+
+BDD * ite_bdd (BDD * a, BDD * b, BDD * c) {
+  init_ternary ();
+  BDD * res = ite_bdd_recursive (a, b, c);
+  reset_ternary ();
   return res;
 }
 
