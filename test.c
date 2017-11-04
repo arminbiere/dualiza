@@ -196,13 +196,13 @@ void test () {
   BDD * x = xor_bdd (a, b);
   BDD * y = xor_bdd (x, c);
   printf ("0^1^2\n");
-  print_bdd (y);
-  // visualize_bdd (y);
+  print_bdd (x);
   printf ("models\n");
   Number n;
   init_number (n);
-  count_bdd (n, x, 1);
+  count_bdd (n, y, 2);
   println_number (n);
+  visualize_bdd (y);
   clear_number (n);
   delete_bdd (a);
   delete_bdd (b);

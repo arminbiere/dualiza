@@ -853,7 +853,7 @@ static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
 
 void count_bdd (Number res, BDD * b, unsigned max_var) {
   assert (b);
-  assert (b->idx <= max_var + 2);
+  assert (b->var <= max_var + 2);
   init_count ();
   count_bdd_recursive (res, b, max_var + 2);
   reset_count ();

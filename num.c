@@ -174,6 +174,21 @@ void sub_power_of_two_from_number (Number n, Exponent e) {
   normalize_number (n);
 }
 
+void add_number (Number res, const Number other) {
+  const unsigned res_count = COUNT (res[0]);
+  const unsigned other_count = COUNT (other[0]);
+  unsigned long carry = 0;
+  for (unsigned i = 0; i < other_count; i++) {
+    carry += other[0].start[i];
+    if (i < res_count) {
+      carry += res[0].start[i];
+      res[0].start[i] = (unsigned) carry;
+    } else PUSH (res[0], (unsigned) carry);
+    carry >>= 32;
+  }
+  if (carry) PUSH (res[0], (unsigned) carry);
+}
+
 void print_number_to_file (Number n, FILE * file) {
   CharStack stack;
   INIT (stack);
