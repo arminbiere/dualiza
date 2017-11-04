@@ -95,7 +95,7 @@ static BDD * simulate_circuit_recursive (Gate * g, BDD ** cache, Circuit * c) {
 
 BDD * simulate_circuit (Circuit * c) {
   check_circuit_connected (c);
-  long count = 2*COUNT (c->inputs);
+  long count = 2*COUNT (c->gates);
   BDD ** cache;
   ALLOC (cache, count);
   BDD * res = simulate_circuit_recursive (c->output, cache, c);
