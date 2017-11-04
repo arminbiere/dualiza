@@ -830,13 +830,31 @@ static void reset_count () {
 #endif
 }
 
-void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
+static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
+  assert (a);
+  assert (max_var >= 1);
+  assert (a->var <= max_var);
+  if (a == false_bdd_node) return;
+  if (a == true_bdd_node) {
+    assert (is_zero_number (res));
+    add_power_of_two_to_number (res, max_var - 1);
+    return;
+  }
+  if (cached_count (res, a)) return;
+  Number tmp;
+  init_number (tmp);
+  count_bdd_recursive (tmp, a->then, a->var - 1);
+  count_bdd_recursive (res, a->other, a->var - 1);
+  add_number (res, tmp);
+  clear_number (tmp);
+  multiply_number_by_power_of_two (res, max_var - a->var);
+  cache_count (a, res);
 }
 
 void count_bdd (Number res, BDD * b, unsigned max_var) {
   assert (b);
   assert (b->idx <= max_var + 2);
   init_count ();
-  count_bdd_recursive (res, b, max_var);
+  count_bdd_recursive (res, b, max_var + 2);
   reset_count ();
 }

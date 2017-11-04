@@ -153,37 +153,31 @@ void test () {
   println_number (n);
   clear_number (n);
 #endif
-#if 1
+#if 0
   init_bdds ();
   BDD * a = new_bdd (0);
   BDD * b = new_bdd (1);
   BDD * c = new_bdd (2);
   assert (a != b);
   assert (a != c);
-
   BDD * a_again = new_bdd (0);
   assert (a_again == a);
-
   printf ("and (0, 1)\n");
   BDD * and = and_bdd (a, b);
   print_bdd (and);
   visualize_bdd (and);
-
   printf ("xor (0, 1)\n");
   BDD * xor = xor_bdd (a, b);
   print_bdd (xor);
   visualize_bdd (xor);
-
   printf ("ite (0, 1, 2)\n");
   BDD * ite1 = ite_bdd (a, b, c);
   print_bdd (ite1);
   visualize_bdd (ite1);
-
   printf ("ite (2, 1, 1)\n");
   BDD * ite2 = ite_bdd (c, b, a);
   print_bdd (ite2);
   visualize_bdd (ite2);
-
   delete_bdd (ite1);
   delete_bdd (ite2);
   delete_bdd (xor);
@@ -192,7 +186,29 @@ void test () {
   delete_bdd (a);
   delete_bdd (b);
   delete_bdd (c);
-
+  reset_bdds ();
+#endif
+#if 1
+  init_bdds ();
+  BDD * a = new_bdd (0);
+  BDD * b = new_bdd (1);
+  BDD * c = new_bdd (2);
+  BDD * x = xor_bdd (a, b);
+  BDD * y = xor_bdd (x, c);
+  printf ("0^1^2\n");
+  print_bdd (y);
+  // visualize_bdd (y);
+  printf ("models\n");
+  Number n;
+  init_number (n);
+  count_bdd (n, x, 1);
+  println_number (n);
+  clear_number (n);
+  delete_bdd (a);
+  delete_bdd (b);
+  delete_bdd (c);
+  delete_bdd (x);
+  delete_bdd (y);
   reset_bdds ();
 #endif
 }

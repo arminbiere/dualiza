@@ -6,6 +6,8 @@
 
 void init_number (Number n) { mpz_init (n); }
 
+int is_zero_number (Number n) { return !mpz_cmp_ui (n, 0); }
+
 void copy_number (Number dst, const Number src) { mpz_set (dst, src); }
 
 void clear_number (Number n) { mpz_clear (n); }
@@ -13,12 +15,25 @@ void clear_number (Number n) { mpz_clear (n); }
 void multiply_number_by_power_of_two (Number n, Exponent e) {
   mpz_mul_2exp (n, n, e);
 }
+
 void add_power_of_two_to_number (Number n, Exponent e) {
   mpz_t tmp;
   mpz_init_set_ui (tmp, 1);
   mpz_mul_2exp (tmp, tmp, e);
   mpz_add (n, n, tmp);
   mpz_clear (tmp);
+}
+
+void sub_power_of_two_from_number (Number n, Exponent e) {
+  mpz_t tmp;
+  mpz_init_set_ui (tmp, 1);
+  mpz_mul_2exp (tmp, tmp, e);
+  mpz_sub (n, n, tmp);
+  mpz_clear (tmp);
+}
+
+void add_number (Number res, const Number other) {
+  mpz_add (res, res, other);
 }
 
 void print_number_to_file (Number n, FILE * file) {
@@ -30,6 +45,8 @@ void print_number_to_file (Number n, FILE * file) {
 /*------------------------------------------------------------------------*/
 
 void init_number (Number n) { INIT (*n); }
+
+int is_zero_number (Number n) { return EMPTY (n[0]); }
 
 void copy_number (Number dst, const Number src) {
   CLEAR (dst[0]);
