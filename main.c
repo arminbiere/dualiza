@@ -102,6 +102,7 @@ static void check_options (const char * output_name) {
 # undef NEGATE
 # undef PRINTING
 # undef CHECKING
+# undef BDD
 }
 
 static int is_non_negative_number_string (const char * s) {
@@ -163,7 +164,26 @@ static void generate_dual () {
 }
 
 static void check () {
-  die ("checking not implement yet");
+  if (bdd) {
+    init_bdds ();
+    BDD * b = simulate_circuit (primal);
+    if (sat) { 
+      if (is_false_bdd (b)) printf ("s UNSATISFIABLE\n");
+      else {
+	printf ("s SATISFIABLE\n");
+	// TODO print satisfying assignment
+      }
+    } else {
+      assert (tautology);
+      if (is_true_bdd (b)) printf ("s TAUTOLOGY\n");
+      else {
+	printf ("s INVALID\n");
+	// TODO print falsifying assignment
+      }
+    }
+    delete_bdd (b);
+    reset_bdds ();
+  } else die ("checking with SAT engine not implement yet");
 }
 
 static void print (const char * output_name) {

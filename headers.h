@@ -28,6 +28,7 @@
 #include "reader.h"
 #include "resources.h"
 #include "signal.h"
+#include "simulate.h"
 #include "statistics.h"
 #include "symbols.h"
 #include "test.h"

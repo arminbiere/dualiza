@@ -6,6 +6,9 @@ void reset_bdds ();
 BDD * copy_bdd (BDD *);
 void delete_bdd (BDD *);
 
+int is_false_bdd (BDD *);
+int is_true_bdd (BDD *);
+
 BDD * false_bdd ();
 BDD * true_bdd ();
 BDD * new_bdd (unsigned var);	// 0,1,...

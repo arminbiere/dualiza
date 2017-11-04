@@ -249,6 +249,16 @@ void visualize_bdd (BDD * b) {
   DEALLOC (base, path_len);
 }
 
+int is_false_bdd (BDD * b) {
+  assert (false_bdd_node);
+  return b == false_bdd_node;
+}
+
+int is_true_bdd (BDD * b) {
+  assert (true_bdd_node);
+  return b == true_bdd_node;
+}
+
 /*------------------------------------------------------------------------*/
 
 typedef struct Unary Unary;
