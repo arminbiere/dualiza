@@ -50,8 +50,10 @@ int is_zero_number (Number n) { return EMPTY (n[0]); }
 
 void copy_number (Number dst, const Number src) {
   CLEAR (dst[0]);
-  for (unsigned * p = src[0].start; p < src[0].top; p++)
-    PUSH (dst[0], *p);
+  RESERVE (dst[0], SIZE (src[0]));
+  long n = COUNT (src[0]);
+  dst[0].top = dst[0].start + n;
+  memcpy (dst[0].start, src[0].start, n * sizeof *dst[0].start);
 }
 
 void clear_number (Number n) { RELEASE (n[0]); }
