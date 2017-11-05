@@ -77,6 +77,7 @@ static void check_options (const char * output_name) {
 # define TAUTOLOGY (tautology>0?" '--tautology'":(tautology<0?" '-t'":""))
 # define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
 # define BDD       (bdd      >0?" '--bdd'"      :(bdd<0      ?" '-b'":""))
+# define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
 # define PRINTING FORMULA,AIGER,DIMACS
 # define CHECKING SAT,TAUTOLOGY
   if (printing > 1)
@@ -93,16 +94,18 @@ static void check_options (const char * output_name) {
     die ("can output specified without printing option");
   if (printing && bdd)
     die ("can not use%s%s%s and%s", PRINTING, BDD);
+  if (checking && negate)
+    die ("can not combine%s%s and%s", CHECKING, NEGATE);
 # undef FORMULA
 # undef AIGER
 # undef DIMACS
 # undef SAT
 # undef TAUTOLOGY
 # undef ENUMERATE
+# undef BDD
 # undef NEGATE
 # undef PRINTING
 # undef CHECKING
-# undef BDD
 }
 
 static int is_non_negative_number_string (const char * s) {

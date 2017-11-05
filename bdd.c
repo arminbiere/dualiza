@@ -120,6 +120,7 @@ static void enlarge_bdd () {
 }
 
 static BDD * new_bdd_node (unsigned var, BDD * then, BDD * other) {
+  if (then && then == other) return inc (then);
   if (bdd_size == bdd_count) enlarge_bdd ();
   unsigned hash = hash_bdd (var, then, other);
   BDD ** p = find_bdd (var, then, other, hash), * res;
@@ -367,6 +368,7 @@ static BDD * not_bdd_recursive (BDD * a) {
 }
 
 BDD * not_bdd (BDD * a) {
+  LOG ("not_bdd (%lu, %lu)", a->idx);
   init_unary ();
   BDD * res = not_bdd_recursive (a);
   reset_unary ();
@@ -563,6 +565,7 @@ static BDD * xnor_bdd_recursive (BDD * a, BDD * b) {
 }
 
 BDD * and_bdd (BDD * a, BDD * b) {
+  LOG ("and_bdd (%lu, %lu)", a->idx, b->idx);
   init_binary ();
   BDD * res = and_bdd_recursive (a, b);
   reset_binary ();
@@ -570,6 +573,7 @@ BDD * and_bdd (BDD * a, BDD * b) {
 }
 
 BDD * xor_bdd (BDD * a, BDD * b) {
+  LOG ("xor_bdd (%lu, %lu)", a->idx, b->idx);
   init_binary ();
   BDD * res = xor_bdd_recursive (a, b);
   reset_binary ();
@@ -577,6 +581,7 @@ BDD * xor_bdd (BDD * a, BDD * b) {
 }
 
 BDD * or_bdd (BDD * a, BDD * b) {
+  LOG ("or_bdd (%lu, %lu)", a->idx, b->idx);
   init_binary ();
   BDD * res = or_bdd_recursive (a, b);
   reset_binary ();
@@ -584,6 +589,7 @@ BDD * or_bdd (BDD * a, BDD * b) {
 }
 
 BDD * xnor_bdd (BDD * a, BDD * b) {
+  LOG ("xor_bdd (%lu, %lu)", a->idx, b->idx);
   init_binary ();
   BDD * res = xnor_bdd_recursive (a, b);
   reset_binary ();
@@ -738,6 +744,7 @@ static BDD * ite_bdd_recursive (BDD * a, BDD * b, BDD * c) {
 }
 
 BDD * ite_bdd (BDD * a, BDD * b, BDD * c) {
+  LOG ("ite_bdd (%lu, %lu, %lu)", a->idx, b->idx, c->idx);
   init_ternary ();
   BDD * res = ite_bdd_recursive (a, b, c);
   reset_ternary ();
@@ -862,6 +869,7 @@ static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
 }
 
 void count_bdd (Number res, BDD * b, unsigned max_var) {
+  LOG ("count_bdd (%lu, %u)", b->idx, max_var);
   assert (b);
   assert (b->var <= max_var + 2);
   init_count ();
