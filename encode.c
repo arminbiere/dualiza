@@ -257,13 +257,13 @@ static int encode_gates (Encoder * e, int idx) {
       assert (g);
       assert (!SIGN (g));
       if (map[g->idx]) continue;
-      if (g->op == XOR || g->op == XOR) {
+      if (g->op == XOR || g->op == XNOR) {
 	int n = COUNT (g->inputs);
 	if (n > 2) {
 	  LOG (
 	    "reserving additional %d variables for %d-ary %s",
 	    n-2, n, (g->op == XOR ? "XOR" : "XNOR"));
-	  idx += n;
+	  idx += n-2;
 	}
       }
       map[g->idx] = ++idx;

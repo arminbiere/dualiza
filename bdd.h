@@ -28,7 +28,7 @@ void print_one_satisfying_cube (BDD *, Name);
 void print_one_falsifying_cube (BDD *, Name);
 void print_all_satisfying_cubes (BDD *, Name, const char*);
 
-void visualize_bdd (BDD *);
+void visualize_bdd (BDD *, Name);
 
 #include "num.h"
 void count_bdd (Number res, BDD *, unsigned max_var_idx);

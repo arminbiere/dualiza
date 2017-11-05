@@ -189,7 +189,7 @@ void print_bdd_to_file (BDD * b, FILE * file) {
 
 void print_bdd (BDD * b) { print_bdd_to_file (b, stdout); }
 
-static void visualize_bdd_recursive (BDD * b, FILE * file) {
+static void visualize_bdd_recursive (BDD * b, FILE * file, Name name) {
   assert (b);
   if (b->mark == bdd_mark) return;
   b->mark = bdd_mark;
@@ -198,12 +198,15 @@ static void visualize_bdd_recursive (BDD * b, FILE * file) {
       "b%lu [label=\"%u\",shape=none];\n",
       b->idx, b->var);
   } else {
-    visualize_bdd_recursive (b->then, file);
-    visualize_bdd_recursive (b->other, file);
+    visualize_bdd_recursive (b->then, file, name);
+    visualize_bdd_recursive (b->other, file, name);
     assert (b->var > 1);
-    fprintf (file,
-      "b%lu [label=\"%u\",shape=circle];\n",
-      b->idx, b->var - 2);
+    fprintf (file, "b%lu [label=\"", b->idx);
+    unsigned var = b->var - 2;
+    const char * s;
+    if (name && (s = name (var))) fputs (s, file);
+    else fprintf (file, "%u", var);
+    fprintf (file, "\",shape=circle];\n");
     fprintf (file,
       "b%lu -> b%lu [style=solid];\n",
       b->idx, b->then->idx);
@@ -216,7 +219,7 @@ static void visualize_bdd_recursive (BDD * b, FILE * file) {
 #include <sys/types.h>
 #include <unistd.h>
 
-void visualize_bdd (BDD * b) {
+void visualize_bdd (BDD * b, Name name) {
   assert (b);
   const int path_len = 80;
   const int cmd_len = 3*path_len;
@@ -232,7 +235,7 @@ void visualize_bdd (BDD * b) {
   if (!file) die ("failed to open '%s'", dot);
   fputs ("digraph {\n", file);
   inc_bdd_mark ();
-  visualize_bdd_recursive (b, file);
+  visualize_bdd_recursive (b, file, name);
   fputs ("}\n", file);
   fclose (file);
   sprintf (pdf, "%s.pdf", base);

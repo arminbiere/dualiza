@@ -50,6 +50,7 @@ fputs (
 "By default the SAT engine is used, or alternatively the BDD engine.\n"
 "\n"
 "  -b | --bdd        use BDD engine instead of SAT engine\n"
+"  --visualize       visualize generated BDD\n"
 "\n"
 "Then '<option>' can also be one of the following long options\n"
 "which all require to use an explicit argument (default values given)\n"
@@ -65,7 +66,7 @@ fputs (
 static int formula, aiger, dimacs, negate;
 static int printing, checking, counting;
 static int sat, tautology, enumerate;
-static int bdd, limited;
+static int bdd, limited, visualize;
 static long limit;
  
 static void check_options (const char * output_name) {
@@ -101,6 +102,8 @@ static void check_options (const char * output_name) {
   else if (checking)  msg (1, "checking mode%s%s", CHECKING);
   else if (enumerate) msg (1, "enumeration mode%s", ENUMERATE);
   else counting = 1,  msg (1, "counting mode (default)");
+  if (!bdd && visualize)
+    die ("can not use '--visualize' without BDD");
 # undef FORMULA
 # undef AIGER
 # undef DIMACS
@@ -233,6 +236,7 @@ static BDD * simulate_primal () {
   double time = process_time ();
   double delta = time - start;
   msg (1, "BDD simulation of primal circuit in %.3f seconds", delta);
+  if (visualize) visualize_bdd (res, name_bdd);
   return res;
 }
 
@@ -376,6 +380,7 @@ int main (int argc, char ** argv) {
     else if (!strcmp (argv[i], "--tautology")) tautology = +1;
     else if (!strcmp (argv[i], "--enumerate")) enumerate = +1;
     else if (!strcmp (argv[i], "--bdd"))             bdd = +1;
+    else if (!strcmp (argv[i], "--visualize")) visualize = 1;
     else if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
 	die ("invalid long option '%s'", argv[i]);
