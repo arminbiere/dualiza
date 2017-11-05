@@ -2,6 +2,7 @@
 // List of long options available in all build configurations.
 
 #define OPTIONS_ALL \
+OPTION (printnumber,	1, really print number of all assignments) \
 OPTION (verbosity,	0, verbose level) \
 
 /*------------------------------------------------------------------------*/

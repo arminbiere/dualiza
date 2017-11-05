@@ -69,9 +69,6 @@ static int sat, tautology, enumerate;
 static int bdd, limited, visualize;
 static long limit;
  
-static void check_options (const char * output_name) {
-  printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
-  checking = (sat != 0) + (tautology != 0);
 # define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
 # define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
 # define DIMACS    (dimacs   >0?" '--dimacs'"   :(dimacs<0   ?" '-d'":""))
@@ -82,6 +79,10 @@ static void check_options (const char * output_name) {
 # define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
 # define PRINTING FORMULA,AIGER,DIMACS
 # define CHECKING SAT,TAUTOLOGY
+
+static void check_options (const char * output_name) {
+  printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
+  checking = (sat != 0) + (tautology != 0);
   if (printing > 1)
     die ("too many printing options:%s%s%s", PRINTING);
   if (checking > 1)
@@ -98,12 +99,22 @@ static void check_options (const char * output_name) {
     die ("can not use%s%s%s and%s", PRINTING, BDD);
   if (checking && negate)
     die ("can not combine%s%s and%s", CHECKING, NEGATE);
-       if (printing)  msg (1, "printing mode%s%s%s", PRINTING);
-  else if (checking)  msg (1, "checking mode%s%s", CHECKING);
-  else if (enumerate) msg (1, "enumeration mode%s", ENUMERATE);
-  else counting = 1,  msg (1, "counting mode (default)");
   if (!bdd && visualize)
     die ("can not use '--visualize' without BDD");
+}
+
+static void init_mode () {
+  if (formula) msg (1, "formula printing mode due to%s", FORMULA);
+  if (dimacs) msg (1, "DIMACS printing mode due to%s", DIMACS);
+  if (aiger) msg (1, "AIGER printing mode due to%s", AIGER);
+  if (sat) msg (1, "satisfiability checking mode due to%s", SAT);
+  if (tautology) msg (1, "tautology checking mode due to%s", TAUTOLOGY);
+  if (enumerate) msg (1, "enumeration mode due to%s", ENUMERATE);
+  counting = !printing && !checking && !enumerate;
+  if (counting) msg (1, "default counting mode");
+  assert (checking + printing + enumerate + counting == 1);
+}
+
 # undef FORMULA
 # undef AIGER
 # undef DIMACS
@@ -114,8 +125,6 @@ static void check_options (const char * output_name) {
 # undef NEGATE
 # undef PRINTING
 # undef CHECKING
-  assert (checking + printing + enumerate + counting == 1);
-}
 
 static int is_non_negative_number_string (const char * s) {
   const char * p = s;
@@ -325,11 +334,18 @@ static void count () {
     fflush (stdout);
     unsigned num_inputs = COUNT (primal->inputs);
     if (num_inputs) {
+      double start = process_time ();
       Number n;
       init_number (n);
       count_bdd (n, b, num_inputs-1);
-      printf ("v ");
-      println_number (n);
+      double time = process_time ();
+      double delta = time - start;
+      msg (1,
+"BDD solution counting of primal circuit in %.3f seconds", delta);
+      if (printnumber) {
+	printf ("v ");
+	println_number (n);
+      }
       clear_number (n);
     } else printf ("v 0\n");
     fflush (stdout);
@@ -406,6 +422,7 @@ int main (int argc, char ** argv) {
   msg (1, "DualCount #SAT Solver");
   msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
   print_version ();
+  init_mode ();
   set_signal_handlers ();
   print_options ();
 #ifdef TEST
