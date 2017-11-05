@@ -253,7 +253,8 @@ static void all () {
     msg (1, "enumerating with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
-    printf ("s ALL SATISFYING ASSIGNMENTS\n");
+    if (negate) printf ("s ALL FALSIFYING ASSIGNMENTS\n");
+    else printf ("s ALL SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
     print_all_satisfying_cubes (b, name_bdd, "v ");
     delete_bdd (b);
@@ -266,7 +267,8 @@ static void count () {
     msg (1, "counting with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
-    printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
+    if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
+    else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
     unsigned num_inputs = COUNT (primal->inputs);
     if (num_inputs) {

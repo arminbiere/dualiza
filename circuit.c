@@ -91,17 +91,15 @@ void check_circuit_connected (Circuit * c) {
     assert (!SIGN (g));
     const int num_inputs = COUNT (g->inputs);
     switch (g->op) {
-      case XOR:
-      case XNOR:
-        assert (num_inputs == 2);
-	break;
       case ITE:
         assert (num_inputs == 3);
 	break;
       case FALSE:
       case INPUT:
       case AND:
+      case XOR:
       case OR:
+      case XNOR:
         break;
     }
   }

@@ -71,17 +71,18 @@ static Gate * parse_and (Parser * parser) {
 }
 
 static Gate * parse_xor (Parser * parser) {
-  Gate * res = parse_and (parser);
+  Gate * res = parse_and (parser), * xor = 0;
   for (;;) {
     int ch = next_non_white_space_char (parser->reader);
     if (ch != '^') { prev_char (parser->reader, ch); return res; }
-    Gate * other = parse_and (parser);
-    Gate * xor = new_xor_gate (parser->circuit);
-    connect_gates (res, xor);
-    connect_gates (other, xor);
-    res = xor;
-  }
-  return res;
+    Gate * tmp = parse_and (parser);
+    if (!xor) {
+      xor = new_xor_gate (parser->circuit);
+      connect_gates (res, xor);
+      res = xor;
+    }
+    connect_gates (tmp, xor);
+  } 
 }
 
 static Gate * parse_or (Parser * parser) {
@@ -115,14 +116,18 @@ static Gate * parse_ite (Parser * parser) {
 }
 
 static Gate * parse_xnor (Parser * parser) {
-  Gate * first = parse_ite (parser);
-  int ch = next_non_white_space_char (parser->reader);
-  if (ch != '=') { prev_char (parser->reader, ch); return first; }
-  Gate * second = parse_ite (parser);
-  Gate * xnor = new_xnor_gate (parser->circuit);
-  connect_gates (first, xnor);
-  connect_gates (second, xnor);
-  return xnor;
+  Gate * res = parse_ite (parser), * xnor = 0;
+  for (;;) {
+    int ch = next_non_white_space_char (parser->reader);
+    if (ch != '=') { prev_char (parser->reader, ch); return res; }
+    Gate * tmp = parse_ite (parser);
+    if (!xnor) {
+      xnor = new_xnor_gate (parser->circuit);
+      connect_gates (res, xnor);
+      res = xnor;
+    }
+    connect_gates (tmp, xnor);
+  } 
 }
 
 static Gate * parse_expr (Parser * parser) {

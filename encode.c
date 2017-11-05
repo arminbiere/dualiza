@@ -136,15 +136,21 @@ static void encode_and (Gate * g, Encoder * e) {
 }
 
 static void encode_xor (Gate * g, Encoder * e) {
-  assert (COUNT (g->inputs) == 2);
-  LOG ("encoding XOR gate of size %ld", (long) COUNT (g->inputs));
-  int lit = map_gate (g, e);
+  int n = COUNT (g->inputs);
+  assert (n > 1);
+  LOG ("encoding XOR gate of size %d", n);
+  int idx = e->map[g->idx] - (n - 1);
   int a = map_input (g, 0, e);
-  int b = map_input (g, 1, e);
-  encode_ternary (e, -lit, a, b);
-  encode_ternary (e, -lit, -a, -b);
-  encode_ternary (e, lit, -a, b);
-  encode_ternary (e, lit, a, -b);
+  for (int i = 1; i < n; i++) {
+    int lit = idx + i;
+    int b = map_input (g, i, e);
+    encode_ternary (e, -lit, a, b);
+    encode_ternary (e, -lit, -a, -b);
+    encode_ternary (e, lit, -a, b);
+    encode_ternary (e, lit, a, -b);
+    a = lit;
+  }
+  assert (a == e->map[g->idx]);
 }
 
 static void encode_or (Gate * g, Encoder * e) {
@@ -174,15 +180,21 @@ static void encode_ite (Gate * g, Encoder * e) {
 }
 
 static void encode_xnor (Gate * g, Encoder * e) {
-  assert (COUNT (g->inputs) == 2);
-  LOG ("encoding XNOR gate of size %ld", (long) COUNT (g->inputs));
-  int lit = map_gate (g, e);
+  int n = COUNT (g->inputs);
+  assert (n > 1);
+  LOG ("encoding XNOR gate of size %d", n);
+  int idx = e->map[g->idx] - (n - 1);
   int a = map_input (g, 0, e);
-  int b = map_input (g, 1, e);
-  encode_ternary (e, lit, a, b);
-  encode_ternary (e, lit, -a, -b);
-  encode_ternary (e, -lit, -a, b);
-  encode_ternary (e, -lit, a, -b);
+  for (int i = 1; i < n; i++) {
+    int lit = idx + i;
+    int b = map_input (g, i, e);
+    encode_ternary (e, lit, a, b);
+    encode_ternary (e, lit, -a, -b);
+    encode_ternary (e, -lit, -a, b);
+    encode_ternary (e, -lit, a, -b);
+    a = lit;
+  }
+  assert (a == e->map[g->idx]);
 }
 
 static void encode_gate (Gate * g, Encoder *e) {
@@ -223,6 +235,15 @@ static int encode_gates (Encoder * e, int idx) {
     if (g->op == INPUT) { assert (map[g->idx]); continue; }
     assert (!map[g->idx]);
     if (!g->pos && !g->neg) continue;
+    if (g->op == XOR || g->op == XOR) {
+      int n = COUNT (g->inputs);
+      if (n > 2) {
+	LOG (
+	  "reserving additional %d variables for %d-ary %s",
+	  n-2, n, (g->op == XOR ? "XOR" : "XNOR"));
+	idx += n;
+      }
+    }
     map[g->idx] = ++idx;
     encode_gate (g, e);
     encoded++;

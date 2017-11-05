@@ -26,9 +26,9 @@ simulate_gates (Gate ** gates, long n,
                 BDD * (*op)(BDD *, BDD*), 
 		const char * name)
 {
-  LOG ("simulating %s over %ld gates", name, n);
   assert (n > 0);
   if (n == 1) return simulate_circuit_recursive (gates[0], cache, c);
+  LOG ("simulating %s over %ld gates", name, n);
   unsigned m = n/2;
   BDD * l = simulate_gates (gates, m, cache, c, op, name);
   BDD * r = simulate_gates (gates + m, n - m, cache, c, op, name);
@@ -42,6 +42,7 @@ static BDD * simulate_circuit_recursive (Gate * g, BDD ** cache, Circuit * c) {
   BDD * res = cached_simulate (cache, g);
   if (res) return res;
   if (SIGN (g)) {
+    LOG ("simulating NOT");
     BDD * tmp = simulate_circuit_recursive (NOT (g), cache, c);
     res = not_bdd (tmp);
     delete_bdd (tmp);
@@ -50,46 +51,24 @@ static BDD * simulate_circuit_recursive (Gate * g, BDD ** cache, Circuit * c) {
     Gate ** inputs = g->inputs.start;
     switch (g->op) {
       case FALSE:
+	LOG ("simulating FALSE");
 	res = false_bdd ();
         break;
       case INPUT:
+	LOG ("simulating INPUT %d", g->input);
         res = new_bdd (g->input);
         break;
       case AND:
-#if 0
-        res = true_bdd ();
-	for (long i = 0; i < n; i++) {
-	  BDD * tmp = simulate_circuit_recursive (inputs[i], cache, c);
-	  BDD * and = and_bdd (res, tmp);
-	  delete_bdd (tmp);
-	  delete_bdd (res);
-	  res = and;
-	}
-#else
 	res = simulate_gates (inputs, n, cache, c, and_bdd, "AND");
-#endif
         break;
       case XOR:
-	assert (n == 2);
-	{
-	  BDD * l = simulate_circuit_recursive (inputs[0], cache, c);
-	  BDD * r = simulate_circuit_recursive (inputs[1], cache, c);
-	  res = xor_bdd (l, r);
-	  delete_bdd (l);
-	  delete_bdd (r);
-	}
+	res = simulate_gates (inputs, n, cache, c, xor_bdd, "XOR");
         break;
       case OR:
-        res = false_bdd ();
-	for (long i = 0; i < n; i++) {
-	  BDD * tmp = simulate_circuit_recursive (inputs[i], cache, c);
-	  BDD * or = or_bdd (res, tmp);
-	  delete_bdd (tmp);
-	  delete_bdd (res);
-	  res = or;
-	}
+	res = simulate_gates (inputs, n, cache, c, or_bdd, "OR");
         break;
       case ITE:
+	LOG ("simulating ITE");
 	assert (n == 3);
 	{
 	  BDD * cond = simulate_circuit_recursive (inputs[0], cache, c);
@@ -102,14 +81,7 @@ static BDD * simulate_circuit_recursive (Gate * g, BDD ** cache, Circuit * c) {
 	}
         break;
       case XNOR:
-	assert (n == 2);
-	{
-	  BDD * l = simulate_circuit_recursive (inputs[0], cache, c);
-	  BDD * r = simulate_circuit_recursive (inputs[1], cache, c);
-	  res = xnor_bdd (l, r);
-	  delete_bdd (l);
-	  delete_bdd (r);
-	}
+	res = simulate_gates (inputs, n, cache, c, xnor_bdd, "XNOR");
         break;
     }
   }
