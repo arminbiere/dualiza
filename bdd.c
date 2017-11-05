@@ -477,6 +477,15 @@ static void reset_binary () {
 #endif
 }
 
+#define COFACTOR(B) \
+  BDD * B ## _then = B->var == var ? B->then : B; \
+  BDD * B ## _other = B->var == var ? B->other : B
+
+#define COFACTOR2(A,B) \
+  unsigned var = MAX (A->var, B->var); \
+  COFACTOR (A); \
+  COFACTOR (B)
+
 static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   if (a == false_bdd_node || b == false_bdd_node)
     return inc (false_bdd_node);
@@ -487,12 +496,8 @@ static BDD * and_bdd_recursive (BDD * a, BDD * b) {
   if (a->idx > b->idx) SWAP (BDD*, a, b);
   BDD * res = cached_binary (a, b);
   if (res) return res;
-  unsigned var = MAX (a->var, b->var);
-  BDD * a_then = a->var == var ? a->then : a;
-  BDD * b_then = b->var == var ? b->then : b;
+  COFACTOR2 (a, b);
   BDD * then = and_bdd_recursive (a_then, b_then);
-  BDD * a_other = a->var == var ? a->other : a;
-  BDD * b_other = b->var == var ? b->other : b;
   BDD * other = and_bdd_recursive (a_other, b_other);
   res = new_bdd_node (var, then, other);
   cache_binary (a, b, res);
@@ -508,12 +513,8 @@ static BDD * xor_bdd_recursive (BDD * a, BDD * b) {
   if (a->idx > b->idx) SWAP (BDD*, a, b);
   BDD * res = cached_binary (a, b);
   if (res) return res;
-  unsigned var = MAX (a->var, b->var);
-  BDD * a_then = a->var == var ? a->then : a;
-  BDD * b_then = b->var == var ? b->then : b;
+  COFACTOR2 (a, b);
   BDD * then = xor_bdd_recursive (a_then, b_then);
-  BDD * a_other = a->var == var ? a->other : a;
-  BDD * b_other = b->var == var ? b->other : b;
   BDD * other = xor_bdd_recursive (a_other, b_other);
   res = new_bdd_node (var, then, other);
   cache_binary (a, b, res);
@@ -532,12 +533,8 @@ static BDD * or_bdd_recursive (BDD * a, BDD * b) {
   if (a->idx > b->idx) SWAP (BDD*, a, b);
   BDD * res = cached_binary (a, b);
   if (res) return res;
-  unsigned var = MAX (a->var, b->var);
-  BDD * a_then = a->var == var ? a->then : a;
-  BDD * b_then = b->var == var ? b->then : b;
+  COFACTOR2 (a, b);
   BDD * then = or_bdd_recursive (a_then, b_then);
-  BDD * a_other = a->var == var ? a->other : a;
-  BDD * b_other = b->var == var ? b->other : b;
   BDD * other = or_bdd_recursive (a_other, b_other);
   res = new_bdd_node (var, then, other);
   cache_binary (a, b, res);
@@ -553,12 +550,8 @@ static BDD * xnor_bdd_recursive (BDD * a, BDD * b) {
   if (a->idx > b->idx) SWAP (BDD*, a, b);
   BDD * res = cached_binary (a, b);
   if (res) return res;
-  unsigned var = MAX (a->var, b->var);
-  BDD * a_then = a->var == var ? a->then : a;
-  BDD * b_then = b->var == var ? b->then : b;
+  COFACTOR2 (a, b);
   BDD * then = xnor_bdd_recursive (a_then, b_then);
-  BDD * a_other = a->var == var ? a->other : a;
-  BDD * b_other = b->var == var ? b->other : b;
   BDD * other = xnor_bdd_recursive (a_other, b_other);
   res = new_bdd_node (var, then, other);
   cache_binary (a, b, res);
@@ -731,13 +724,8 @@ static BDD * ite_bdd_recursive (BDD * a, BDD * b, BDD * c) {
   if (res) return res;
   unsigned var = MAX (b->var, c->var);
   if (var < a->var) var = a->var;
-  BDD * a_then = a->var == var ? a->then : a;
-  BDD * b_then = b->var == var ? b->then : b;
-  BDD * c_then = c->var == var ? c->then : c;
+  COFACTOR (a); COFACTOR (b); COFACTOR (c);
   BDD * then = ite_bdd_recursive (a_then, b_then, c_then);
-  BDD * a_other = a->var == var ? a->other : a;
-  BDD * b_other = b->var == var ? b->other : b;
-  BDD * c_other = c->var == var ? c->other : c;
   BDD * other = ite_bdd_recursive (a_other, b_other, c_other);
   res = new_bdd_node (var, then, other);
   cache_ternary (a, b, c, res);
