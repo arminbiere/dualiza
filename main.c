@@ -63,8 +63,9 @@ fputs (
 }
 
 static int formula, aiger, dimacs, negate;
-static int sat, tautology, enumerate, limited;
-static int printing, checking, bdd;
+static int printing, checking, counting;
+static int sat, tautology, enumerate;
+static int bdd, limited;
 static long limit;
  
 static void check_options (const char * output_name) {
@@ -96,6 +97,10 @@ static void check_options (const char * output_name) {
     die ("can not use%s%s%s and%s", PRINTING, BDD);
   if (checking && negate)
     die ("can not combine%s%s and%s", CHECKING, NEGATE);
+       if (printing)  msg (1, "printing mode%s%s%s", PRINTING);
+  else if (checking)  msg (1, "checking mode%s%s", CHECKING);
+  else if (enumerate) msg (1, "enumeration mode%s", ENUMERATE);
+  else counting = 1,  msg (1, "counting mode (default)");
 # undef FORMULA
 # undef AIGER
 # undef DIMACS
@@ -106,6 +111,7 @@ static void check_options (const char * output_name) {
 # undef NEGATE
 # undef PRINTING
 # undef CHECKING
+  assert (checking + printing + enumerate + counting == 1);
 }
 
 static int is_non_negative_number_string (const char * s) {
@@ -154,14 +160,57 @@ static void parse (const char * input_name) {
 }
 
 static void generate_dual () {
+  assert (checking + printing + enumerate + counting == 1);
   assert (primal);
   assert (!dual);
-  msg (1, "generating dual circuit");
+  if (negate) {
+    assert (!checking);
+    if (printing)
+      msg (1,
+"generating dual circuit for printing");
+    else if (enumerate)
+      msg (1,
+"generating dual circuit for enumeration");
+    else
+      assert (counting), msg (1,
+"generating dual circuit for counting");
+  } else {
+    if (checking) {
+      if (bdd) {
+	msg (1,
+"using primal circuit for non-negated checking with BDD engine");
+	return;
+      } else
+        msg (1,
+"generating dual circuit for checking with SAT engine");
+    } else if (printing) {
+      msg (1,
+"using primal circuit for non-negated printing");
+      return;
+    } else if (enumerate) {
+      if (bdd) {
+	msg (1,
+"using primal circuit for non-negated enumeration with BDD engine");
+	return;
+      } else
+        msg (1,
+"generating dual circuit for enumeration with SAT engine");
+    } else {
+      assert (counting);
+      if (bdd) {
+	msg (1,
+"using primal circuit for non-negated counting with BDD engine");
+	return;
+      } else
+        msg (1,
+"generating dual circuit for counting with SAT engine");
+    }
+  }
   dual = negate_circuit (primal);
   if (negate) {
     SWAP (Circuit *, primal, dual);
     msg (1,
-      "swapped dual and primal due since '%s' specified",
+      "swapped dual and primal circuit since '%s' specified",
       (negate>0? "--negate" : "-n"));
   }
 }

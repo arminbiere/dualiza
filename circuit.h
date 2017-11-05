@@ -43,6 +43,8 @@ Gate * new_or_gate (Circuit *);
 Gate * new_ite_gate (Circuit *);
 Gate * new_xnor_gate (Circuit *);
 
+const char * gate_name (Gate *);
+
 void connect_gates (Gate * input, Gate * output);
 void connect_output (Circuit *, Gate * output);
 void check_circuit_connected (Circuit *);

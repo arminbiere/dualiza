@@ -8,6 +8,7 @@ static Gate * new_gate (Circuit * c, Operator op) {
   res->circuit = c;
   res->op = op;
   PUSH (c->gates, res);
+  LOG ("new %s gate %d", gate_name (res), res->idx);
   return res;
 }
 
@@ -73,6 +74,12 @@ void connect_gates (Gate * input, Gate * output) {
   assert (stripped_output->op != INPUT);
   PUSH (stripped_input->outputs, output);
   PUSH (stripped_output->inputs, input);
+  LOG (
+    "%s gate %d connected%s as input to %s gate %d",
+    gate_name (stripped_input), stripped_input->idx,
+    SIGN (input) ? " negated" : "",
+    gate_name (stripped_output), stripped_output->idx);
+    
 }
 
 void connect_output (Circuit * c, Gate * output) {
@@ -80,6 +87,20 @@ void connect_output (Circuit * c, Gate * output) {
   assert (!c->output);
   assert (((Gate*)STRIP (output))->circuit == c);
   c->output = output;
+}
+
+const char * gate_name (Gate * g) {
+  if (SIGN (g)) return "NOT";
+  switch (g->op) {
+    case FALSE: return "FALSE";
+    case INPUT: return "INPUT";
+    case AND: return "AND";
+    case XOR: return "XOR";
+    case OR: return "OR";
+    case ITE: return "ITE";
+    case XNOR: return "XNOR";
+    default: return "UNKNOWN";
+  }
 }
 
 void check_circuit_connected (Circuit * c) {
@@ -90,18 +111,10 @@ void check_circuit_connected (Circuit * c) {
     Gate * g = *p;
     assert (!SIGN (g));
     const int num_inputs = COUNT (g->inputs);
-    switch (g->op) {
-      case ITE:
-        assert (num_inputs == 3);
-	break;
-      case FALSE:
-      case INPUT:
-      case AND:
-      case XOR:
-      case OR:
-      case XNOR:
-        break;
-    }
+    if (g->op == FALSE) assert (num_inputs == 0);
+    else if (g->op == INPUT) assert (num_inputs == 0);
+    else if (g->op == ITE) assert (num_inputs == 3);
+    else assert (num_inputs > 1);
   }
 #endif
 }

@@ -48,7 +48,8 @@ static Gate * parse_basic (Parser * parser) {
     if (!(res = s->gate)) {
       res = s->gate = new_input_gate (parser->circuit);
       res->symbol = s;
-      LOG ("input %d gate %d connected to symbol '%s'",
+      LOG (
+        "formula input %d connected to circuit gate %d with symbol '%s'",
         res->input, res->idx, s->name);
     }
   } else parse_error (parser->reader, "expected basic expression");
