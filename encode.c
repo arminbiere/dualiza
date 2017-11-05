@@ -239,7 +239,7 @@ static int encode_gates (Encoder * e, int idx) {
     Gate * g = TOP (stack);
     assert (!SIGN (g));
     if (g) {
-      if (map[g->idx]) POP (stack);
+      if (map[g->idx]) (void) POP (stack);
       else {
 	assert (g->pos >0 || g->neg > 0);
 	PUSH (stack, 0);
