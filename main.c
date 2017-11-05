@@ -255,7 +255,7 @@ static void all () {
     print_all_satisfying_cubes (b, name_bdd, "v ");
     delete_bdd (b);
     reset_bdds ();
-  } else die ("enumerating with SAT engine not implement yet");
+  } else die ("enumerating with SAT engine not implement yet (use '-b')");
 }
 
 static void count () {
@@ -277,7 +277,7 @@ static void count () {
     fflush (stdout);
     delete_bdd (b);
     reset_bdds ();
-  } else die ("counting with SAT engine not implement yet");
+  } else die ("counting with SAT engine not implement yet (use '-b')");
 }
 
 static void reset () {

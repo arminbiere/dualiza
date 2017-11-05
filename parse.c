@@ -71,14 +71,17 @@ static Gate * parse_and (Parser * parser) {
 }
 
 static Gate * parse_xor (Parser * parser) {
-  Gate * first = parse_and (parser);
-  int ch = next_non_white_space_char (parser->reader);
-  if (ch != '^') { prev_char (parser->reader, ch); return first; }
-  Gate * second = parse_and (parser);
-  Gate * xor = new_xor_gate (parser->circuit);
-  connect_gates (first, xor);
-  connect_gates (second, xor);
-  return xor;
+  Gate * res = parse_and (parser);
+  for (;;) {
+    int ch = next_non_white_space_char (parser->reader);
+    if (ch != '^') { prev_char (parser->reader, ch); return res; }
+    Gate * other = parse_and (parser);
+    Gate * xor = new_xor_gate (parser->circuit);
+    connect_gates (res, xor);
+    connect_gates (other, xor);
+    res = xor;
+  }
+  return res;
 }
 
 static Gate * parse_or (Parser * parser) {
