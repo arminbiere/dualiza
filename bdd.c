@@ -848,7 +848,10 @@ static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
     add_power_of_two_to_number (res, max_var - 1);
     return;
   }
-  if (cached_count (res, a)) return;
+  if (cached_count (res, a)) {
+    multiply_number_by_power_of_two (res, max_var - a->var);
+    return;
+  }
   Number tmp;
   init_number (tmp);
   count_bdd_recursive (tmp, a->then, a->var - 1);
