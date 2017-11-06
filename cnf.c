@@ -94,7 +94,7 @@ int maximum_variable_index (CNF * cnf) {
 
 void print_cnf_to_file (CNF * cnf, FILE * file) {
   int m = maximum_variable_index (cnf), n = COUNT (cnf->clauses);
-  printf ("p cnf %d %d\n", m, n);
+  fprintf (file, "p cnf %d %d\n", m, n);
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++)
     print_clause_to_file (*p, file);
 }
