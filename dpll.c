@@ -20,7 +20,6 @@ struct Var {
 
 struct DPLL {
   int max_var;
-  int unassigned;
   int next;
   int level;
   IntStack trail;
@@ -77,7 +76,6 @@ DPLL * new_dpll (CNF * cnf, IntStack * inputs) {
   }
   LOG ("using %d inputs and %d non-inputs variables",
     num_inputs, res->max_var - num_inputs);
-  res->unassigned = res->max_var;
   for (int idx = 1; idx <= res->max_var; idx++)
     res->vars[idx].phase = -1;
   return res;
@@ -106,14 +104,14 @@ static void assign (DPLL * dpll, int lit) {
   PUSH (dpll->trail, lit);
 }
 
-static Clauses * occ (DPLL * dpll, int lit) {
+static Clauses * occs (DPLL * dpll, int lit) {
   return &var (dpll, lit)->occs[lit < 0];
 }
 
 
 static void connect_literal (DPLL * dpll, Clause * c, int lit) {
   DOGCLS (c, "connecting literal %d to", lit);
-  Clauses * cs = occ (dpll, lit);
+  Clauses * cs = occs (dpll, lit);
   PUSH (*cs, c);
 }
 
@@ -124,6 +122,7 @@ static void connect_clause (DPLL * dpll, Clause * c) {
 }
 
 static int connect_cnf (DPLL * dpll) {
+  assert (!dpll->level);
   Clauses * clauses = &dpll->cnf->clauses;
   LOG ("connecting %ld clauses to DPLL solver", (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
@@ -152,8 +151,60 @@ static int connect_cnf (DPLL * dpll) {
   return 1;
 }
 
+static int bcp (DPLL * dpll) {
+  int res = 1;
+  while (res && dpll->next < COUNT (dpll->trail)) {
+    int lit = dpll->trail.start[dpll->next++];
+    assert (val (dpll, lit) > 0);
+    LOG ("propagating %d", lit);
+    dpll->stats.propagations++;
+    Clauses * o = occs (dpll, -lit);
+    Clause ** q = o->start, ** p = q;
+    while (res && p < o->top) {
+      Clause * c = *q++ = *p++;
+      DOGCLS (c, "visiting while propagating %d", lit);
+      assert (c->size > 1);
+      if (c->literals[0] != -lit)
+	SWAP (int, c->literals[0], c->literals[1]);
+      assert (c->literals[0] == -lit);
+      const int other = c->literals[1], other_val = val (dpll, other);
+      if (other_val > 0) continue;
+      int i = 2, replacement_val = -1, replacement = 0;
+      while (i < c->size) {
+	replacement = c->literals[i];
+	replacement_val = val (dpll, replacement);
+	if (replacement_val >= 0) break;
+	i++;
+      }
+      if (replacement_val >= 0) {
+	DOGCLS (c, "disconnecting literal %d from", -lit);
+	c->literals[0] = replacement;
+	c->literals[i] = -lit;
+	connect_literal (dpll, c, replacement);
+	q--;
+      } else if (!other_val) {
+	DOGCLS (c, "forcing %d", other);
+	assign (dpll, other);
+      } else {
+	assert (other_val < 0);
+	DOGCLS (c, "conflicting");
+	res = 0;
+      }
+    }
+    while (p < o->top) *q++ = *p++;
+    o->top = q;
+  }
+  return res;
+}
+
+static void connect_inputs (DPLL * dpll) {
+  LOG ("connecting inputs");
+}
+
 int dpll_sat (DPLL * dpll) {
   if (!connect_cnf (dpll)) return 20;
+  if (!bcp (dpll)) return 20;
+  connect_inputs (dpll);
   return 0;
 }
 
@@ -162,4 +213,10 @@ int dpll_deref (DPLL * dpll, int lit) {
 }
 
 void dpll_stats (DPLL * dpll) {
+  if (verbosity < 1) return;
+  msg (1,
+    "%ld decisions, %ld propagations, %ld decisions",
+    dpll->stats.decisions,
+    dpll->stats.propagations,
+    dpll->stats.conflicts);
 }
