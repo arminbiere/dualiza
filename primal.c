@@ -1,11 +1,11 @@
 #include "headers.h"
 
 #ifdef NLOG
-#define DOG(...) do { } while (0)
-#define DOGCLS(...) do { } while (0)
+#define POG(...) do { } while (0)
+#define POGCLS(...) do { } while (0)
 #else
-#define DOG(FMT,ARGS...) LOG ("%d " FMT, ##ARGS)
-#define DOGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, ##ARGS)
+#define POG(FMT,ARGS...) LOG ("%d " FMT, ##ARGS)
+#define POGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, ##ARGS)
 #endif
 
 typedef struct Var Var;
@@ -18,7 +18,7 @@ struct Var {
   Clauses occs[2];
 };
 
-struct DPLL {
+struct Primal {
   int max_var;
   int next;
   int level;
@@ -32,25 +32,25 @@ struct DPLL {
   } stats;
 };
 
-static Var * var (DPLL * dpll, int lit) {
+static Var * var (Primal * primal, int lit) {
   assert (lit);
   int idx = abs (lit);
-  assert (idx <= dpll->max_var);
-  return dpll->vars + idx;
+  assert (idx <= primal->max_var);
+  return primal->vars + idx;
 }
 
-static int val (DPLL * dpll, int lit) {
-  Var * v = var (dpll, lit);
+static int val (Primal * primal, int lit) {
+  Var * v = var (primal, lit);
   int res = v->val;
   if (lit < 0) res = -res;
   return res;
 }
 
-DPLL * new_dpll (CNF * cnf, IntStack * inputs) {
+Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
-  LOG ("new DPLL over %ld clauses and %ld inputs",
+  LOG ("new Primal over %ld clauses and %ld inputs",
     (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
-  DPLL * res;
+  Primal * res;
   NEW (res);
   int max_var_in_cnf = maximum_variable_index (cnf);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
@@ -81,50 +81,50 @@ DPLL * new_dpll (CNF * cnf, IntStack * inputs) {
   return res;
 }
 
-void delete_dpll (DPLL * dpll) {
-  LOG ("deleting DPLL solver");
-  RELEASE (dpll->trail);
-  for (int idx = 1; idx <= dpll->max_var; idx++) {
-    Var * v = dpll->vars + idx;
+void delete_primal (Primal * primal) {
+  LOG ("deleting Primal solver");
+  RELEASE (primal->trail);
+  for (int idx = 1; idx <= primal->max_var; idx++) {
+    Var * v = primal->vars + idx;
     RELEASE (v->occs[0]);
     RELEASE (v->occs[1]);
   }
-  DEALLOC (dpll->vars, dpll->max_var+1);
-  DELETE (dpll);
+  DEALLOC (primal->vars, primal->max_var+1);
+  DELETE (primal);
 }
 
-static void assign (DPLL * dpll, int lit) {
-  DOG ("assign %d", lit);
-  assert (!val (dpll, lit));
+static void assign (Primal * primal, int lit) {
+  POG ("assign %d", lit);
+  assert (!val (primal, lit));
   int idx = abs (lit);
-  Var * v = dpll->vars + idx;
+  Var * v = primal->vars + idx;
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
-  v->level = dpll->level;
-  PUSH (dpll->trail, lit);
+  v->level = primal->level;
+  PUSH (primal->trail, lit);
 }
 
-static Clauses * occs (DPLL * dpll, int lit) {
-  return &var (dpll, lit)->occs[lit < 0];
+static Clauses * occs (Primal * primal, int lit) {
+  return &var (primal, lit)->occs[lit < 0];
 }
 
 
-static void connect_literal (DPLL * dpll, Clause * c, int lit) {
-  DOGCLS (c, "connecting literal %d to", lit);
-  Clauses * cs = occs (dpll, lit);
+static void connect_literal (Primal * primal, Clause * c, int lit) {
+  POGCLS (c, "connecting literal %d to", lit);
+  Clauses * cs = occs (primal, lit);
   PUSH (*cs, c);
 }
 
-static void connect_clause (DPLL * dpll, Clause * c) {
+static void connect_clause (Primal * primal, Clause * c) {
   assert (c->size > 1);
-  connect_literal (dpll, c, c->literals[0]);
-  connect_literal (dpll, c, c->literals[1]);
+  connect_literal (primal, c, c->literals[0]);
+  connect_literal (primal, c, c->literals[1]);
 }
 
-static int connect_cnf (DPLL * dpll) {
-  assert (!dpll->level);
-  Clauses * clauses = &dpll->cnf->clauses;
-  LOG ("connecting %ld clauses to DPLL solver", (long) COUNT (*clauses));
+static int connect_cnf (Primal * primal) {
+  assert (!primal->level);
+  Clauses * clauses = &primal->cnf->clauses;
+  LOG ("connecting %ld clauses to Primal solver", (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
     if (c->size == 0) {
@@ -133,7 +133,7 @@ static int connect_cnf (DPLL * dpll) {
     } else if (c->size == 1) {
       int unit = c->literals[0];
       LOG ("found unit clause %d", unit);
-      int tmp = val (dpll, unit);
+      int tmp = val (primal, unit);
       if (tmp > 0) {
 	LOG ("ignoring already satisfied unit %d", unit);
 	continue;
@@ -142,52 +142,52 @@ static int connect_cnf (DPLL * dpll) {
 	LOG ("found already falsified unit %d", unit);
 	return 0;
       }
-      assign (dpll, unit);
+      assign (primal, unit);
     } else {
       assert (c->size > 1);
-      connect_clause (dpll, c);
+      connect_clause (primal, c);
     }
   }
   return 1;
 }
 
-static int bcp (DPLL * dpll) {
+static int bcp (Primal * primal) {
   int res = 1;
-  while (res && dpll->next < COUNT (dpll->trail)) {
-    int lit = dpll->trail.start[dpll->next++];
-    assert (val (dpll, lit) > 0);
+  while (res && primal->next < COUNT (primal->trail)) {
+    int lit = primal->trail.start[primal->next++];
+    assert (val (primal, lit) > 0);
     LOG ("propagating %d", lit);
-    dpll->stats.propagations++;
-    Clauses * o = occs (dpll, -lit);
+    primal->stats.propagations++;
+    Clauses * o = occs (primal, -lit);
     Clause ** q = o->start, ** p = q;
     while (res && p < o->top) {
       Clause * c = *q++ = *p++;
-      DOGCLS (c, "visiting while propagating %d", lit);
+      POGCLS (c, "visiting while propagating %d", lit);
       assert (c->size > 1);
       if (c->literals[0] != -lit)
 	SWAP (int, c->literals[0], c->literals[1]);
       assert (c->literals[0] == -lit);
-      const int other = c->literals[1], other_val = val (dpll, other);
+      const int other = c->literals[1], other_val = val (primal, other);
       if (other_val > 0) continue;
       int i = 2, replacement_val = -1, replacement = 0;
       while (i < c->size) {
 	replacement = c->literals[i];
-	replacement_val = val (dpll, replacement);
+	replacement_val = val (primal, replacement);
 	if (replacement_val >= 0) break;
 	i++;
       }
       if (replacement_val >= 0) {
-	DOGCLS (c, "disconnecting literal %d from", -lit);
+	POGCLS (c, "disconnecting literal %d from", -lit);
 	c->literals[0] = replacement;
 	c->literals[i] = -lit;
-	connect_literal (dpll, c, replacement);
+	connect_literal (primal, c, replacement);
 	q--;
       } else if (!other_val) {
-	DOGCLS (c, "forcing %d", other);
-	assign (dpll, other);
+	POGCLS (c, "forcing %d", other);
+	assign (primal, other);
       } else {
 	assert (other_val < 0);
-	DOGCLS (c, "conflicting");
+	POGCLS (c, "conflicting");
 	res = 0;
       }
     }
@@ -197,26 +197,26 @@ static int bcp (DPLL * dpll) {
   return res;
 }
 
-static void connect_inputs (DPLL * dpll) {
+static void connect_inputs (Primal * primal) {
   LOG ("connecting inputs");
 }
 
-int dpll_sat (DPLL * dpll) {
-  if (!connect_cnf (dpll)) return 20;
-  if (!bcp (dpll)) return 20;
-  connect_inputs (dpll);
+int primal_sat (Primal * primal) {
+  if (!connect_cnf (primal)) return 20;
+  if (!bcp (primal)) return 20;
+  connect_inputs (primal);
   return 0;
 }
 
-int dpll_deref (DPLL * dpll, int lit) {
-  return val (dpll, lit);
+int primal_deref (Primal * primal, int lit) {
+  return val (primal, lit);
 }
 
-void dpll_stats (DPLL * dpll) {
+void primal_stats (Primal * primal) {
   if (verbosity < 1) return;
   msg (1,
     "%ld decisions, %ld propagations, %ld decisions",
-    dpll->stats.decisions,
-    dpll->stats.propagations,
-    dpll->stats.conflicts);
+    primal->stats.decisions,
+    primal->stats.propagations,
+    primal->stats.conflicts);
 }
