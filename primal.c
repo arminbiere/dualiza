@@ -4,7 +4,7 @@
 #define POG(...) do { } while (0)
 #define POGCLS(...) do { } while (0)
 #else
-#define POG(FMT,ARGS...) LOG ("%d " FMT, ##ARGS)
+#define POG(FMT,ARGS...) LOG ("%d " FMT, primal->level, ##ARGS)
 #define POGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, primal->level, ##ARGS)
 #endif
 
