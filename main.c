@@ -151,7 +151,7 @@ static long parse_non_negative_number (const char * s) {
 
 static Reader * input;
 static Symbols * symbols;
-static Circuit * primal, * dual;
+static Circuit * primal_circuit, * dual_circuit;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -166,7 +166,7 @@ static void parse (const char * input_name) {
   Type type = get_file_type (input);
   if (type == FORMULA) {
     msg (1, "parsing input as formula");
-    primal = parse_circuit (input, symbols);
+    primal_circuit = parse_circuit (input, symbols);
   } else    if (type == DIMACS)  die ("can not parse DIMACS files yet");
   else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
 }
@@ -174,7 +174,7 @@ static void parse (const char * input_name) {
 static void generate_dual () {
   assert (checking + printing + enumerate + counting == 1);
   assert (primal);
-  assert (!dual);
+  assert (!dual_circuit);
   if (negate) {
     assert (!checking);
     if (printing)
@@ -218,9 +218,9 @@ static void generate_dual () {
 "generating dual circuit for counting with SAT engine");
     }
   }
-  dual = negate_circuit (primal);
+  dual_circuit = negate_circuit (primal_circuit);
   if (negate) {
-    SWAP (Circuit *, primal, dual);
+    SWAP (Circuit *, primal_circuit, dual_circuit);
     msg (1,
       "swapped dual and primal circuit since '%s' specified",
       (negate>0? "--negate" : "-n"));
@@ -228,9 +228,9 @@ static void generate_dual () {
 }
 
 static const char * name_bdd (unsigned i) {
-  assert (primal);
-  assert (i < COUNT (primal->inputs));
-  Gate * g = primal->inputs.start[i];
+  assert (primal_circuit);
+  assert (i < COUNT (primal_circuit->inputs));
+  Gate * g = primal_circuit->inputs.start[i];
   Symbol * s = g->symbol;
   assert (s);
   const char * res = s->name;
@@ -240,8 +240,8 @@ static const char * name_bdd (unsigned i) {
 
 static BDD * simulate_primal () {
   double start = process_time ();
-  assert (primal);
-  BDD * res = simulate_circuit (primal);
+  assert (primal_circuit);
+  BDD * res = simulate_circuit (primal_circuit);
   double time = process_time ();
   double delta = time - start;
   msg (1, "BDD simulation of primal circuit in %.3f seconds", delta);
@@ -261,7 +261,7 @@ static void check () {
 	fflush (stdout);
 	printf ("v ");
 	print_one_satisfying_cube (b, name_bdd);
-	fputc ('\n', stdout);
+	printf (" 0\n");
 	fflush (stdout);
       }
     } else {
@@ -272,13 +272,48 @@ static void check () {
 	fflush (stdout);
 	printf ("v ");
 	print_one_falsifying_cube (b, name_bdd);
-	fputc ('\n', stdout);
+	printf (" 0\n");
 	fflush (stdout);
       }
     }
     delete_bdd (b);
     reset_bdds ();
-  } else die ("checking with SAT engine not implement yet");
+  } else if (primal) {
+    msg (1, "checking with primal SAT engine");
+    CNF * cnf = new_cnf ();
+    Encoding * encoding = new_encoding ();
+    Circuit * circuit = sat ? primal_circuit : dual_circuit;
+    assert (circuit);
+    encode_circuit (circuit, cnf, encoding, 0);
+    IntStack inputs;
+    INIT (inputs);
+    get_encoded_inputs (encoding, &inputs);
+    Primal * solver = new_primal (cnf, &inputs);
+    int res = primal_sat (solver);
+    if (sat) {
+      if (res == 20) printf ("s UNSATISFIABLE\n");
+      else if (res == 10) printf ("s SATISFIABLE\n");
+      else printf ("s UNKNOWN\n");
+    } else {
+      assert (tautology);
+      if (res == 20) printf ("s TAUTOLOGY\n");
+      else if (res == 10) printf ("s INVALID\n");
+      else printf ("s UNKNOWN\n");
+    }
+    fflush (stdout);
+    if (res == 10) {
+      printf ("v");
+      for (int * p = inputs.start; p < inputs.top; p++) {
+	int lit = *p, val = primal_deref (solver, lit);
+	printf (" %d", (val < 0) ? -lit : lit);
+      }
+      printf (" 0\n");
+    }
+    delete_primal (solver);
+    RELEASE (inputs);
+    delete_cnf (cnf);
+    delete_encoding (encoding);
+  } else die ("checking with dual SAT engine not implement yet");
 }
 
 static void print (const char * output_name) {
@@ -292,11 +327,11 @@ static void print (const char * output_name) {
   }
   if (formula) {
     msg (1, "printing formula to '%s'", output->name);
-    println_circuit_to_file (primal, output->file);
+    println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
     CNF * f = new_cnf ();
     Encoding * e = new_encoding ();
-    encode_circuit (primal, f, e, 0);
+    encode_circuit (primal_circuit, f, e, 0);
     print_dimacs_encoding_to_file (e, output->file);
     print_cnf_to_file (f, output->file);
     delete_cnf (f);
@@ -332,7 +367,7 @@ static void count () {
     if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
     else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
-    unsigned num_inputs = COUNT (primal->inputs);
+    unsigned num_inputs = COUNT (primal_circuit->inputs);
     if (num_inputs) {
       double start = process_time ();
       Number n;
@@ -355,8 +390,8 @@ static void count () {
 }
 
 static void reset () {
-  if (primal)  delete_circuit (primal);
-  if (dual)    delete_circuit (dual);
+  if (primal_circuit)  delete_circuit (primal_circuit);
+  if (dual_circuit)    delete_circuit (dual_circuit);
   if (symbols) delete_symbols (symbols);
 }
 

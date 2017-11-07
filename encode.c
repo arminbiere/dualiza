@@ -337,3 +337,15 @@ void encode_circuit (Circuit * circuit,
   delete_encoder (encoder);
   msg (2, "encoded %d gates in total", idx);
 }
+
+void get_encoded_inputs (Encoding * e, IntStack * inputs) {
+  const int n = COUNT (e->stack);
+  for (int i = 0; i < n; i++) {
+    Gate * g = e->stack.start[i];
+    if (!g) continue;
+    assert (!SIGN (g));
+    if (g->op != INPUT) continue;
+    PUSH (*inputs, i);
+  }
+  LOG ("found %ld encoded inputs", (long) COUNT (*inputs));
+}
