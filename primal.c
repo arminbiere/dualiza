@@ -5,7 +5,7 @@
 #define POGCLS(...) do { } while (0)
 #else
 #define POG(FMT,ARGS...) LOG ("%d " FMT, ##ARGS)
-#define POGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, ##ARGS)
+#define POGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, primal->level, ##ARGS)
 #endif
 
 typedef struct Var Var;
@@ -48,10 +48,11 @@ static int val (Primal * primal, int lit) {
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
-  LOG ("new Primal over %ld clauses and %ld inputs",
+  LOG ("new primal solver over %ld clauses and %ld inputs",
     (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
   Primal * res;
   NEW (res);
+  res->cnf = cnf;
   int max_var_in_cnf = maximum_variable_index (cnf);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
   int max_var_in_inputs = 0;
@@ -60,14 +61,14 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     assert (0 < input);
     if (input > max_var_in_inputs) max_var_in_inputs = input;
   }
-  LOG ("maximum input variable index %d", max_var_in_inputs);
+  LOG ("maximum variable index %d in inputs", max_var_in_inputs);
   res->max_var = MAX (max_var_in_inputs, max_var_in_inputs);
   LOG ("maximum variable index %d", res->max_var);
   ALLOC (res->vars, res->max_var + 1);
   int num_inputs = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
     int input = abs (*p);
-    assert (input < res->max_var);
+    assert (input <= res->max_var);
     Var * v = var (res, input);
     if (v->input) continue;
     LOG ("input variable %d", input);
@@ -82,7 +83,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
 }
 
 void delete_primal (Primal * primal) {
-  LOG ("deleting Primal solver");
+  LOG ("deleting primal solver");
   RELEASE (primal->trail);
   for (int idx = 1; idx <= primal->max_var; idx++) {
     Var * v = primal->vars + idx;
@@ -201,9 +202,14 @@ static void connect_inputs (Primal * primal) {
   LOG ("connecting inputs");
 }
 
+static int satisfied (Primal * primal) {
+  return primal->next == primal->max_var;
+}
+
 int primal_sat (Primal * primal) {
   if (!connect_cnf (primal)) return 20;
   if (!bcp (primal)) return 20;
+  if (satisfied (primal)) return 10;
   connect_inputs (primal);
   return 0;
 }

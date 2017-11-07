@@ -13,6 +13,7 @@ Clause * new_clause (const int * literals, const int size) {
   res->size = size;
   for (int i = 0; i < size; i++)
     res->literals[i] = literals[i];
+  LOGCLS (res, "new");
   return res;
 }
 
@@ -39,6 +40,7 @@ Clause * new_clause_arg (int first, ...) {
 }
 
 void delete_clause (Clause * c) {
+  LOGCLS (c, "delete");
   assert (c);
   long bytes = bytes_clause (c->size);
   DEC_ALLOCATED (bytes);

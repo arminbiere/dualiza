@@ -1,6 +1,7 @@
 #include "headers.h"
 
 CNF * new_cnf () {
+  LOG ("new CNF");
   CNF * res;
   NEW (res);
   return res;
@@ -31,6 +32,7 @@ static void check_cnf (CNF * cnf) {
 }
 
 void delete_cnf (CNF * cnf) {
+  LOG ("delete CNF");
   check_cnf (cnf);
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++)
     delete_clause (*p);
