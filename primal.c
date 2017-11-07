@@ -62,7 +62,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     if (input > max_var_in_inputs) max_var_in_inputs = input;
   }
   LOG ("maximum variable index %d in inputs", max_var_in_inputs);
-  res->max_var = MAX (max_var_in_inputs, max_var_in_inputs);
+  res->max_var = MAX (max_var_in_cnf, max_var_in_inputs);
   LOG ("maximum variable index %d", res->max_var);
   ALLOC (res->vars, res->max_var + 1);
   int num_inputs = 0;
