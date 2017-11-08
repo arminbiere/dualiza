@@ -14,21 +14,19 @@ struct Var {
   char input;
   signed char val, phase;
   int level;
+  long stamp;
   Var * prev, * next;
   Clauses occs[2];
 };
 
 struct Primal {
-  int max_var;
-  int next;
-  int level;
+  int max_var, next, level;
   IntStack trail;
-  Var * vars;
+  Var * vars, * first, * last, * search;
+  long stamp;
   CNF * cnf;
   struct {
-    long conflicts;
-    long decisions;
-    long propagations;
+    long conflicts, decisions, propagations;
   } stats;
 };
 
@@ -157,7 +155,7 @@ static int bcp (Primal * primal) {
   while (res && primal->next < COUNT (primal->trail)) {
     int lit = primal->trail.start[primal->next++];
     assert (val (primal, lit) > 0);
-    LOG ("propagating %d", lit);
+    POG ("propagating %d", lit);
     primal->stats.propagations++;
     Clauses * o = occs (primal, -lit);
     Clause ** q = o->start, ** p = q;
@@ -195,15 +193,73 @@ static int bcp (Primal * primal) {
     while (p < o->top) *q++ = *p++;
     o->top = q;
   }
+  if (!res) primal->stats.conflicts++;
   return res;
+}
+
+static void connect_var (Primal * primal, int idx) {
+  POG ("connect variable %d", idx);
+  Var * v = var (primal, idx);
+  assert (v->input);
+  assert (!v->next);
+  assert (!v->prev);
+  v->stamp = ++primal->stamp;
+  v->prev = primal->last;
+  primal->last = v;
+  if (!v->val) primal->search = primal->last;
+}
+
+static int is_input (Primal * primal, int idx) {
+  return var (primal, idx)->input;
 }
 
 static void connect_inputs (Primal * primal) {
   LOG ("connecting inputs");
+  for (int idx = 1; idx <= primal->max_var; idx++)
+    if (!val (primal, idx) && is_input (primal, idx))
+      connect_var (primal, idx);
 }
 
 static int satisfied (Primal * primal) {
   return primal->next == primal->max_var;
+}
+
+static void decide (Primal * primal) {
+  for (;;) {
+    assert (primal->search);
+    Var * v = primal->search;
+    if (!v->val) {
+      int lit = v - primal->vars;
+      if (v->phase < 0) lit = -lit;
+      primal->level++;
+      POG ("decide %d", lit);
+      assign (primal, lit);
+      primal->stats.decisions++;
+      break;
+    } else primal->search = v->prev;
+  }
+}
+
+static void unassign (Primal * primal, int lit) {
+  POG ("unassign %d", lit);
+  Var * v = var (primal, lit);
+  assert (v->val);
+  v->val = 0;
+  if (primal->last->stamp <= v->stamp) primal->last = v;
+}
+
+static int backtrack (Primal * primal) {
+  if (!primal->level) return 0;
+  POG ("backtrack %d", primal->level);
+  for (;;) {
+    int lit = TOP (primal->trail);
+    Var * v = var (primal, lit);
+    if (v->level < primal->level) break;
+    (void) POP (primal->trail);
+    unassign (primal, lit);
+  }
+  primal->level--;
+  return 1;
 }
 
 int primal_sat (Primal * primal) {
@@ -211,7 +267,12 @@ int primal_sat (Primal * primal) {
   if (!bcp (primal)) return 20;
   if (satisfied (primal)) return 10;
   connect_inputs (primal);
-  return 0;
+  int res = 0;
+  while (!res)
+    if (!bcp (primal) && !backtrack (primal)) return 20;
+    else if (satisfied (primal)) return 10;
+    else decide (primal);
+  return res;
 }
 
 int primal_deref (Primal * primal, int lit) {
