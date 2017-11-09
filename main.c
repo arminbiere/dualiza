@@ -45,7 +45,7 @@ fputs (
 "\n"
 "  -s | --sat        only check to be satisfiable\n"
 "  -t | --tautology  only check to be tautological\n"
-"  -e | --enumerate  enumerate and print models\n"
+"  -e | --enumerate  enumerate and print all models\n"
 "\n"
 "By default the SAT engine is used, or alternatively the BDD engine.\n"
 "\n"
