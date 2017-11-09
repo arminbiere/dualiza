@@ -273,12 +273,14 @@ static void assign_flipped (Primal * primal, int lit) {
   POG ("flip %d", lit);
   assign (primal, -lit);
   var (primal, lit)->flipped = 1;
+  assert (!EMPTY (primal->decisions));
 }
 
 static int backtrack (Primal * primal) {
   if (EMPTY (primal->decisions)) return 0;
   POG ("backtrack %d", primal->level-1);
   int decision = POP (primal->decisions), lit;
+  assert (val (primal, decision) > 0);
   do {
     lit = POP (primal->trail);
     unassign (primal, lit);
