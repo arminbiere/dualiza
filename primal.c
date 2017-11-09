@@ -261,6 +261,12 @@ static void fix_next_and_level (Primal * primal) {
   primal->level = level (primal, last);
 }
 
+static int assign_flipped (Primal * primal, int lit) {
+  POG ("flip %d", lit);
+  assign (primal, -lit);
+  var (primal, lit)->flipped = 1;
+}
+
 static int backtrack (Primal * primal) {
   if (EMPTY (primal->decisions)) return 0;
   POG ("backtrack %d", primal->level-1);
@@ -270,6 +276,7 @@ static int backtrack (Primal * primal) {
     unassign (primal, lit);
   } while (lit != decision);
   fix_next_and_level (primal);
+  assign_flipped (primal, decision);
   return 1;
 }
 
@@ -308,21 +315,12 @@ static int last_unflipped_decision (Primal * primal) {
 static int flip_last_decision (Primal * primal) {
   int flip = last_unflipped_decision (primal), lit;
   if (!flip) return 0;
-  for (;;) {
+  do {
     lit = POP (primal->trail);
-    if (lit == flip) break;
     unassign (primal, lit);
-  }
-  PUSH (primal->trail, -flip);
+  } while (lit != flip);
   fix_next_and_level (primal);
-  POG ("flip %d", flip);
-  Var * v = var (primal, flip);
-  v->flipped = 1;
-  v->val = -v->val;
-  POG ("assign %d", -flip);
-  assert (!EMPTY (primal->trail));
-  assert (primal->next == COUNT (primal->trail));
-  primal->next--;
+  assign_flipped (primal, flip);
   return 1;
 }
 
