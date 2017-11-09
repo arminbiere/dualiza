@@ -112,7 +112,7 @@ static void init_mode () {
   if (enumerate) msg (1, "enumeration mode due to%s", ENUMERATE);
   counting = !printing && !checking && !enumerate;
   if (counting) msg (1, "default counting mode");
-  assert (checking + printing + enumerate + counting == 1);
+  assert (checking + printing + (enumerate!=0) + counting == 1);
 }
 
 # undef FORMULA
@@ -172,7 +172,7 @@ static void parse (const char * input_name) {
 }
 
 static void generate_dual () {
-  assert (checking + printing + enumerate + counting == 1);
+  assert (checking + printing + (enumerate!=0) + counting == 1);
   assert (primal);
   assert (!dual_circuit);
   if (negate) {
@@ -227,7 +227,7 @@ static void generate_dual () {
   }
 }
 
-static const char * name_bdd (unsigned i) {
+static const char * name_input (int i) {
   assert (primal_circuit);
   assert (i < COUNT (primal_circuit->inputs));
   Gate * g = primal_circuit->inputs.start[i];
@@ -245,7 +245,7 @@ static BDD * simulate_primal () {
   double time = process_time ();
   double delta = time - start;
   msg (1, "BDD simulation of primal circuit in %.3f seconds", delta);
-  if (visualize) visualize_bdd (res, name_bdd);
+  if (visualize) visualize_bdd (res, name_input);
   return res;
 }
 
@@ -260,7 +260,7 @@ static void check () {
 	printf ("s SATISFIABLE\n");
 	fflush (stdout);
 	printf ("v ");
-	print_one_satisfying_cube (b, name_bdd);
+	print_one_satisfying_cube (b, name_input);
 	printf (" 0\n");
 	fflush (stdout);
       }
@@ -271,7 +271,7 @@ static void check () {
 	printf ("s INVALID\n");
 	fflush (stdout);
 	printf ("v ");
-	print_one_falsifying_cube (b, name_bdd);
+	print_one_falsifying_cube (b, name_input);
 	printf (" 0\n");
 	fflush (stdout);
       }
@@ -304,8 +304,10 @@ static void check () {
     if (res == 10) {
       printf ("v");
       for (int * p = inputs.start; p < inputs.top; p++) {
-	int lit = *p, val = primal_deref (solver, lit);
-	printf (" %d", (val < 0) ? -lit : lit);
+	int idx = *p, val = primal_deref (solver, idx);
+	fputc (' ', stdout);
+	if (val < 0) fputc ('!', stdout);
+	fputs (name_input (idx-1), stdout);
       }
       printf (" 0\n");
     }
@@ -353,7 +355,7 @@ static void all () {
     if (negate) printf ("s ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("s ALL SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
-    print_all_satisfying_cubes (b, name_bdd, "v ");
+    print_all_satisfying_cubes (b, name_input);
     delete_bdd (b);
     reset_bdds ();
   } else die ("enumerating with SAT engine not implement yet (use '-b')");
@@ -386,7 +388,34 @@ static void count () {
     fflush (stdout);
     delete_bdd (b);
     reset_bdds ();
-  } else die ("counting with SAT engine not implement yet (use '-b')");
+  } else if (primal) {
+    msg (1, "counting with primal SAT engine");
+    CNF * cnf = new_cnf ();
+    Encoding * encoding = new_encoding ();
+    Circuit * circuit = negate ? dual_circuit : primal_circuit;
+    assert (circuit);
+    encode_circuit (circuit, cnf, encoding, 0);
+    IntStack inputs;
+    INIT (inputs);
+    get_encoded_inputs (encoding, &inputs);
+    Primal * solver = new_primal (cnf, &inputs);
+    Number n;
+    init_number (n);
+    primal_count (n, solver);
+    if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
+    else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
+    fflush (stdout);
+    if (printnumber) {
+      printf ("v ");
+      println_number (n);
+      fflush (stdout);
+    }
+    clear_number (n);
+    delete_primal (solver);
+    RELEASE (inputs);
+    delete_cnf (cnf);
+    delete_encoding (encoding);
+  } else die ("counting with dual SAT engine not implement yet (use '-b')");
 }
 
 static void reset () {

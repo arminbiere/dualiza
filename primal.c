@@ -11,7 +11,7 @@
 typedef struct Var Var;
 
 struct Var {
-  char input;
+  char input, flipped;
   signed char val, phase;
   int level;
   long stamp;
@@ -21,13 +21,10 @@ struct Var {
 
 struct Primal {
   int max_var, next, level;
-  IntStack trail;
+  IntStack * inputs, trail, decisions;
   Var * vars, * first, * last, * search;
   long stamp;
   CNF * cnf;
-  struct {
-    long conflicts, decisions, propagations;
-  } stats;
 };
 
 static Var * var (Primal * primal, int lit) {
@@ -51,6 +48,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   Primal * res;
   NEW (res);
   res->cnf = cnf;
+  res->inputs = inputs;
   int max_var_in_cnf = maximum_variable_index (cnf);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
   int max_var_in_inputs = 0;
@@ -88,6 +86,7 @@ void delete_primal (Primal * primal) {
     RELEASE (v->occs[0]);
     RELEASE (v->occs[1]);
   }
+  RELEASE (primal->decisions);
   DEALLOC (primal->vars, primal->max_var+1);
   DELETE (primal);
 }
@@ -156,7 +155,7 @@ static int bcp (Primal * primal) {
     int lit = primal->trail.start[primal->next++];
     assert (val (primal, lit) > 0);
     POG ("propagating %d", lit);
-    primal->stats.propagations++;
+    propagations++;
     Clauses * o = occs (primal, -lit);
     Clause ** q = o->start, ** p = q;
     while (res && p < o->top) {
@@ -193,7 +192,7 @@ static int bcp (Primal * primal) {
     while (p < o->top) *q++ = *p++;
     o->top = q;
   }
-  if (!res) primal->stats.conflicts++;
+  if (!res) conflicts++;
   return res;
 }
 
@@ -234,31 +233,41 @@ static void decide (Primal * primal) {
       primal->level++;
       POG ("decide %d", lit);
       assign (primal, lit);
-      primal->stats.decisions++;
+      PUSH (primal->decisions, lit);
+      decisions++;
       break;
     } else primal->search = v->prev;
   }
 }
 
 static void unassign (Primal * primal, int lit) {
-  POG ("unassign %d", lit);
   Var * v = var (primal, lit);
+  primal->level = v->level;
+  POG ("unassign %d", lit);
   assert (v->val);
-  v->val = 0;
+  v->val = v->flipped = 0;
   if (primal->last->stamp <= v->stamp) primal->last = v;
 }
 
+static int level (Primal * primal, int lit) {
+  return var (primal, lit)->level;
+}
+
+static void fix_next_and_level (Primal * primal) {
+  int n = COUNT (primal->trail);
+  if (primal->next > n) primal->next = n;
+  primal->level = n ? level (primal, TOP (primal->trail)) : 0;
+}
+
 static int backtrack (Primal * primal) {
-  if (!primal->level) return 0;
-  POG ("backtrack %d", primal->level);
-  for (;;) {
-    int lit = TOP (primal->trail);
-    Var * v = var (primal, lit);
-    if (v->level < primal->level) break;
-    (void) POP (primal->trail);
+  if (EMPTY (primal->decisions)) return 0;
+  POG ("backtrack %d", primal->level-1);
+  int decision = POP (primal->decisions), lit;
+  do {
+    lit = POP (primal->trail);
     unassign (primal, lit);
-  }
-  primal->level--;
+  } while (lit != decision);
+  fix_next_and_level (primal);
   return 1;
 }
 
@@ -269,21 +278,69 @@ int primal_sat (Primal * primal) {
   connect_inputs (primal);
   int res = 0;
   while (!res)
-    if (!bcp (primal) && !backtrack (primal)) return 20;
-    else if (satisfied (primal)) return 10;
+    if (!bcp (primal) && !backtrack (primal)) res = 20;
+    else if (satisfied (primal)) res = 10;
     else decide (primal);
   return res;
 }
 
-int primal_deref (Primal * primal, int lit) {
-  return val (primal, lit);
+static int flipped (Primal * primal, int lit) {
+  return var (primal, lit)->flipped;
 }
 
-void primal_stats (Primal * primal) {
-  if (verbosity < 1) return;
-  msg (1,
-    "%ld decisions, %ld propagations, %ld decisions",
-    primal->stats.decisions,
-    primal->stats.propagations,
-    primal->stats.conflicts);
+static int last_unflipped_decision (Primal * primal) {
+  int res = 0;
+  while (!res && !EMPTY (primal->decisions)) {
+    int decision = TOP (primal->decisions);
+    if (flipped (primal, decision)) {
+      POG ("ignoring already flipped decision %d", decision);
+      (void) POP (primal->decisions);
+    } else res = decision;
+  }
+  if (!res) POG ("no unflipped decision left");
+  else POG ("last unflipped decision %d at level %d",
+         res, level (primal, res));
+  return res;
+}
+
+static int flip_last_decision (Primal * primal) {
+  int flip = last_unflipped_decision (primal), lit;
+  if (!flip) return 0;
+  for (;;) {
+    lit = POP (primal->trail);
+    if (lit == flip) break;
+    unassign (primal, lit);
+  }
+  fix_next_and_level (primal);
+  POG ("flip %d", flip);
+  Var * v = var (primal, flip);
+  v->flipped = 1;
+  v->val = -v->val;
+  POG ("assign %d", -flip);
+  return 1;
+}
+
+void primal_count (Number res, Primal * primal) {
+  if (!connect_cnf (primal)) return;
+  if (!bcp (primal)) return;
+  if (satisfied (primal)) {
+    POG ("single root level model");
+    inc_number (res);
+    return;
+  }
+  connect_inputs (primal);
+  for (;;)
+    if (!bcp (primal) && !backtrack (primal)) return;
+    else if (satisfied (primal)) {
+      POG ("new model");
+      inc_number (res);
+      if (!flip_last_decision (primal)) return;
+    } else decide (primal);
+}
+
+void primal_enumerate (Primal * primal, Name name) {
+}
+
+int primal_deref (Primal * primal, int lit) {
+  return val (primal, lit);
 }

@@ -1,9 +1,14 @@
 #include "headers.h"
 
+long decisions, propagations, conflicts;
+
 void print_statistics () {
   if (verbosity < 1) return;
   long bytes = maximum_resident_set_size ();
   double seconds = process_time ();
+  if (decisions || propagations || conflicts)
+    msg (1, "%ld decisions, %ld propagations, %ld conflicts",
+      decisions, propagations, conflicts);
   if (bdd_lookups)
     msg (1, "looked up %ld BDD nodes, %ld collisions (%.1f per look-up)",
       bdd_lookups, bdd_collisions,

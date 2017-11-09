@@ -23,10 +23,11 @@ BDD * xnor_bdd (BDD *, BDD *);
 void print_bdd_to_file (BDD *, FILE *);
 void print_bdd (BDD *);
 
-typedef const char * (*Name)(unsigned);
+typedef const char * (*Name)(int);
+
 void print_one_satisfying_cube (BDD *, Name);
 void print_one_falsifying_cube (BDD *, Name);
-void print_all_satisfying_cubes (BDD *, Name, const char*);
+void print_all_satisfying_cubes (BDD *, Name);
 
 void visualize_bdd (BDD *, Name);
 

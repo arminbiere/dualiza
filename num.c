@@ -204,6 +204,8 @@ void print_number_to_file (Number n, FILE * file) {
 #endif // end of our own multiple precision number
 /*------------------------------------------------------------------------*/
 
+void inc_number (Number n) { add_power_of_two_to_number (n, 0); }
+
 void println_number_to_file (Number n, FILE * file) {
   print_number_to_file (n, file);
   fputc ('\n', file);

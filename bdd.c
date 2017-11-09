@@ -945,24 +945,24 @@ static void print_linked_bdd_cube (Link * l, FILE* file, Name name) {
 
 static void
 print_all_satisfying_cubes_to_file_recursively (
-  BDD * a, FILE* file, Link * parent, Name name, const char * prefix)
+  BDD * a, FILE* file, Link * parent, Name name)
 {
   if (a == false_bdd_node) return;
   Link link = { a, parent };
   if (a == true_bdd_node) {
-    fputs (prefix, file);
+    fputs ("v ", file);
     print_linked_bdd_cube (&link, file, name);
+    fputs (" 0", file);
     fputc ('\n', stdout);
     return;
   }
   print_all_satisfying_cubes_to_file_recursively (
-    a->then, file, &link, name, prefix);
+    a->then, file, &link, name);
   print_all_satisfying_cubes_to_file_recursively (
-    a->other, file, &link, name, prefix);
+    a->other, file, &link, name);
 }
 
 void
-print_all_satisfying_cubes (BDD * a, Name name, const char * prefix) {
-  print_all_satisfying_cubes_to_file_recursively (a, stdout, 0, name, prefix);
+print_all_satisfying_cubes (BDD * a, Name name) {
+  print_all_satisfying_cubes_to_file_recursively (a, stdout, 0, name);
 }
-
