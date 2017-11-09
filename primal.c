@@ -255,8 +255,10 @@ static int level (Primal * primal, int lit) {
 
 static void fix_next_and_level (Primal * primal) {
   int n = COUNT (primal->trail);
+  if (!n) { primal->next = primal->level = 0; return; }
   if (primal->next > n) primal->next = n;
-  primal->level = n ? level (primal, TOP (primal->trail)) : 0;
+  int last = TOP (primal->trail);
+  primal->level = level (primal, last);
 }
 
 static int backtrack (Primal * primal) {
@@ -311,12 +313,16 @@ static int flip_last_decision (Primal * primal) {
     if (lit == flip) break;
     unassign (primal, lit);
   }
+  PUSH (primal->trail, -flip);
   fix_next_and_level (primal);
   POG ("flip %d", flip);
   Var * v = var (primal, flip);
   v->flipped = 1;
   v->val = -v->val;
   POG ("assign %d", -flip);
+  assert (!EMPTY (primal->trail));
+  assert (primal->next == COUNT (primal->trail));
+  primal->next--;
   return 1;
 }
 
