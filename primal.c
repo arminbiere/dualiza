@@ -199,7 +199,6 @@ static int bcp (Primal * primal) {
 static void connect_var (Primal * primal, int idx) {
   POG ("connect variable %d", idx);
   Var * v = var (primal, idx);
-  assert (v->input);
   assert (!v->next);
   assert (!v->prev);
   v->stamp = ++primal->stamp;
@@ -214,6 +213,9 @@ static int is_input (Primal * primal, int idx) {
 
 static void connect_inputs (Primal * primal) {
   LOG ("connecting inputs");
+  for (int idx = 1; idx <= primal->max_var; idx++)
+    if (!val (primal, idx) && !is_input (primal, idx))
+      connect_var (primal, idx);
   for (int idx = 1; idx <= primal->max_var; idx++)
     if (!val (primal, idx) && is_input (primal, idx))
       connect_var (primal, idx);
@@ -236,7 +238,11 @@ static void decide (Primal * primal) {
       PUSH (primal->decisions, lit);
       decisions++;
       break;
-    } else primal->search = v->prev;
+    } else {
+      primal->search = v->prev;
+      POG ("search %ld", 
+        primal->search ?  (long)(primal->search - primal->vars) : 0l);
+    }
   }
 }
 
@@ -246,7 +252,9 @@ static void unassign (Primal * primal, int lit) {
   POG ("unassign %d", lit);
   assert (v->val);
   v->val = v->flipped = 0;
-  if (primal->last->stamp <= v->stamp) primal->last = v;
+  if (primal->last->stamp >= v->stamp) return;
+  POG ("search %d", abs (lit));
+  primal->last = v;
 }
 
 static int level (Primal * primal, int lit) {
@@ -261,7 +269,7 @@ static void fix_next_and_level (Primal * primal) {
   primal->level = level (primal, last);
 }
 
-static int assign_flipped (Primal * primal, int lit) {
+static void assign_flipped (Primal * primal, int lit) {
   POG ("flip %d", lit);
   assign (primal, -lit);
   var (primal, lit)->flipped = 1;
