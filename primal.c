@@ -281,7 +281,7 @@ static int backtrack (Primal * primal) {
       POG ("flip %d", lit);
       POG ("assign %d", -lit);
       int n = COUNT (primal->trail) - 1;
-      primal->trail.start[n] = -lit;
+      POKE (primal->trail, n, -lit);
       primal->next = n;
       v->val = -v->val;
       return 1;
