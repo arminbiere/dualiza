@@ -173,7 +173,7 @@ static void parse (const char * input_name) {
 
 static void generate_dual () {
   assert (checking + printing + (enumerate!=0) + counting == 1);
-  assert (primal);
+  assert (primal_circuit);
   assert (!dual_circuit);
   if (negate) {
     assert (!checking);
@@ -192,9 +192,13 @@ static void generate_dual () {
 	msg (1,
 "using primal circuit for non-negated checking with BDD engine");
 	return;
+      } else if (primal && !tautology) {
+	msg (1,
+"using only primal circuit for primal checking with SAT engine");
+	return;
       } else
         msg (1,
-"generating dual circuit for checking with SAT engine");
+"generating dual circuit for dual checking with SAT engine");
     } else if (printing) {
       msg (1,
 "using primal circuit for non-negated printing");
@@ -204,6 +208,10 @@ static void generate_dual () {
 	msg (1,
 "using primal circuit for non-negated enumeration with BDD engine");
 	return;
+      } else if (primal && !negate) {
+	msg (1,
+"using only primal circuit for primal enumeration with SAT engine");
+	return;
       } else
         msg (1,
 "generating dual circuit for enumeration with SAT engine");
@@ -212,6 +220,10 @@ static void generate_dual () {
       if (bdd) {
 	msg (1,
 "using primal circuit for non-negated counting with BDD engine");
+	return;
+      } else if (primal && !negate) {
+	msg (1,
+"using only primal circuit for primal counting with SAT engine");
 	return;
       } else
         msg (1,
@@ -255,24 +267,22 @@ static void check () {
     init_bdds ();
     BDD * b = simulate_primal ();
     if (sat) { 
-      if (is_false_bdd (b)) printf ("s UNSATISFIABLE\n");
+      if (is_false_bdd (b)) printf ("UNSATISFIABLE\n");
       else {
-	printf ("s SATISFIABLE\n");
+	printf ("SATISFIABLE\n");
 	fflush (stdout);
-	printf ("v ");
 	print_one_satisfying_cube (b, name_input);
-	printf (" 0\n");
+	fputc ('\n', stdout);
 	fflush (stdout);
       }
     } else {
       assert (tautology);
-      if (is_true_bdd (b)) printf ("s TAUTOLOGY\n");
+      if (is_true_bdd (b)) printf ("TAUTOLOGY\n");
       else {
-	printf ("s INVALID\n");
+	printf ("INVALID\n");
 	fflush (stdout);
-	printf ("v ");
 	print_one_falsifying_cube (b, name_input);
-	printf (" 0\n");
+	fputc ('\n', stdout);
 	fflush (stdout);
       }
     }
@@ -291,25 +301,24 @@ static void check () {
     Primal * solver = new_primal (cnf, &inputs);
     int res = primal_sat (solver);
     if (sat) {
-      if (res == 20) printf ("s UNSATISFIABLE\n");
-      else if (res == 10) printf ("s SATISFIABLE\n");
-      else printf ("s UNKNOWN\n");
+      if (res == 20) printf ("UNSATISFIABLE\n");
+      else if (res == 10) printf ("SATISFIABLE\n");
+      else printf ("UNKNOWN\n");
     } else {
       assert (tautology);
-      if (res == 20) printf ("s TAUTOLOGY\n");
-      else if (res == 10) printf ("s INVALID\n");
-      else printf ("s UNKNOWN\n");
+      if (res == 20) printf ("TAUTOLOGY\n");
+      else if (res == 10) printf ("INVALID\n");
+      else printf ("UNKNOWN\n");
     }
     fflush (stdout);
     if (res == 10) {
-      printf ("v");
       for (int * p = inputs.start; p < inputs.top; p++) {
 	int idx = *p, val = primal_deref (solver, idx);
-	fputc (' ', stdout);
+	if (p != inputs.start) fputc (' ', stdout);
 	if (val < 0) fputc ('!', stdout);
 	fputs (name_input (idx-1), stdout);
       }
-      printf (" 0\n");
+      fputc ('\n', stdout);
     }
     delete_primal (solver);
     RELEASE (inputs);
@@ -352,8 +361,8 @@ static void all () {
     msg (1, "enumerating with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
-    if (negate) printf ("s ALL FALSIFYING ASSIGNMENTS\n");
-    else printf ("s ALL SATISFYING ASSIGNMENTS\n");
+    if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
+    else printf ("ALL SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
     print_all_satisfying_cubes (b, name_input);
     delete_bdd (b);
@@ -366,8 +375,8 @@ static void count () {
     msg (1, "counting with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
-    if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
-    else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
+    if (negate) printf ("NUMBER FALSIFYING ASSIGNMENTS\n");
+    else printf ("NUMBER SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
     unsigned num_inputs = COUNT (primal_circuit->inputs);
     if (num_inputs) {
@@ -379,12 +388,9 @@ static void count () {
       double delta = time - start;
       msg (1,
 "BDD solution counting of primal circuit in %.3f seconds", delta);
-      if (printnumber) {
-	printf ("v ");
-	println_number (n);
-      }
+      if (printnumber) println_number (n), fflush (stdout);
       clear_number (n);
-    } else printf ("v 0\n");
+    } else printf ("0\n");
     fflush (stdout);
     delete_bdd (b);
     reset_bdds ();
@@ -402,14 +408,10 @@ static void count () {
     Number n;
     init_number (n);
     primal_count (n, solver);
-    if (negate) printf ("s NUMBER FALSIFYING ASSIGNMENTS\n");
-    else printf ("s NUMBER SATISFYING ASSIGNMENTS\n");
+    if (negate) printf ("NUMBER FALSIFYING ASSIGNMENTS\n");
+    else printf ("NUMBER SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
-    if (printnumber) {
-      printf ("v ");
-      println_number (n);
-      fflush (stdout);
-    }
+    if (printnumber) println_number (n), fflush (stdout);
     clear_number (n);
     delete_primal (solver);
     RELEASE (inputs);
