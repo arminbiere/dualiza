@@ -22,7 +22,7 @@ if [ "$picosat" ]
 then
   echo "$0: using '$picosat'"
 else
-  echo "$0: no 'picosat' found"
+  echo "$0: no 'picosat' found to test against"
 fi
 
 dualiza=../dualiza
@@ -42,7 +42,7 @@ if [ "$sharpsat" ]
 then
   echo "$0: using '$sharpsat'"
 else
-  echo "$0: no 'sharpSAT' found"
+  echo "$0: no 'sharpSAT' found to test against"
 fi
 
 firsterase=yes
