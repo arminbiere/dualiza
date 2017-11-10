@@ -11,8 +11,8 @@ die () {
 picosat=""
 if which picosat >/dev/null 2>/dev/null
 then
-  path="`which picosat`"
-  if [ "`echo 'p cnf 0 0'|"$path"|head -1`" = "s SATISFIABLE" ]
+  path="`which picosat 2>/dev/null`"
+  if [ "`echo 'p cnf 0 0'|\"$path\"|head -1`" = "s SATISFIABLE" ]
   then
     picosat="$path"
   fi
@@ -32,7 +32,7 @@ if which sharpSAT >/dev/null 2>/dev/null
 then
   path="`which sharpSAT`"
   echo 'p cnf 0 0' > $tmp
-  if [ "`$path $tmp|sed -e '1,/# solutions/d' -e '/# END/,$d'`" = 1 ]
+  if [ "`\"$path\" \"$tmp\"|sed -e '1,/# solutions/d' -e '/# END/,$d'`" = 1 ]
   then
     sharpsat="$path"
   fi
