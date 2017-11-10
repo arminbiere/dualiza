@@ -367,7 +367,23 @@ static void all () {
     print_all_satisfying_cubes (b, name_input);
     delete_bdd (b);
     reset_bdds ();
-  } else die ("enumerating with SAT engine not implement yet (use '-b')");
+  } else if (primal) {
+    msg (1, "enumerating with primal SAT engine");
+    CNF * cnf = new_cnf ();
+    Encoding * encoding = new_encoding ();
+    Circuit * circuit = negate ? dual_circuit : primal_circuit;
+    assert (circuit);
+    encode_circuit (circuit, cnf, encoding, 0);
+    IntStack inputs;
+    INIT (inputs);
+    get_encoded_inputs (encoding, &inputs);
+    Primal * solver = new_primal (cnf, &inputs);
+    primal_enumerate (solver, name_input);
+    delete_primal (solver);
+    RELEASE (inputs);
+    delete_cnf (cnf);
+    delete_encoding (encoding);
+  } else die ("enumerating with dual SAT engine not implement yet (use '-b')");
 }
 
 static void count () {

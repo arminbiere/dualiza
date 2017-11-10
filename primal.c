@@ -262,7 +262,8 @@ static void decide (Primal * primal) {
 
 static void unassign (Primal * primal, int lit) {
   Var * v = var (primal, lit);
-  primal->level = v->level;
+  assert (primal->level == v->level);
+  primal->level = v->level;		// TODO remove
   POG ("unassign %d", lit);
   assert (v->val);
   v->val = v->decision = 0;
