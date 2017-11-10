@@ -9,6 +9,7 @@
 #endif
 
 typedef struct Var Var;
+typedef struct Queue Queue;
 
 struct Var {
   char input, decision;
@@ -19,11 +20,16 @@ struct Var {
   Clauses occs[2];
 };
 
-struct Primal {
-  int max_var, next, level;
-  IntStack * inputs, trail;
-  Var * vars, * first, * last, * search;
+struct Queue {
+  Var * first, * last, * search;
   long stamp;
+};
+
+struct Primal {
+  Var * vars;
+  int max_var, next, level;
+  IntStack * trail;
+  Queue inputs, gates;
   CNF * cnf;
 };
 
@@ -41,6 +47,37 @@ static int val (Primal * primal, int lit) {
   return res;
 }
 
+static const char * type (Var * v) {
+  return v->input ? "input" : "gate";
+}
+
+static Queue * queue (Primal * primal, Var * v) {
+  return v->input ? &primal->inputs : &primal->gates;
+}
+
+static void update_search (Primal * primal, Var * v) {
+  Queue * q = queue (primal, v);
+  q->search = v;
+  POG ("update search %ld", v ? (long)(v - primal->vars) : 0l);
+}
+
+static int is_input (Primal * primal, int idx) {
+  return var (primal, idx)->input;
+}
+
+static void connect_var (Primal * primal, int idx) {
+  Var * v = var (primal, idx);
+  POG ("connect %s variable %d", type (v), idx);
+  Queue * q = queue (primal, v);
+  assert (!v->next);
+  assert (!v->prev);
+  v->stamp = ++q->stamp;
+  if (!q->first) q->first = v;
+  v->prev = q->last;
+  q->last = v;
+  if (!v->val) update_search (primal, v);
+}
+
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
   LOG ("new primal solver over %ld clauses and %ld inputs",
@@ -48,7 +85,6 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   Primal * res;
   NEW (res);
   res->cnf = cnf;
-  res->inputs = inputs;
   int max_var_in_cnf = maximum_variable_index (cnf);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
   int max_var_in_inputs = 0;
@@ -75,6 +111,9 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     num_inputs, res->max_var - num_inputs);
   for (int idx = 1; idx <= res->max_var; idx++)
     res->vars[idx].phase = -1;
+  LOG ("connecting variables");
+  for (int idx = 1; idx <= res->max_var; idx++)
+    connect_var (res, idx);
   return res;
 }
 
@@ -194,37 +233,6 @@ static int bcp (Primal * primal) {
   }
   if (!res) conflicts++;
   return res;
-}
-
-static void update_search (Primal * primal, Var * v) {
-  primal->search = v;
-  POG ("update search %ld", v ? (long)(v - primal->vars) : 0l);
-}
-
-static void connect_var (Primal * primal, int idx) {
-  POG ("connect variable %d", idx);
-  Var * v = var (primal, idx);
-  assert (!v->next);
-  assert (!v->prev);
-  v->stamp = ++primal->stamp;
-  v->prev = primal->last;
-  primal->last = v;
-  if (!v->val) update_search (primal, v);
-}
-
-static int is_input (Primal * primal, int idx) {
-  return var (primal, idx)->input;
-}
-
-static void connect_variables (Primal * primal) {
-  LOG ("connecting non-input variables");
-  for (int idx = 1; idx <= primal->max_var; idx++)
-    if (!val (primal, idx) && !is_input (primal, idx))
-      connect_var (primal, idx);
-  LOG ("connecting input variables");
-  for (int idx = 1; idx <= primal->max_var; idx++)
-    if (!val (primal, idx) && is_input (primal, idx))
-      connect_var (primal, idx);
 }
 
 static int satisfied (Primal * primal) {
