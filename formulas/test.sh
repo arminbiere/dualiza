@@ -72,8 +72,22 @@ execute () {
   if [ ! -t 1 ]
   then
     echo
-    echo "$firstline"
-    echo "$lastline"
+    lines="`wc -l $tmp|awk '{print $1}'`"
+    case "$lines" in
+      0);;
+      1)
+	echo "$firstline"
+        ;;
+      2)
+	echo "$firstline"
+	echo "$lastline"
+	;;
+      *)
+	echo "$firstline"
+	echo "..."
+	echo "$lastline"
+	;;
+    esac
   fi
 }
 error () {
@@ -146,7 +160,7 @@ count () {
   fi
 }
 run () {
-  [ -t 1 ] || echo
+  [ -t 1 ] || ( echo; echo )
   sat $1
   tautology $1
   count $1
