@@ -57,7 +57,7 @@ static void update_queue (Primal * solver, Queue * q, Var * v) {
 #ifndef NLOG
   const int idx = (v ? (long)(v - solver->vars) : 0l);
   const char * t = (q == &solver->inputs ? "input" : "gate");
-  POG ("update %s search %d", t, idx);
+  POG ("update %s search to variable %d", t, idx);
 #endif
 }
 
@@ -86,7 +86,7 @@ static void enqueue (Primal * solver, int idx) {
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
-  LOG ("new solver solver over %ld clauses and %ld inputs",
+  LOG ("new primal solver over %ld clauses and %ld inputs",
     (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
   Primal * res;
   NEW (res);
@@ -129,7 +129,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
 }
 
 void delete_primal (Primal * solver) {
-  LOG ("deleting solver solver");
+  LOG ("deleting primal solver");
   RELEASE (solver->trail);
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = solver->vars + idx;
@@ -141,10 +141,11 @@ void delete_primal (Primal * solver) {
 }
 
 static void assign (Primal * solver, int lit) {
-  POG ("assign %d", lit);
-  assert (!val (solver, lit));
   int idx = abs (lit);
+  assert (0 < idx), assert (idx <= solver->max_var);
   Var * v = solver->vars + idx;
+  POG ("assign %s %d", type (v), lit);
+  assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
   v->level = solver->level;
@@ -263,7 +264,7 @@ static void dec_level (Primal * solver) {
 
 static Var * decide_input (Primal * solver) {
   Var * res = solver->inputs.search;
-  while (res && !res->val) 
+  while (res && res->val) 
     res = res->prev, searches++;
   update_queue (solver, &solver->inputs, res);
   return res;
@@ -271,7 +272,7 @@ static Var * decide_input (Primal * solver) {
 
 static Var * decide_gate (Primal * solver) {
   Var * res = solver->gates.search;
-  while (res && !res->val)
+  while (res && res->val)
     res = res->prev, searches++;
   update_queue (solver, &solver->gates, res);
   return res;
@@ -295,7 +296,7 @@ static void unassign (Primal * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
   solver->level = v->level;		// TODO remove
-  POG ("unassign %d", lit);
+  POG ("unassign %s %d", type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
   Queue * q = queue (solver, v);
@@ -311,8 +312,8 @@ static int backtrack (Primal * solver) {
     const int decision = v->decision;
     if (decision == 1) {
       v->decision = 2;
-      POG ("flip %d", lit);
-      POG ("assign %d", -lit);
+      POG ("flip %s %d", type (v), lit);
+      POG ("assign %s %d", type (v), -lit);
       int n = COUNT (solver->trail) - 1;
       POKE (solver->trail, n, -lit);
       solver->next = n;

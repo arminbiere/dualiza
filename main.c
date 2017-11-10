@@ -241,8 +241,7 @@ static void generate_dual () {
 
 static const char * name_input (int i) {
   assert (primal_circuit);
-  assert (i < COUNT (primal_circuit->inputs));
-  Gate * g = primal_circuit->inputs.start[i];
+  Gate * g = PEEK (primal_circuit->inputs, i);
   Symbol * s = g->symbol;
   assert (s);
   const char * res = s->name;
