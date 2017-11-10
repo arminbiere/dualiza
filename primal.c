@@ -4,8 +4,8 @@
 #define POG(...) do { } while (0)
 #define POGCLS(...) do { } while (0)
 #else
-#define POG(FMT,ARGS...) LOG ("%d " FMT, primal->level, ##ARGS)
-#define POGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, primal->level, ##ARGS)
+#define POG(FMT,ARGS...) LOG ("%d " FMT, solver->level, ##ARGS)
+#define POGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, solver->level, ##ARGS)
 #endif
 
 typedef struct Var Var;
@@ -28,63 +28,70 @@ struct Queue {
 struct Primal {
   Var * vars;
   int max_var, next, level;
-  IntStack * trail;
+  IntStack trail, * sorted;
   Queue inputs, gates;
   CNF * cnf;
 };
 
-static Var * var (Primal * primal, int lit) {
+static Var * var (Primal * solver, int lit) {
   assert (lit);
   int idx = abs (lit);
-  assert (idx <= primal->max_var);
-  return primal->vars + idx;
+  assert (idx <= solver->max_var);
+  return solver->vars + idx;
 }
 
-static int val (Primal * primal, int lit) {
-  Var * v = var (primal, lit);
+static int val (Primal * solver, int lit) {
+  Var * v = var (solver, lit);
   int res = v->val;
   if (lit < 0) res = -res;
   return res;
 }
 
+static Queue * queue (Primal * solver, Var * v) {
+  return v->input ? &solver->inputs : &solver->gates;
+}
+
+static void update_queue (Primal * solver, Queue * q, Var * v) {
+  assert (!v || q == queue (solver, v));
+  q->search = v;
+#ifndef NLOG
+  const int idx = (v ? (long)(v - solver->vars) : 0l);
+  const char * t = (q == &solver->inputs ? "input" : "gate");
+  POG ("update %s search %d", t, idx);
+#endif
+}
+
+#ifndef NLOG
+
 static const char * type (Var * v) {
+  assert (v);
   return v->input ? "input" : "gate";
 }
 
-static Queue * queue (Primal * primal, Var * v) {
-  return v->input ? &primal->inputs : &primal->gates;
-}
+#endif
 
-static void update_search (Primal * primal, Var * v) {
-  Queue * q = queue (primal, v);
-  q->search = v;
-  POG ("update search %ld", v ? (long)(v - primal->vars) : 0l);
-}
-
-static int is_input (Primal * primal, int idx) {
-  return var (primal, idx)->input;
-}
-
-static void connect_var (Primal * primal, int idx) {
-  Var * v = var (primal, idx);
-  POG ("connect %s variable %d", type (v), idx);
-  Queue * q = queue (primal, v);
+static void enqueue (Primal * solver, int idx) {
+  enqueues++;
+  Var * v = var (solver, idx);
+  POG ("enqueue %s variable %d", type (v), idx);
+  Queue * q = queue (solver, v);
   assert (!v->next);
   assert (!v->prev);
   v->stamp = ++q->stamp;
   if (!q->first) q->first = v;
   v->prev = q->last;
   q->last = v;
-  if (!v->val) update_search (primal, v);
+  if (!v->val) update_queue (solver, q, v);
 }
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
-  LOG ("new primal solver over %ld clauses and %ld inputs",
+  LOG ("new solver solver over %ld clauses and %ld inputs",
     (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
   Primal * res;
   NEW (res);
   res->cnf = cnf;
+  res->sorted = inputs;
   int max_var_in_cnf = maximum_variable_index (cnf);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
   int max_var_in_inputs = 0;
@@ -97,6 +104,8 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   res->max_var = MAX (max_var_in_cnf, max_var_in_inputs);
   LOG ("maximum variable index %d", res->max_var);
   ALLOC (res->vars, res->max_var + 1);
+  for (int idx = 1; idx <= res->max_var; idx++)
+    res->vars[idx].phase = -1;
   int num_inputs = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
     int input = abs (*p);
@@ -107,59 +116,61 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     num_inputs++;
     v->input = 1;
   }
-  LOG ("using %d inputs and %d non-inputs variables",
-    num_inputs, res->max_var - num_inputs);
-  for (int idx = 1; idx <= res->max_var; idx++)
-    res->vars[idx].phase = -1;
+#ifndef NLOG
+  const int num_gates = res->max_var - num_inputs;
+  LOG ("using %d inputs and %d gate variables", num_inputs, num_gates);
   LOG ("connecting variables");
+#endif
   for (int idx = 1; idx <= res->max_var; idx++)
-    connect_var (res, idx);
+    enqueue (res, idx);
+  assert (res->inputs.stamp == num_inputs);
+  assert (res->gates.stamp == num_gates);
   return res;
 }
 
-void delete_primal (Primal * primal) {
-  LOG ("deleting primal solver");
-  RELEASE (primal->trail);
-  for (int idx = 1; idx <= primal->max_var; idx++) {
-    Var * v = primal->vars + idx;
+void delete_primal (Primal * solver) {
+  LOG ("deleting solver solver");
+  RELEASE (solver->trail);
+  for (int idx = 1; idx <= solver->max_var; idx++) {
+    Var * v = solver->vars + idx;
     RELEASE (v->occs[0]);
     RELEASE (v->occs[1]);
   }
-  DEALLOC (primal->vars, primal->max_var+1);
-  DELETE (primal);
+  DEALLOC (solver->vars, solver->max_var+1);
+  DELETE (solver);
 }
 
-static void assign (Primal * primal, int lit) {
+static void assign (Primal * solver, int lit) {
   POG ("assign %d", lit);
-  assert (!val (primal, lit));
+  assert (!val (solver, lit));
   int idx = abs (lit);
-  Var * v = primal->vars + idx;
+  Var * v = solver->vars + idx;
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
-  v->level = primal->level;
-  PUSH (primal->trail, lit);
+  v->level = solver->level;
+  PUSH (solver->trail, lit);
 }
 
-static Clauses * occs (Primal * primal, int lit) {
-  return &var (primal, lit)->occs[lit < 0];
+static Clauses * occs (Primal * solver, int lit) {
+  return &var (solver, lit)->occs[lit < 0];
 }
 
 
-static void connect_literal (Primal * primal, Clause * c, int lit) {
+static void connect_literal (Primal * solver, Clause * c, int lit) {
   POGCLS (c, "connecting literal %d to", lit);
-  Clauses * cs = occs (primal, lit);
+  Clauses * cs = occs (solver, lit);
   PUSH (*cs, c);
 }
 
-static void connect_clause (Primal * primal, Clause * c) {
+static void connect_clause (Primal * solver, Clause * c) {
   assert (c->size > 1);
-  connect_literal (primal, c, c->literals[0]);
-  connect_literal (primal, c, c->literals[1]);
+  connect_literal (solver, c, c->literals[0]);
+  connect_literal (solver, c, c->literals[1]);
 }
 
-static int connect_cnf (Primal * primal) {
-  assert (!primal->level);
-  Clauses * clauses = &primal->cnf->clauses;
+static int connect_cnf (Primal * solver) {
+  assert (!solver->level);
+  Clauses * clauses = &solver->cnf->clauses;
   LOG ("connecting %ld clauses to Primal solver", (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
@@ -169,7 +180,7 @@ static int connect_cnf (Primal * primal) {
     } else if (c->size == 1) {
       int unit = c->literals[0];
       LOG ("found unit clause %d", unit);
-      int tmp = val (primal, unit);
+      int tmp = val (solver, unit);
       if (tmp > 0) {
 	LOG ("ignoring already satisfied unit %d", unit);
 	continue;
@@ -178,23 +189,23 @@ static int connect_cnf (Primal * primal) {
 	LOG ("found already falsified unit %d", unit);
 	return 0;
       }
-      assign (primal, unit);
+      assign (solver, unit);
     } else {
       assert (c->size > 1);
-      connect_clause (primal, c);
+      connect_clause (solver, c);
     }
   }
   return 1;
 }
 
-static int bcp (Primal * primal) {
+static int bcp (Primal * solver) {
   int res = 1;
-  while (res && primal->next < COUNT (primal->trail)) {
-    int lit = primal->trail.start[primal->next++];
-    assert (val (primal, lit) > 0);
+  while (res && solver->next < COUNT (solver->trail)) {
+    int lit = solver->trail.start[solver->next++];
+    assert (val (solver, lit) > 0);
     POG ("propagating %d", lit);
     propagations++;
-    Clauses * o = occs (primal, -lit);
+    Clauses * o = occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (res && p < o->top) {
       Clause * c = *q++ = *p++;
@@ -203,12 +214,12 @@ static int bcp (Primal * primal) {
       if (c->literals[0] != -lit)
 	SWAP (int, c->literals[0], c->literals[1]);
       assert (c->literals[0] == -lit);
-      const int other = c->literals[1], other_val = val (primal, other);
+      const int other = c->literals[1], other_val = val (solver, other);
       if (other_val > 0) continue;
       int i = 2, replacement_val = -1, replacement = 0;
       while (i < c->size) {
 	replacement = c->literals[i];
-	replacement_val = val (primal, replacement);
+	replacement_val = val (solver, replacement);
 	if (replacement_val >= 0) break;
 	i++;
       }
@@ -216,11 +227,11 @@ static int bcp (Primal * primal) {
 	POGCLS (c, "disconnecting literal %d from", -lit);
 	c->literals[0] = replacement;
 	c->literals[i] = -lit;
-	connect_literal (primal, c, replacement);
+	connect_literal (solver, c, replacement);
 	q--;
       } else if (!other_val) {
 	POGCLS (c, "forcing %d", other);
-	assign (primal, other);
+	assign (solver, other);
       } else {
 	assert (other_val < 0);
 	POGCLS (c, "conflicting");
@@ -235,112 +246,124 @@ static int bcp (Primal * primal) {
   return res;
 }
 
-static int satisfied (Primal * primal) {
-  return primal->next == primal->max_var;
+static int satisfied (Primal * solver) {
+  return solver->next == solver->max_var;
 }
 
-static void inc_level (Primal * primal) {
-  primal->level++;
+static void inc_level (Primal * solver) {
+  solver->level++;
   POG ("incremented decision level");
 }
 
-static void dec_level (Primal * primal) {
-  assert (primal->level > 0);
-  primal->level--;
+static void dec_level (Primal * solver) {
+  assert (solver->level > 0);
+  solver->level--;
   POG ("decremented decision level");
 }
 
-static void decide (Primal * primal) {
-  for (;;) {
-    assert (primal->search);
-    Var * v = primal->search;
-    if (!v->val) {
-      int lit = v - primal->vars;
-      if (v->phase < 0) lit = -lit;
-      inc_level (primal);
-      POG ("decide %d", lit);
-      assign (primal, lit);
-      assert (!v->decision);
-      v->decision = 1;
-      decisions++;
-      break;
-    } else update_search (primal, v->prev);
-  }
+static Var * decide_input (Primal * solver) {
+  Var * res = solver->inputs.search;
+  while (res && !res->val) 
+    res = res->prev, searches++;
+  update_queue (solver, &solver->inputs, res);
+  return res;
 }
 
-static void unassign (Primal * primal, int lit) {
-  Var * v = var (primal, lit);
-  assert (primal->level == v->level);
-  primal->level = v->level;		// TODO remove
+static Var * decide_gate (Primal * solver) {
+  Var * res = solver->gates.search;
+  while (res && !res->val)
+    res = res->prev, searches++;
+  update_queue (solver, &solver->gates, res);
+  return res;
+}
+
+static void decide (Primal * solver) {
+  Var * v = decide_input (solver);
+  if (!v) v = decide_gate (solver);
+  assert (v);
+  int lit = v - solver->vars;
+  if (v->phase < 0) lit = -lit;
+  inc_level (solver);
+  POG ("decide %s %d", type (v), lit);
+  assign (solver, lit);
+  assert (!v->decision);
+  v->decision = 1;
+  decisions++;
+}
+
+static void unassign (Primal * solver, int lit) {
+  Var * v = var (solver, lit);
+  assert (solver->level == v->level);
+  solver->level = v->level;		// TODO remove
   POG ("unassign %d", lit);
   assert (v->val);
   v->val = v->decision = 0;
-  if (primal->search->stamp < v->stamp) update_search (primal, v);
+  Queue * q = queue (solver, v);
+  if (!q->search || q->search->stamp < v->stamp)
+    update_queue (solver, q, v);
 }
 
-static int backtrack (Primal * primal) {
+static int backtrack (Primal * solver) {
   POG ("backtrack");
-  while (!EMPTY (primal->trail)) {
-    const int lit = TOP (primal->trail);
-    Var * v = var (primal, lit);
+  while (!EMPTY (solver->trail)) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
     const int decision = v->decision;
     if (decision == 1) {
       v->decision = 2;
       POG ("flip %d", lit);
       POG ("assign %d", -lit);
-      int n = COUNT (primal->trail) - 1;
-      POKE (primal->trail, n, -lit);
-      primal->next = n;
+      int n = COUNT (solver->trail) - 1;
+      POKE (solver->trail, n, -lit);
+      solver->next = n;
       v->val = -v->val;
       return 1;
     }
-    unassign (primal, lit);
-    if (decision == 2) dec_level (primal);
-    (void) POP (primal->trail);
+    unassign (solver, lit);
+    if (decision == 2) dec_level (solver);
+    (void) POP (solver->trail);
   }
-  primal->next = 0;
+  solver->next = 0;
   return 0;
 }
 
-int primal_sat (Primal * primal) {
-  if (!connect_cnf (primal)) return 20;
-  if (!bcp (primal)) return 20;
-  if (satisfied (primal)) return 10;
-  connect_variables (primal);
+int primal_sat (Primal * solver) {
+  if (!connect_cnf (solver)) return 20;
+  if (!bcp (solver)) return 20;
+  if (satisfied (solver)) return 10;
   int res = 0;
   while (!res)
-    if (!bcp (primal)) {
-       if (!backtrack (primal)) res = 20;
-    } else if (satisfied (primal)) res = 10;
-    else decide (primal);
+    if (!bcp (solver)) {
+       if (!backtrack (solver)) res = 20;
+    } else if (satisfied (solver)) res = 10;
+    else decide (solver);
   return res;
 }
 
-void primal_count (Number res, Primal * primal) {
-  if (!connect_cnf (primal)) return;
-  if (!bcp (primal)) return;
-  if (satisfied (primal)) {
+void primal_count (Number res, Primal * solver) {
+  if (!connect_cnf (solver)) return;
+  if (!bcp (solver)) return;
+  if (satisfied (solver)) {
     POG ("single root level model");
     inc_number (res);
     return;
   }
-  connect_variables (primal);
   for (;;)
-    if (!bcp (primal)) {
-      if (!backtrack (primal)) return;
-    } else if (satisfied (primal)) {
+    if (!bcp (solver)) {
+      if (!backtrack (solver)) return;
+    } else if (satisfied (solver)) {
       POG ("new model");
       inc_number (res);
-      if (!backtrack (primal)) return;
-    } else decide (primal);
+      if (!backtrack (solver)) return;
+    } else decide (solver);
 }
 
-static void print_model (Primal * primal, Name name) {
-  const int n = COUNT (*primal->inputs);
+static void print_model (Primal * solver, Name name) {
+  const int n = COUNT (*solver->sorted);
   for (int i = 0; i < n; i++) {
     if (i) fputc (' ', stdout);
-    const int lit = PEEK (*primal->inputs, i);
-    const int tmp = val (primal, lit);
+    const int lit = PEEK (*solver->sorted, i);
+    const int tmp = val (solver, lit);
     assert (tmp);
     if (tmp < 0) fputc ('!', stdout);
     fputs (name (i), stdout);
@@ -348,20 +371,19 @@ static void print_model (Primal * primal, Name name) {
   fputc ('\n', stdout);
 }
 
-void primal_enumerate (Primal * primal, Name name) {
-  if (!connect_cnf (primal)) return;
-  if (!bcp (primal)) return;
-  if (satisfied (primal)) { print_model (primal, name); return; }
-  connect_variables (primal);
+void primal_enumerate (Primal * solver, Name name) {
+  if (!connect_cnf (solver)) return;
+  if (!bcp (solver)) return;
+  if (satisfied (solver)) { print_model (solver, name); return; }
   for (;;)
-    if (!bcp (primal)) {
-      if (!backtrack (primal)) return;
-    } else if (satisfied (primal)) {
-      print_model (primal, name);
-      if (!backtrack (primal)) return;
-    } else decide (primal);
+    if (!bcp (solver)) {
+      if (!backtrack (solver)) return;
+    } else if (satisfied (solver)) {
+      print_model (solver, name);
+      if (!backtrack (solver)) return;
+    } else decide (solver);
 }
 
-int primal_deref (Primal * primal, int lit) {
-  return val (primal, lit);
+int primal_deref (Primal * solver, int lit) {
+  return val (solver, lit);
 }

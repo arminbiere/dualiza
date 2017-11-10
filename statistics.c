@@ -1,5 +1,6 @@
 #include "headers.h"
 
+long enqueues, dequeues, searches;
 long decisions, propagations, conflicts;
 
 void print_statistics () {
