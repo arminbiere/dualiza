@@ -1,4 +1,5 @@
 #!/bin/sh
+cd `dirname $0`
 tmp="/tmp/dualiza-formulas-test-$$"
 trap "rm -f $tmp" 2
 die () {
@@ -6,9 +7,43 @@ die () {
   rm -f $tmp
   exit 1
 }
-cd `dirname $0`
+
+picosat=""
+if which picosat >/dev/null 2>/dev/null
+then
+  path="`which picosat`"
+  if [ "`echo 'p cnf 0 0'|"$path"|head -1`" = "s SATISFIABLE" ]
+  then
+    picosat="$path"
+  fi
+fi
+if [ "$picosat" ]
+then
+  echo "$0: using '$picosat'"
+else
+  echo "$0: no 'picosat' found"
+fi
+
 dualiza=../dualiza
 [ -f $dualiza ] || die "can not find '$dualiza'"
+
+sharpsat=""
+if which sharpSAT >/dev/null 2>/dev/null
+then
+  path="`which sharpSAT`"
+  echo 'p cnf 0 0' > $tmp
+  if [ "`$path $tmp|sed -e '1,/# solutions/d' -e '/# END/,$d'`" = 1 ]
+  then
+    sharpsat="$path"
+  fi
+fi
+if [ "$sharpsat" ]
+then
+  echo "$0: using '$sharpsat'"
+else
+  echo "$0: no 'sharpSAT' found"
+fi
+
 firsterase=yes
 erase () {
   if [ $firsterase = yes ]
@@ -27,6 +62,7 @@ execute () {
   lastline="`tail -1 $tmp`"
   if [ ! -t 1 ]
   then
+    echo
     echo "$firstline"
     echo "$lastline"
   fi
@@ -75,3 +111,4 @@ do
 done
 erase
 rm -f $tmp
+exit 0
