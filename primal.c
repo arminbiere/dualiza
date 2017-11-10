@@ -327,7 +327,31 @@ void primal_count (Number res, Primal * primal) {
     } else decide (primal);
 }
 
+static void print_model (Primal * primal, Name name) {
+  const int n = COUNT (*primal->inputs);
+  for (int i = 0; i < n; i++) {
+    if (i) fputc (' ', stdout);
+    const int lit = PEEK (*primal->inputs, i);
+    const int tmp = val (primal, lit);
+    assert (tmp);
+    if (tmp < 0) fputc ('!', stdout);
+    fputs (name (i), stdout);
+  }
+  fputc ('\n', stdout);
+}
+
 void primal_enumerate (Primal * primal, Name name) {
+  if (!connect_cnf (primal)) return;
+  if (!bcp (primal)) return;
+  if (satisfied (primal)) { print_model (primal, name); return; }
+  connect_variables (primal);
+  for (;;)
+    if (!bcp (primal)) {
+      if (!backtrack (primal)) return;
+    } else if (satisfied (primal)) {
+      print_model (primal, name);
+      if (!backtrack (primal)) return;
+    } else decide (primal);
 }
 
 int primal_deref (Primal * primal, int lit) {

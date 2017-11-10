@@ -14,6 +14,12 @@ do { \
 
 #define SIZE(S) ((S).end - (S).start)
 
+#define PEEK(S,I) \
+  (assert ((I) < COUNT (S)), (S).start[I])
+
+#define POKE(S,I,E) \
+  (assert ((I) < COUNT (S)), (S).start[I] = (E))
+
 #define CLEAR(S) \
 do { \
   (S).top = (S).start; \

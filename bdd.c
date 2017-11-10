@@ -950,9 +950,7 @@ print_all_satisfying_cubes_to_file_recursively (
   if (a == false_bdd_node) return;
   Link link = { a, parent };
   if (a == true_bdd_node) {
-    fputs ("v ", file);
     print_linked_bdd_cube (&link, file, name);
-    fputs (" 0", file);
     fputc ('\n', stdout);
     return;
   }
