@@ -11,7 +11,7 @@ enum Operator {
   XOR = 9,
   OR = 10,
   ITE = 13,
-  XNOR = 14
+  XNOR = 14,
 };
 
 typedef STACK (Gate*) Gates;

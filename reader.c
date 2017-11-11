@@ -9,7 +9,6 @@ static Reader * new_reader (const char * name, FILE * file, int close) {
   res->buffer = new_buffer ();
   res->close = close;
   res->file = file;
-  res->lineno = 1;
   return res;
 }
 
@@ -42,7 +41,7 @@ Reader * open_new_reader (const char * name) {
 void delete_reader (Reader * r) {
   msg (2,
     "deleting input reader of '%s' after reading %ld bytes",
-    r->name, r->bytes);
+    r->name, r->coo.bytes);
   delete_buffer (r->buffer);
   if (r->close == 1) fclose (r->file);
   if (r->close == 2) pclose (r->file);
@@ -51,69 +50,113 @@ void delete_reader (Reader * r) {
   DELETE (r);
 }
 
-static int get_char (Reader * r) {
-  if (r->eof) return EOF;
-  int res = getc (r->file);
-  if (res == EOF) r->eof = 1;
+static Char get_char (Reader * r) {
+  Char res;
+  if (r->char_saved) {
+    res = r->saved_char;
+    r->char_saved = 0;
+  } else {
+    res.coo = r->coo;
+    if (r->eof) res.code = EOF;
+    else {
+      res.code = getc (r->file);
+      if (res.code == EOF) r->eof = 1;
+    }
+  }
   return res;
 }
 
-int next_char (Reader * r) {
-  int res;
+Char next_char (Reader * r) {
+  Char res;
   if (empty_buffer (r->buffer)) res = get_char (r);
   else res = dequeue_buffer (r->buffer);
-  if (res == '\n') r->lineno++;
-  if (res != EOF) r->bytes++;
+  if (res.code == '\n') r->coo.line++, r->coo.column = 0;
+  if (res.code != EOF) r->coo.bytes++;
   return res;
 }
 
 int peek_char (Reader * r) {
-  int res = get_char (r);
-  if (res != EOF) enqueue_buffer (r->buffer, res);
-  return res;
+  Char res = get_char (r);
+  if (res.code != EOF) enqueue_buffer (r->buffer, res);
+  return res.code;
 }
 
 static int is_space_character (int ch) {
   return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n';
 }
 
-int next_non_white_space_char (Reader * r) {
-  int ch;
+Char next_non_white_space_char (Reader * r) {
+  Char ch;
   for (;;) {
-    while (is_space_character (ch = next_char (r)))
+    while (is_space_character ((ch = next_char (r)).code))
       ;
-    if (!r->comment) break;
-    const char * p = r->comment;
-    while (ch && *p == ch) ch = next_char (r), p++;
-    if (*p) {
-      while (p > r->comment) {
-	prev_char (r, ch);
-	ch = *--p;
-      }
-      break;
-    }
-    while ((ch = next_char (r)) != '\n')
-      if (ch == EOF)
+    if (ch.code == 'c' && r->type == DIMACS) goto SKIP_REST_OF_LINE;
+    else if (ch.code == '-' && r->type == FORMULA) {
+      if (next_char (r).code != '-')
+	parse_error (r, "expected '-' after '-'");
+    } else break;
+SKIP_REST_OF_LINE:
+    while (((ch = next_char (r)).code) != '\n')
+      if (ch.code == EOF)
 	parse_error (r, "unexpected end-of-file in comment");
   }
   return ch;
 }
 
-void prev_char (Reader * r, int ch) {
-  enqueue_buffer (r->buffer, ch);
-  if (ch == '\n') assert (r->lineno > 1), r->lineno--;
-  if (ch != EOF) assert (r->bytes > 0), r->bytes--;
+void prev_char (Reader * r, Char ch) {
+  assert (!r->char_saved);
+  r->char_saved = 1;
+  r->saved_char = ch;
+  r->coo = ch.coo;
 }
 
 void parse_error (Reader * r, const char * fmt, ...) {
   fflush (stdout);
   fprintf (stderr,
-    "dualiza: %s:%ld: parse error at byte %ld: ",
-    r->name, r->lineno, r->bytes);
+    "dualiza: %s:%ld:%ld: parse error at byte %ld: ",
+    r->name, r->coo.line + 1, r->coo.column + 1, r->coo.bytes + 1);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
   va_end (ap);
   fputc ('\n', stderr);
   exit (1);
+}
+
+Type get_file_type (Reader * reader) {
+  assert (reader);
+  msg (2, "trying to determine file type of input file '%s'", reader->name);
+  Type res = FORMULA;
+  int ch = peek_char (reader);
+  long count = 1;
+  if (ch == 'a') {
+    ch = peek_char (reader), count++;
+    if (ch == 'i' || ch == 'a') {
+      ch = peek_char (reader), count++;
+      if (ch == 'g') {
+	ch = peek_char (reader), count++;
+	if (ch == ' ') {
+	  ch = peek_char (reader), count++;
+	  if ('0' <= ch && ch <= '9') res = AIGER;
+	}
+      }
+    }
+  } else if (ch == 'c' || ch == 'p') {
+    while (ch == 'c') {
+      do ch = peek_char (reader), count++;
+      while (ch != EOF && ch != '\n');
+      if (ch == '\n') ch = peek_char (reader), count++;
+    }
+    if (ch == 'p') {
+      ch = peek_char (reader), count++;
+      if (ch == ' ') {
+	ch = peek_char (reader), count++;
+	if (ch == 'c') res = DIMACS;
+      }
+    }
+  }
+  msg (2, "assuming %s file type after peeking at %ld characters",
+    (res==AIGER ? "AIGER" : (res==DIMACS ? "DIMACS" : "formula")), count);
+  reader->type = res;
+  return res;
 }

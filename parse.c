@@ -23,23 +23,29 @@ static int is_symbol_character (int ch) {
 }
 
 static Gate * parse_basic (Parser * parser) {
-  int ch = next_non_white_space_char (parser->reader);
+  Char ch = next_non_white_space_char (parser->reader);
   Gate * res = 0;
-  if (ch == EOF) parse_error (parser->reader, "unexpected end-of-file");
-  else if (ch == '(') {
+  if (ch.code == EOF)
+    parse_error (parser->reader, "unexpected end-of-file");
+  else if (ch.code == '(') {
     res = parse_expr (parser);
     ch = next_non_white_space_char (parser->reader);
-    if (ch != ')') parse_error (parser->reader, "expected ')'");
-  } else if (ch == '!') {
+    if (ch.code != ')') parse_error (parser->reader, "expected ')'");
+  } else if (ch.code == '!') {
     res = parse_basic (parser);
     res = NOT (res);
-  } else if (ch == '1') res = NOT (new_false_gate (parser->circuit));
-  else if (ch == '0') res = new_false_gate (parser->circuit);
-  else if (is_symbol_start (ch)) {
+  } else if (ch.code == '1') res = NOT (new_false_gate (parser->circuit));
+  else if (ch.code == '0') res = new_false_gate (parser->circuit);
+  else if (is_symbol_start (ch.code)) {
+    Coo start = ch.coo, end = ch.coo;
     assert (EMPTY (parser->reader->symbol));
-    PUSH (parser->reader->symbol, ch);
-    while (is_symbol_character (ch = next_char (parser->reader)))
-      PUSH (parser->reader->symbol, ch);
+    PUSH (parser->reader->symbol, ch.code);
+    while (is_symbol_character ((ch = next_char (parser->reader)).code)) {
+      PUSH (parser->reader->symbol, ch.code);
+      end = ch.coo;
+    }
+    (void) start; // TODO use it ...
+    (void) end; // TODO use it ...
     prev_char (parser->reader, ch);
     PUSH (parser->reader->symbol, 0);
     const char * name = parser->reader->symbol.start;
@@ -59,8 +65,8 @@ static Gate * parse_basic (Parser * parser) {
 static Gate * parse_and (Parser * parser) {
   Gate * res = parse_basic (parser), * and = 0;
   for (;;) {
-    int ch = next_non_white_space_char (parser->reader);
-    if (ch != '&') { prev_char (parser->reader, ch); return res; }
+    Char ch = next_non_white_space_char (parser->reader);
+    if (ch.code != '&') { prev_char (parser->reader, ch); return res; }
     Gate * tmp = parse_basic (parser);
     if (!and) {
       and = new_and_gate (parser->circuit);
@@ -74,8 +80,8 @@ static Gate * parse_and (Parser * parser) {
 static Gate * parse_xor (Parser * parser) {
   Gate * res = parse_and (parser), * xor = 0;
   for (;;) {
-    int ch = next_non_white_space_char (parser->reader);
-    if (ch != '^') { prev_char (parser->reader, ch); return res; }
+    Char ch = next_non_white_space_char (parser->reader);
+    if (ch.code != '^') { prev_char (parser->reader, ch); return res; }
     Gate * tmp = parse_and (parser);
     if (!xor) {
       xor = new_xor_gate (parser->circuit);
@@ -89,8 +95,8 @@ static Gate * parse_xor (Parser * parser) {
 static Gate * parse_or (Parser * parser) {
   Gate * res = parse_xor (parser), * or = 0;
   for (;;) {
-    int ch = next_non_white_space_char (parser->reader);
-    if (ch != '|') { prev_char (parser->reader, ch); return res; }
+    Char ch = next_non_white_space_char (parser->reader);
+    if (ch.code != '|') { prev_char (parser->reader, ch); return res; }
     Gate * tmp = parse_xor (parser);
     if (!or) {
       or = new_or_gate (parser->circuit);
@@ -103,11 +109,11 @@ static Gate * parse_or (Parser * parser) {
 
 static Gate * parse_ite (Parser * parser) {
   Gate * cond = parse_or (parser);
-  int ch = next_non_white_space_char (parser->reader);
-  if (ch != '?') { prev_char (parser->reader, ch); return cond; }
+  Char ch = next_non_white_space_char (parser->reader);
+  if (ch.code != '?') { prev_char (parser->reader, ch); return cond; }
   Gate * pos = parse_or (parser);
   ch = next_non_white_space_char (parser->reader);
-  if (ch != ':') parse_error (parser->reader, "expected ':'");
+  if (ch.code != ':') parse_error (parser->reader, "expected ':'");
   Gate * neg = parse_or (parser);
   Gate * ite = new_ite_gate (parser->circuit);
   connect_gates (cond, ite);
@@ -116,11 +122,11 @@ static Gate * parse_ite (Parser * parser) {
   return ite;
 }
 
-static Gate * parse_xnor (Parser * parser) {
+static Gate * parse_equal (Parser * parser) {
   Gate * res = parse_ite (parser), * xnor = 0;
   for (;;) {
-    int ch = next_non_white_space_char (parser->reader);
-    if (ch != '=') { prev_char (parser->reader, ch); return res; }
+    Char ch = next_non_white_space_char (parser->reader);
+    if (ch.code != '=') { prev_char (parser->reader, ch); return res; }
     Gate * tmp = parse_ite (parser);
     if (!xnor) {
       xnor = new_xnor_gate (parser->circuit);
@@ -131,20 +137,39 @@ static Gate * parse_xnor (Parser * parser) {
   } 
 }
 
+#if 0
+
 static Gate * parse_expr (Parser * parser) {
-  return parse_xnor (parser);
+  return parse_equal (parser);
 }
+
+#else
+
+static Gate * parse_implies (Parser * parser) {
+  Gate * antecendent = parse_equal (parser);
+  Char ch = next_non_white_space_char (parser->reader);
+  if (ch.code != '>') { prev_char (parser->reader, ch); return antecendent; }
+  Gate * conclusion = parse_equal (parser);
+  Gate * or = new_or_gate (parser->circuit);
+  connect_gates (NOT (antecendent), or);
+  connect_gates (conclusion, or);
+  return or;
+}
+
+static Gate * parse_expr (Parser * parser) {
+  return parse_implies (parser);
+}
+
+#endif
 
 Circuit * parse_circuit (Reader * reader, Symbols * symbols) {
   Parser parser;
   parser.reader = reader;
   parser.symbols = symbols;
   parser.circuit = new_circuit ();
-  assert (!reader->comment);
-  reader->comment = "--";
   Gate * output = parse_expr (&parser);
-  int ch = next_non_white_space_char (reader);
-  if (ch != EOF)
+  Char ch = next_non_white_space_char (reader);
+  if (ch.code != EOF)
     parse_error (reader, "expected end-of-file after expression");
   connect_output (parser.circuit, output);
   return parser.circuit;
