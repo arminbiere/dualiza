@@ -137,7 +137,7 @@ static Gate * parse_equal (Parser * parser) {
   } 
 }
 
-#if 0
+#if 1
 
 static Gate * parse_expr (Parser * parser) {
   return parse_equal (parser);
