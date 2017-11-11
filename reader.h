@@ -7,7 +7,7 @@ struct Reader {
   Buffer * buffer;
   CharStack symbol;
   long lineno, bytes;
-  int comment;
+  const char * comment;
 };
 
 Reader * new_reader_from_stdin ();

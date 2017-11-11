@@ -82,7 +82,16 @@ int next_non_white_space_char (Reader * r) {
   for (;;) {
     while (is_space_character (ch = next_char (r)))
       ;
-    if (!r->comment || ch != r->comment) break;
+    if (!r->comment) break;
+    const char * p = r->comment;
+    while (ch && *p == ch) ch = next_char (r), p++;
+    if (*p) {
+      while (p > r->comment) {
+	prev_char (r, ch);
+	ch = *--p;
+      }
+      break;
+    }
     while ((ch = next_char (r)) != '\n')
       if (ch == EOF)
 	parse_error (r, "unexpected end-of-file in comment");

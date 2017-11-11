@@ -141,7 +141,7 @@ Circuit * parse_circuit (Reader * reader, Symbols * symbols) {
   parser.symbols = symbols;
   parser.circuit = new_circuit ();
   assert (!reader->comment);
-  reader->comment = '-';
+  reader->comment = "--";
   Gate * output = parse_expr (&parser);
   int ch = next_non_white_space_char (reader);
   if (ch != EOF)
