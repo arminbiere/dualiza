@@ -99,19 +99,19 @@ Char next_non_white_space_char (Reader * r) {
 	ch.code = IMPLIES;
 	break;
       }
-      else parse_error (r, ch.coo, "expected '-' or '>' after '-'");
+      else parse_error (r, ch, "expected '-' or '>' after '-'");
     } else if (ch.code == '<' && r->type == FORMULA) {
       if ((ch = next_char (r)).code != '-')
-	parse_error (r, ch.coo, "expected '-' after '<'");
+	parse_error (r, ch, "expected '-' after '<'");
       if ((ch = next_char (r)).code != '>')
-	parse_error (r, ch.coo, "expected '>' after '<-'");
+	parse_error (r, ch, "expected '>' after '<-'");
       ch.code = IFF;
       break;
     } else break;
 SKIP_REST_OF_LINE:
     while (((ch = next_char (r)).code) != '\n')
       if (ch.code == EOF)
-	parse_error (r, ch.coo, "unexpected end-of-file in comment");
+	parse_error (r, ch, "unexpected end-of-file in comment");
   }
   return ch;
 }
@@ -123,11 +123,16 @@ void prev_char (Reader * r, Char ch) {
   r->coo = ch.coo;
 }
 
-void parse_error (Reader * r, Coo coo, const char * fmt, ...) {
+void parse_error (Reader * r, Char ch, const char * fmt, ...) {
   fflush (stdout);
+  long line = ch.coo.line;
+  long column = ch.coo.column;
+  long bytes = ch.coo.bytes;
+  if (ch.code == IMPLIES) column--, bytes--;
+  if (ch.code == IFF) column -= 2, bytes -= 2;
   fprintf (stderr,
     "dualiza: %s:%ld:%ld: parse error at byte %ld: ",
-    r->name, coo.line + 1, coo.column + 1, coo.bytes + 1);
+    r->name, line + 1, column + 1, bytes + 1);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);

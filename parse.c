@@ -26,12 +26,12 @@ static Gate * parse_basic (Parser * parser) {
   Char ch = next_non_white_space_char (parser->reader);
   Gate * res = 0;
   if (ch.code == EOF)
-    parse_error (parser->reader, ch.coo, "unexpected end-of-file");
+    parse_error (parser->reader, ch, "unexpected end-of-file");
   else if (ch.code == '(') {
     res = parse_expr (parser);
     ch = next_non_white_space_char (parser->reader);
     if (ch.code != ')')
-      parse_error (parser->reader, ch.coo, "expected ')'");
+      parse_error (parser->reader, ch, "expected ')'");
   } else if (ch.code == '!') {
     res = parse_basic (parser);
     res = NOT (res);
@@ -54,7 +54,7 @@ static Gate * parse_basic (Parser * parser) {
         "formula input %d connected to circuit gate %d with symbol '%s'",
         res->input, res->idx, s->name);
     }
-  } else parse_error (parser->reader, ch.coo, "expected basic expression");
+  } else parse_error (parser->reader, ch, "expected basic expression");
   return res;
 }
 
@@ -110,7 +110,7 @@ static Gate * parse_ite (Parser * parser) {
   Gate * pos = parse_or (parser);
   ch = next_non_white_space_char (parser->reader);
   if (ch.code != ':')
-    parse_error (parser->reader, ch.coo, "expected ':'");
+    parse_error (parser->reader, ch, "expected ':'");
   Gate * neg = parse_or (parser);
   Gate * ite = new_ite_gate (parser->circuit);
   connect_gates (cond, ite);
@@ -164,7 +164,7 @@ Circuit * parse_circuit (Reader * reader, Symbols * symbols) {
   Gate * output = parse_expr (&parser);
   Char ch = next_non_white_space_char (reader);
   if (ch.code != EOF)
-    parse_error (reader, ch.coo, "expected end-of-file after expression");
+    parse_error (reader, ch, "expected end-of-file after expression");
   connect_output (parser.circuit, output);
   return parser.circuit;
 }

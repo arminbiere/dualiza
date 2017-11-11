@@ -29,4 +29,4 @@ int peek_char (Reader *);
 
 Type get_file_type (Reader *);
 
-void parse_error (Reader *, Coo coo, const char * fmt, ...);
+void parse_error (Reader *, Char ch, const char * fmt, ...);
