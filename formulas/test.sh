@@ -1,6 +1,6 @@
 #!/bin/sh
 cd `dirname $0`
-[ -t 1 ] && echo "$0: write to file or pipe to less for details"
+[ -t 1 ] && echo "$0: write to file or pipe into less for more details"
 tmp="/tmp/dualiza-formulas-test-$$"
 trap "rm -f $tmp*" 2
 die () {
@@ -140,24 +140,29 @@ count () {
     error \
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
-  if [ "$sharpsat" ]
-  then
-    cnf="$tmp.cnf"
-    if filter $dualiza -d $1 -o $cnf
-    then
-      filter "$sharpsat" $cnf
-      res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
-      [ -t 1 ] || echo $res
-      if [ ! "$res" = "$last" ]
+  case $1 in
+    0000.form);; # sharpSAT gives wrong solution '1'
+    *)
+      if [ "$sharpsat" ]
       then
-        error \
+	cnf="$tmp.cnf"
+	if filter $dualiza -d $1 -o $cnf
+	then
+	  filter "$sharpsat" $cnf
+	  res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
+	  [ -t 1 ] || echo $res
+	  if [ ! "$res" = "$last" ]
+	  then
+	    error \
 "sat checking mismatch between SAT engine and sharpSAT: '$last' and '$res'"
+	  fi
+	else
+	  [ -t 1 ] && echo
+	  error "failed to generate primal CNF"
+	fi
       fi
-    else
-      [ -t 1 ] && echo
-      error "failed to generate primal CNF"
-    fi
-  fi
+      ;;
+  esac
 }
 run () {
   [ -t 1 ] || ( echo; echo )

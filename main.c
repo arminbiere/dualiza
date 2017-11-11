@@ -405,7 +405,7 @@ static void count () {
 "BDD solution counting of primal circuit in %.3f seconds", delta);
       if (printnumber) println_number (n), fflush (stdout);
       clear_number (n);
-    } else printf ("0\n");
+    } else printf ("%d\n", is_true_bdd (b));
     fflush (stdout);
     delete_bdd (b);
     reset_bdds ();
