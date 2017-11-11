@@ -3,6 +3,9 @@ typedef enum Type Type;
 
 enum Type { UNKNOWN, DIMACS, AIGER, FORMULA };
 
+#define IMPLIES 256	// '->' token for FORMULA
+#define IFF	257	// '<->' token for FORMULA
+
 struct Reader {
   char * name;
   FILE * file;
@@ -26,4 +29,4 @@ int peek_char (Reader *);
 
 Type get_file_type (Reader *);
 
-void parse_error (Reader *, const char * fmt, ...);
+void parse_error (Reader *, Coo coo, const char * fmt, ...);

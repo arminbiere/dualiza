@@ -52,31 +52,33 @@ void delete_reader (Reader * r) {
 
 static Char get_char (Reader * r) {
   Char res;
-  if (r->char_saved) {
-    res = r->saved_char;
-    r->char_saved = 0;
-  } else {
-    res.coo = r->coo;
-    if (r->eof) res.code = EOF;
-    else {
-      res.code = getc (r->file);
-      if (res.code == EOF) r->eof = 1;
-    }
+  res.coo = r->coo;
+  if (r->eof) res.code = EOF;
+  else {
+    res.code = getc (r->file);
+    if (res.code == EOF) r->eof = 1;
   }
   return res;
 }
 
+static void inc_coo (Coo * c, int ch) {
+  if (ch == '\n') c->line++, c->column = 0;
+  else if (ch != EOF) c->column++;
+  if (ch != EOF) c->bytes++;
+}
+
 Char next_char (Reader * r) {
   Char res;
-  if (empty_buffer (r->buffer)) res = get_char (r);
+  if (r->char_saved) res = r->saved_char, r->char_saved = 0;
+  else if (empty_buffer (r->buffer)) res = get_char (r);
   else res = dequeue_buffer (r->buffer);
-  if (res.code == '\n') r->coo.line++, r->coo.column = 0;
-  if (res.code != EOF) r->coo.bytes++;
+  inc_coo (&r->coo, res.code);
   return res;
 }
 
 int peek_char (Reader * r) {
   Char res = get_char (r);
+  inc_coo (&r->coo, res.code);
   if (res.code != EOF) enqueue_buffer (r->buffer, res);
   return res.code;
 }
@@ -92,13 +94,24 @@ Char next_non_white_space_char (Reader * r) {
       ;
     if (ch.code == 'c' && r->type == DIMACS) goto SKIP_REST_OF_LINE;
     else if (ch.code == '-' && r->type == FORMULA) {
-      if (next_char (r).code != '-')
-	parse_error (r, "expected '-' after '-'");
+      if ((ch = next_char (r)).code == '-') goto SKIP_REST_OF_LINE;
+      if (ch.code == '>') {
+	ch.code = IMPLIES;
+	break;
+      }
+      else parse_error (r, ch.coo, "expected '-' or '>' after '-'");
+    } else if (ch.code == '<' && r->type == FORMULA) {
+      if ((ch = next_char (r)).code != '-')
+	parse_error (r, ch.coo, "expected '-' after '<'");
+      if ((ch = next_char (r)).code != '>')
+	parse_error (r, ch.coo, "expected '>' after '<-'");
+      ch.code = IFF;
+      break;
     } else break;
 SKIP_REST_OF_LINE:
     while (((ch = next_char (r)).code) != '\n')
       if (ch.code == EOF)
-	parse_error (r, "unexpected end-of-file in comment");
+	parse_error (r, ch.coo, "unexpected end-of-file in comment");
   }
   return ch;
 }
@@ -110,11 +123,11 @@ void prev_char (Reader * r, Char ch) {
   r->coo = ch.coo;
 }
 
-void parse_error (Reader * r, const char * fmt, ...) {
+void parse_error (Reader * r, Coo coo, const char * fmt, ...) {
   fflush (stdout);
   fprintf (stderr,
     "dualiza: %s:%ld:%ld: parse error at byte %ld: ",
-    r->name, r->coo.line + 1, r->coo.column + 1, r->coo.bytes + 1);
+    r->name, coo.line + 1, coo.column + 1, coo.bytes + 1);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
