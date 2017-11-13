@@ -293,9 +293,7 @@ static void check () {
     msg (1, "checking with primal SAT engine");
     CNF * cnf = new_cnf ();
     Encoding * encoding = new_encoding ();
-    Circuit * circuit = sat ? primal_circuit : dual_circuit;
-    assert (circuit);
-    encode_circuit (circuit, cnf, encoding, 0);
+    encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (encoding, &inputs);
@@ -372,9 +370,7 @@ static void all () {
     msg (1, "enumerating with primal SAT engine");
     CNF * cnf = new_cnf ();
     Encoding * encoding = new_encoding ();
-    Circuit * circuit = negate ? dual_circuit : primal_circuit;
-    assert (circuit);
-    encode_circuit (circuit, cnf, encoding, 0);
+    encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (encoding, &inputs);
@@ -415,9 +411,7 @@ static void count () {
     msg (1, "counting with primal SAT engine");
     CNF * cnf = new_cnf ();
     Encoding * encoding = new_encoding ();
-    Circuit * circuit = negate ? dual_circuit : primal_circuit;
-    assert (circuit);
-    encode_circuit (circuit, cnf, encoding, 0);
+    encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (encoding, &inputs);

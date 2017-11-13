@@ -137,10 +137,10 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 #endif
     }
     if (ch.code != EOF) {
+      if (!is_space_character (ch.code))
+	parse_error (r, ch, "unexpected character after literal");
       prev_char (r, ch);
       ch = next_non_white_space_char (r);
-      if (ch.code != EOF)
-	parse_error (r, ch, "unexpected character after literal");
     }
   }
   RELEASE (clause);
