@@ -113,7 +113,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
     if (COUNT (clauses) == t)
       parse_error (r, ch, "more clauses than specified");
     if (i) {
-      Gate * g = PEEK (res->inputs, i);
+      Gate * g = PEEK (res->inputs, i - 1);
       assert (g);
       if (sign) g = NOT (g);
       PUSH (clause, g);
@@ -137,8 +137,8 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
   }
   RELEASE (clause);
   Gate * g;
-  if (EMPTY (clause)) g = NOT (new_false_gate (res));
-  else if (COUNT (clause) == 1) g = PEEK (clauses, 0);
+  if (EMPTY (clauses)) g = NOT (new_false_gate (res));
+  else if (COUNT (clauses) == 1) g = PEEK (clauses, 0);
   else {
     g = new_and_gate (res);
     for (Gate ** p = clauses.start; p < clauses.top; p++)
