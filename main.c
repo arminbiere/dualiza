@@ -166,9 +166,11 @@ static void parse (const char * input_name) {
   Type type = get_file_type (input);
   if (type == FORMULA) {
     msg (1, "parsing input as formula");
-    primal_circuit = parse_circuit (input, symbols);
-  } else    if (type == DIMACS)  die ("can not parse DIMACS files yet");
-  else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
+    primal_circuit = parse_formula (input, symbols);
+  } else if (type == DIMACS) {
+    msg (1, "parsing input as DIMACS file");
+    primal_circuit = parse_dimacs (input, symbols);
+  } else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
 }
 
 static void generate_dual () {

@@ -69,9 +69,10 @@ static void inc_coo (Coo * c, int ch) {
 
 Char next_char (Reader * r) {
   Char res;
-  if (r->char_saved) res = r->saved_char, r->char_saved = 0;
+  if (r->char_saved)
+    res = r->saved_char, r->char_saved = 0, r->coo = res.coo;
   else if (empty_buffer (r->buffer)) res = get_char (r);
-  else res = dequeue_buffer (r->buffer);
+  else res = dequeue_buffer (r->buffer), r->coo = res.coo;
   inc_coo (&r->coo, res.code);
   return res;
 }

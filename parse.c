@@ -156,7 +156,7 @@ static Gate * parse_expr (Parser * parser) {
   return parse_implies_or_iff (parser);
 }
 
-Circuit * parse_circuit (Reader * reader, Symbols * symbols) {
+Circuit * parse_formula (Reader * reader, Symbols * symbols) {
   Parser parser;
   parser.reader = reader;
   parser.symbols = symbols;
