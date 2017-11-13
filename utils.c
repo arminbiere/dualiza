@@ -40,3 +40,7 @@ unsigned primes[num_primes] = {
   1000003u, 10000019u, 100000007u, 500000003u,
   1000000007u, 1500000001u, 2000000011u, 3000000019u
 };
+
+int is_space_character (int ch) {
+  return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n';
+}

@@ -5,3 +5,5 @@ FILE * write_pipe (const char * fmt, const char * arg);
 
 extern unsigned primes[];
 #define num_primes 8
+
+int is_space_character (int ch);

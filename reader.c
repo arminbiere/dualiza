@@ -84,10 +84,6 @@ int peek_char (Reader * r) {
   return res.code;
 }
 
-static int is_space_character (int ch) {
-  return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n';
-}
-
 Char next_non_white_space_char (Reader * r) {
   Char ch;
   for (;;) {
