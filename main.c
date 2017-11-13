@@ -293,7 +293,8 @@ static void check () {
     msg (1, "checking with primal SAT engine");
     CNF * cnf = new_cnf ();
     Encoding * encoding = new_encoding ();
-    encode_circuit (primal_circuit, cnf, encoding, 0);
+    Circuit * circuit = tautology ? dual_circuit : primal_circuit;
+    encode_circuit (circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (encoding, &inputs);
