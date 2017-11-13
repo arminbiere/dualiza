@@ -67,8 +67,9 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
     Symbol * s = find_or_create_symbol (symbols, name);
     g->symbol = s;
     LOG (
-      "DIMACS variable %d connected to input %d gate %d with symbol '%s'",
-      i + 1, g->input, g->idx, s->name);
+      "DIMACS variable %d connected to input gate %d with symbol '%s'",
+      i + 1, g->input, s->name);
+    assert (g->input == g->idx);
   }
   STACK (Gate *) clauses, clause;
   INIT (clauses); INIT (clause);
