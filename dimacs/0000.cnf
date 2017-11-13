@@ -1,0 +1,3 @@
+c this is CNF with a single empty clause thus false
+p cnf 0 1
+0

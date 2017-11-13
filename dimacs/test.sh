@@ -1,6 +1,6 @@
 #!/bin/sh
 cd `dirname $0`
-. `pwd`/common.sh
+. ../formulas/common.sh
 sat () {
   execute $dualiza -s $1
   last="$firstline"
@@ -12,19 +12,12 @@ sat () {
   fi
   if [ "$picosat" ]
   then
-    cnf="$tmp.cnf"
-    if filter $dualiza -d $1 -o $cnf
+    execute "$picosat" $1
+    res=`echo $firstline|awk '{print $2}'`
+    if [ ! "$res" = "$last" ]
     then
-      execute "$picosat" $cnf
-      res=`echo $firstline|awk '{print $2}'`
-      if [ ! "$res" = "$last" ]
-      then
-        error \
+      error \
 "sat checking mismatch between SAT engine and PicoSAT: '$last' and '$res'"
-      fi
-    else
-      [ -t 1 ] && echo
-      error "failed to generate primal CNF"
     fi
   fi
 }
@@ -48,30 +41,23 @@ count () {
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
   case $1 in
-    0000.form);; # sharpSAT gives wrong solution '1'
+    0000.cnf) ;; # sharpSAT gives wrong answer
     *)
       if [ "$sharpsat" ]
       then
-	cnf="$tmp.cnf"
-	if filter $dualiza -d $1 -o $cnf
+	filter "$sharpsat" $1
+	res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
+	[ -t 1 ] || echo $res
+	if [ ! "$res" = "$last" ]
 	then
-	  filter "$sharpsat" $cnf
-	  res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
-	  [ -t 1 ] || echo $res
-	  if [ ! "$res" = "$last" ]
-	  then
-	    error \
+	  error \
 "sat checking mismatch between SAT engine and sharpSAT: '$last' and '$res'"
-	  fi
-	else
-	  [ -t 1 ] && echo
-	  error "failed to generate primal CNF"
 	fi
       fi
       ;;
   esac
 }
-for i in *.form
+for i in *.cnf
 do
   run $i
 done
