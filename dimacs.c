@@ -56,7 +56,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	"non-space character before newline after 'p cnf %d %d'", s, t);
     else ch = next_char (r);
   msg (1, "parsed 'p cnf %d %d' header", s, t);
-  LOG ("connecting %d input gates to DIMACS variables");
+  LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];
     sprintf (name, "x%d", i + 1);
@@ -113,6 +113,9 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
     assert (COUNT (clauses) <= t);
     if (COUNT (clauses) == t)
       parse_error (r, ch, "more clauses than specified");
+#ifndef NLOG
+    if (EMPTY (clause)) LOG ("start clause %ld", 1 + COUNT (clauses));
+#endif
     if (i) {
       Gate * g = PEEK (res->inputs, i - 1);
       assert (g);
@@ -128,6 +131,10 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	  connect_gates (*p, g);
       }
       CLEAR (clause);
+      PUSH (clauses, g);
+#ifndef NLOG
+      LOG ("end clause %ld", COUNT (clauses));
+#endif
     }
     if (ch.code != EOF) {
       prev_char (r, ch);
