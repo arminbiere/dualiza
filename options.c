@@ -1,9 +1,11 @@
 #include "headers.h"
 
+Options options = {
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-int NAME = DEFAULT;
-#include "options.h"
+DEFAULT,
+OPTIONS
+};
 
 void usage_options () {
   int len = 0, tmp;
@@ -32,7 +34,7 @@ static void print_option (const char * name, int current, int usually) {
 void print_options () {
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  print_option (#NAME, NAME, DEFAULT);
+  print_option (#NAME, options.NAME, DEFAULT);
   // if (NAME != DEFAULT) msg (1, "--%s=%d", #NAME, NAME);
   OPTIONS
 }
@@ -52,7 +54,7 @@ static int parse_option_aux (char * arg) {
   int res = 0;
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  if (!mystrcmp (arg, #NAME)) NAME = atoi (q), res = 1;
+  if (!mystrcmp (arg, #NAME)) options.NAME = atoi (q), res = 1;
   OPTIONS
   return res;
 }

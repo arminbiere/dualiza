@@ -3,7 +3,7 @@
 
 #define OPTIONS_ALL \
 OPTION (primal,         1, use primal SAT engine only) \
-OPTION (printnumber,	1, really print number of all assignments) \
+OPTION (print,		1, print model or number of all assignments) \
 OPTION (verbosity,	0, verbose level) \
 
 /*------------------------------------------------------------------------*/
@@ -25,8 +25,13 @@ void print_options ();
 int parse_option (const char * arg);
 
 #ifndef OPTION
+typedef struct Options Options;
+struct Options {
 #define OPTION(NAME, DEFAULT, DESCRIPTION) \
-extern int NAME;
-#endif
-
+int NAME;
 OPTIONS
+};
+extern Options options;
+#else
+OPTIONS
+#endif

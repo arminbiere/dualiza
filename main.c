@@ -196,7 +196,7 @@ static void generate_dual () {
 	msg (1,
 "using primal circuit for non-negated checking with BDD engine");
 	return;
-      } else if (primal && !tautology) {
+      } else if (options.primal && !tautology) {
 	msg (1,
 "using only primal circuit for primal checking with SAT engine");
 	return;
@@ -212,7 +212,7 @@ static void generate_dual () {
 	msg (1,
 "using primal circuit for non-negated enumeration with BDD engine");
 	return;
-      } else if (primal && !negate) {
+      } else if (options.primal && !negate) {
 	msg (1,
 "using only primal circuit for primal enumeration with SAT engine");
 	return;
@@ -225,7 +225,7 @@ static void generate_dual () {
 	msg (1,
 "using primal circuit for non-negated counting with BDD engine");
 	return;
-      } else if (primal && !negate) {
+      } else if (options.primal && !negate) {
 	msg (1,
 "using only primal circuit for primal counting with SAT engine");
 	return;
@@ -298,7 +298,7 @@ static void check () {
     }
     delete_bdd (b);
     reset_bdds ();
-  } else if (primal) {
+  } else if (options.primal) {
     msg (1, "checking with primal SAT engine");
     cnf = new_cnf ();
     Circuit * circuit = tautology ? dual_circuit : primal_circuit;
@@ -376,7 +376,7 @@ static void all () {
     print_all_satisfying_cubes (b, name_input);
     delete_bdd (b);
     reset_bdds ();
-  } else if (primal) {
+  } else if (options.primal) {
     msg (1, "enumerating with primal SAT engine");
     cnf = new_cnf ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
@@ -411,13 +411,13 @@ static void count () {
       double delta = time - start;
       msg (1,
 "BDD solution counting of primal circuit in %.3f seconds", delta);
-      if (printnumber) println_number (n), fflush (stdout);
+      if (options.print) println_number (n), fflush (stdout);
       clear_number (n);
     } else printf ("%d\n", is_true_bdd (b));
     fflush (stdout);
     delete_bdd (b);
     reset_bdds ();
-  } else if (primal) {
+  } else if (options.primal) {
     msg (1, "counting with primal SAT engine");
     cnf = new_cnf ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
@@ -431,7 +431,7 @@ static void count () {
     if (negate) printf ("NUMBER FALSIFYING ASSIGNMENTS\n");
     else printf ("NUMBER SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
-    if (printnumber) println_number (n), fflush (stdout);
+    if (options.print) println_number (n), fflush (stdout);
     clear_number (n);
     delete_primal (solver);
     RELEASE (inputs);
@@ -451,7 +451,7 @@ static void setup_messages (const char * output_name) {
   if (output_name) return;
        if (dimacs)  message_prefix = "c ";
   else if (formula) message_prefix = "-- ";
-  else if (aiger && verbosity) message_file = stderr;
+  else if (aiger && options.verbosity) message_file = stderr;
 }
 
 int main (int argc, char ** argv) {
@@ -462,9 +462,9 @@ int main (int argc, char ** argv) {
         !strcmp (argv[i], "--help")) usage (), exit (0);
     else if (!strcmp (argv[i], "--version"))
       printf ("%s\n", get_version ()), exit (0);
-    else if (!strcmp (argv[i], "-v")) verbosity++;
+    else if (!strcmp (argv[i], "-v")) options.verbosity++;
 #ifndef NLOG
-    else if (!strcmp (argv[i], "-l")) logging++;
+    else if (!strcmp (argv[i], "-l")) options.logging++;
 #endif
     else if (!strcmp (argv[i], "-f"))            formula = -1;
     else if (!strcmp (argv[i], "-a"))              aiger = -1;
@@ -501,7 +501,7 @@ int main (int argc, char ** argv) {
       die ("multiple files '%s' and '%s'", input_name, argv[i]);
     else input_name = argv[i];
 #ifndef NLOG
-  if (logging) verbosity = INT_MAX;
+  if (options.logging) options.verbosity = INT_MAX;
 #endif
   check_options (output_name);
   setup_messages (output_name);

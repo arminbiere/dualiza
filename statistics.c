@@ -4,7 +4,7 @@ long enqueues, dequeues, searches;
 long decisions, propagations, conflicts;
 
 void print_statistics () {
-  if (verbosity < 1) return;
+  if (options.verbosity < 1) return;
   long bytes = maximum_resident_set_size ();
   double seconds = process_time ();
   if (decisions || propagations || conflicts)

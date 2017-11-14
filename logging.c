@@ -3,7 +3,7 @@
 #include "headers.h"
 
 void log_message (const char * fmt, ...) {
-  assert (logging);
+  assert (options.logging);
   fputs ("c LOG ", stdout);
   va_list ap;
   va_start (ap, fmt);
@@ -14,7 +14,7 @@ void log_message (const char * fmt, ...) {
 }
 
 void log_clause (Clause * c, const char * fmt, ...) {
-  assert (logging);
+  assert (options.logging);
   fputs ("c LOG ", stdout);
   va_list ap;
   va_start (ap, fmt);

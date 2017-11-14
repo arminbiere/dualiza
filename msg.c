@@ -15,7 +15,7 @@ void die (const char * fmt, ...) {
 }
 
 void msg (int level, const char * fmt, ...) {
-  if (verbosity < level) return;
+  if (options.verbosity < level) return;
   if (!message_file) message_file = stdout;
   if (message_prefix) fputs (message_prefix, message_file);
   fputs ("[dualiza] ", message_file);
