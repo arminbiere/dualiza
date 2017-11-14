@@ -273,7 +273,6 @@ static void check () {
   encoding = new_encoding ();
   if (bdd) {
     msg (1, "checking with BDD engine");
-    only_encode_inputs (primal_circuit, encoding);
     init_bdds ();
     BDD * b = simulate_primal ();
     if (sat) { 

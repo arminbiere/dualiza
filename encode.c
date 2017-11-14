@@ -281,14 +281,6 @@ static int encode_inputs_with_encoder (Encoder * e) {
   return idx;
 }
 
-void only_encode_inputs (Circuit * circuit, Encoding * encoding) {
-  Encoder encoder;
-  ZERO (&encoder);
-  encoder.circuit = circuit;
-  encoder.encoding = encoding;
-  (void) encode_inputs_with_encoder (&encoder);
-}
-
 static int encode_gates (Encoder * e, int idx) {
   LOG ("starting to encode gates");
   STACK (Gate *) stack;
