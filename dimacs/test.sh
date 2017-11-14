@@ -1,6 +1,8 @@
 #!/bin/sh
+
 cd `dirname $0`
 . ../formulas/common.sh
+
 sat () {
   execute $dualiza -s $1
   last="$firstline"
@@ -21,6 +23,7 @@ sat () {
     fi
   fi
 }
+
 tautology () {
   execute $dualiza -t $1
   last="$firstline"
@@ -31,6 +34,7 @@ tautology () {
 "tautology checking mismatch between SAT and BDD engine: '$last' and '$firstline'"
   fi
 }
+
 count () {
   execute $dualiza $1
   last="$lastline"
@@ -40,8 +44,8 @@ count () {
     error \
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
-  case $1 in
-    0000.cnf) ;; # sharpSAT gives wrong answer
+  case `basename $1 .cnf` in
+    0000) ;; # sharpSAT gives wrong answer
     *)
       if [ "$sharpsat" ]
       then
@@ -57,10 +61,12 @@ count () {
       ;;
   esac
 }
-for i in *.cnf
+
+for i in $dir/*.cnf
 do
   run $i
 done
+
 erase
 rm -f $tmp*
 exit 0

@@ -244,8 +244,13 @@ static void generate_dual () {
 }
 
 static const char * name_input (int i) {
+#if 0
+  assert (encoding);
+  Gate * g = PEEK (encoding->inputs, i);
+#else
   assert (primal_circuit);
   Gate * g = PEEK (primal_circuit->inputs, i);
+#endif
   Symbol * s = g->symbol;
   assert (s);
   const char * res = s->name;
@@ -265,8 +270,10 @@ static BDD * simulate_primal () {
 }
 
 static void check () {
+  encoding = new_encoding ();
   if (bdd) {
     msg (1, "checking with BDD engine");
+    only_encode_inputs (primal_circuit, encoding);
     init_bdds ();
     BDD * b = simulate_primal ();
     if (sat) { 
@@ -294,7 +301,6 @@ static void check () {
   } else if (primal) {
     msg (1, "checking with primal SAT engine");
     cnf = new_cnf ();
-    encoding = new_encoding ();
     Circuit * circuit = tautology ? dual_circuit : primal_circuit;
     encode_circuit (circuit, cnf, encoding, 0);
     IntStack inputs;
@@ -325,8 +331,8 @@ static void check () {
     delete_primal (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
-    delete_encoding (encoding);
   } else die ("checking with dual SAT engine not implement yet");
+  delete_encoding (encoding);
 }
 
 static void print (const char * output_name) {
@@ -359,6 +365,7 @@ static void print (const char * output_name) {
 }
 
 static void all () {
+  encoding = new_encoding ();
   if (bdd) {
     msg (1, "enumerating with BDD engine");
     init_bdds ();
@@ -372,7 +379,6 @@ static void all () {
   } else if (primal) {
     msg (1, "enumerating with primal SAT engine");
     cnf = new_cnf ();
-    encoding = new_encoding ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
@@ -382,11 +388,12 @@ static void all () {
     delete_primal (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
-    delete_encoding (encoding);
   } else die ("enumerating with dual SAT engine not implement yet (use '-b')");
+  delete_encoding (encoding);
 }
 
 static void count () {
+  encoding = new_encoding ();
   if (bdd) {
     msg (1, "counting with BDD engine");
     init_bdds ();
@@ -413,7 +420,6 @@ static void count () {
   } else if (primal) {
     msg (1, "counting with primal SAT engine");
     cnf = new_cnf ();
-    encoding = new_encoding ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
@@ -430,8 +436,8 @@ static void count () {
     delete_primal (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
-    delete_encoding (encoding);
   } else die ("counting with dual SAT engine not implement yet (use '-b')");
+  delete_encoding (encoding);
 }
 
 static void reset () {

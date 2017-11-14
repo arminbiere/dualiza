@@ -3,9 +3,9 @@
 typedef struct Encoder Encoder;
 
 struct Encoder {
+  Encoding * encoding;
   Circuit * circuit;
   CNF * cnf;
-  Encoding * encoding;
   int * map;
   int negative;
   STACK (int) clause, marks;
@@ -18,32 +18,34 @@ Encoding * new_encoding () {
 }
 
 void delete_encoding (Encoding * e) {
-  RELEASE (e->stack);
+  RELEASE (e->inputs);
   DELETE (e);
 }
 
-void encode_input (Encoding * e, Gate * g, int idx) {
+static void encode_input (Encoding * e, Gate * g, int idx) {
   assert (idx > 0);
   assert (g->op == INPUT);
-  while (COUNT (e->stack) <= idx)
-    PUSH (e->stack, 0);
-  assert (!e->stack.start[idx]);
-  e->stack.start[idx] = g;
+  while (COUNT (e->inputs) <= idx)
+    PUSH (e->inputs, 0);
+  assert (!e->inputs.start[idx]);
+  e->inputs.start[idx] = g;
   LOG ("input %d gate %d encoded with literal %d",
     g->input, g->idx, idx);
 }
 
+#if 0
 Gate * decode_literal (Encoding * e, int idx) {
-  assert (0 < idx), assert (idx < COUNT (e->stack));
-  Gate * res  = e->stack.start[idx];
+  assert (0 < idx), assert (idx < COUNT (e->inputs));
+  Gate * res  = e->inputs.start[idx];
   assert (res);
   return res;
 }
+#endif
 
 void print_dimacs_encoding_to_file (Encoding * e, FILE * file) {
-  const int num_encoded = COUNT (e->stack);
+  const int num_encoded = COUNT (e->inputs);
   for (int i = 0; i < num_encoded; i++) {
-    Gate * g = e->stack.start[i];
+    Gate * g = e->inputs.start[i];
     if (!g) continue;
     if (g->op != INPUT) continue;
     fprintf (file, "c index %d input %d gate %d", i, g->input, g->idx);
@@ -60,6 +62,7 @@ void print_dimacs_encoding_to_file (Encoding * e, FILE * file) {
 void print_dimacs_encoding (Encoding * e) {
   print_dimacs_encoding_to_file (e, stdout);
 }
+
 static Encoder * new_encoder (Circuit * circuit,
                               CNF * cnf, Encoding * encoding, int negative)
 {
@@ -261,7 +264,7 @@ static void encode_gate (Gate * g, Encoder *e) {
   }
 }
 
-static int encode_inputs (Encoder * e) {
+static int encode_inputs_with_encoder (Encoder * e) {
   LOG ("starting to encode inputs");
   int * map = e->map, idx = 0;
   Gate ** p = e->circuit->inputs.start;
@@ -270,12 +273,20 @@ static int encode_inputs (Encoder * e) {
     assert (g);
     assert (!SIGN (g));
     assert (g->op == INPUT);
-    assert (!map[g->idx]);
-    map[g->idx] = ++idx;
+    idx++;
+    if (map) assert (!map[g->idx]), map[g->idx] = idx;
     encode_input (e->encoding, g, idx);
   }
   msg (2, "encoded %d inputs", idx);
   return idx;
+}
+
+void only_encode_inputs (Circuit * circuit, Encoding * encoding) {
+  Encoder encoder;
+  ZERO (&encoder);
+  encoder.circuit = circuit;
+  encoder.encoding = encoding;
+  (void) encode_inputs_with_encoder (&encoder);
 }
 
 static int encode_gates (Encoder * e, int idx) {
@@ -331,7 +342,7 @@ void encode_circuit (Circuit * circuit,
   assert (negative || !maximum_variable_index (cnf));
   cone_of_influence (circuit);
   Encoder * encoder = new_encoder (circuit, cnf, encoding, negative);
-  int idx = encode_inputs (encoder);
+  int idx = encode_inputs_with_encoder (encoder);
   idx = encode_gates (encoder, idx);
   encode_unary (encoder, map_gate (circuit->output, encoder));
   delete_encoder (encoder);
@@ -339,9 +350,9 @@ void encode_circuit (Circuit * circuit,
 }
 
 void get_encoded_inputs (Encoding * e, IntStack * inputs) {
-  const int n = COUNT (e->stack);
+  const int n = COUNT (e->inputs);
   for (int i = 0; i < n; i++) {
-    Gate * g = e->stack.start[i];
+    Gate * g = e->inputs.start[i];
     if (!g) continue;
     assert (!SIGN (g));
     if (g->op != INPUT) continue;

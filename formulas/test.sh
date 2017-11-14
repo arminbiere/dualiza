@@ -1,6 +1,8 @@
 #!/bin/sh
+
 cd `dirname $0`
-. `pwd`/common.sh
+. ../formulas/common.sh
+
 sat () {
   execute $dualiza -s $1
   last="$firstline"
@@ -28,6 +30,7 @@ sat () {
     fi
   fi
 }
+
 tautology () {
   execute $dualiza -t $1
   last="$firstline"
@@ -38,6 +41,7 @@ tautology () {
 "tautology checking mismatch between SAT and BDD engine: '$last' and '$firstline'"
   fi
 }
+
 count () {
   execute $dualiza $1
   last="$lastline"
@@ -47,8 +51,8 @@ count () {
     error \
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
-  case $1 in
-    0000.form);; # sharpSAT gives wrong solution '1'
+  case `basename $1 .form` in
+    0000);; # sharpSAT gives wrong solution '1'
     *)
       if [ "$sharpsat" ]
       then
@@ -71,10 +75,12 @@ count () {
       ;;
   esac
 }
-for i in *.form
+
+for i in $dir/*.form
 do
   run $i
 done
+
 erase
 rm -f $tmp*
 exit 0

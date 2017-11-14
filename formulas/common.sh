@@ -1,3 +1,5 @@
+dir=`pwd|xargs basename`
+cd ..
 [ -t 1 ] && echo "$0: write to file or pipe into less for more details"
 tmp="/tmp/dualiza-formulas-test-$$"
 trap "rm -f $tmp*" 2
@@ -6,6 +8,21 @@ die () {
   rm -f $tmp*
   exit 1
 }
+
+dualiza="`pwd`/dualiza"
+if [ x"`which dualiza`" = x"$dualiza" ]
+then
+  echo "$0: using '$dualiza'"
+  dualiza=dualiza
+elif [ x"`which dualiza|xargs readlink`" = x"$dualiza" ]
+then
+  echo "$0: using '$dualiza'"
+  dualiza=dualiza
+else
+  dualiza=./dualiza
+  [ -f "$dualiza" ] || die "can not find '$dualiza'"
+  echo "$0: using '$dualiza'"
+fi
 
 picosat=""
 if which picosat >/dev/null 2>/dev/null
@@ -19,12 +36,10 @@ fi
 if [ "$picosat" ]
 then
   echo "$0: using '$picosat'"
+  picosat=picosat
 else
   echo "$0: no 'picosat' found to test against"
 fi
-
-dualiza=../dualiza
-[ -f $dualiza ] || die "can not find '$dualiza'"
 
 sharpsat=""
 if which sharpSAT >/dev/null 2>/dev/null
@@ -39,6 +54,7 @@ fi
 if [ "$sharpsat" ]
 then
   echo "$0: using '$sharpsat'"
+  sharpsat=sharpSAT
 else
   echo "$0: no 'sharpSAT' found to test against"
 fi
