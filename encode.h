@@ -1,8 +1,4 @@
-typedef struct Encoding Encoding;
-
-struct Encoding {
-  STACK (struct Gate *) inputs;
-};
+typedef STACK (struct Gate *) Encoding;
 
 Encoding * new_encoding ();
 Gate * decode_literal (Encoding *, int);

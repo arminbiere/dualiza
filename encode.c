@@ -18,17 +18,17 @@ Encoding * new_encoding () {
 }
 
 void delete_encoding (Encoding * e) {
-  RELEASE (e->inputs);
+  RELEASE (*e);
   DELETE (e);
 }
 
 static void encode_input (Encoding * e, Gate * g, int idx) {
   assert (idx > 0);
   assert (g->op == INPUT);
-  while (COUNT (e->inputs) <= idx)
-    PUSH (e->inputs, 0);
-  assert (!e->inputs.start[idx]);
-  e->inputs.start[idx] = g;
+  while (COUNT (*e) <= idx)
+    PUSH (*e, 0);
+  assert (!PEEK (*e, idx));
+  POKE (*e, idx, g);
   LOG ("input %d gate %d encoded with literal %d",
     g->input, g->idx, idx);
 }
@@ -43,9 +43,9 @@ Gate * decode_literal (Encoding * e, int idx) {
 #endif
 
 void print_dimacs_encoding_to_file (Encoding * e, FILE * file) {
-  const int num_encoded = COUNT (e->inputs);
+  const int num_encoded = COUNT (*e);
   for (int i = 0; i < num_encoded; i++) {
-    Gate * g = e->inputs.start[i];
+    Gate * g = PEEK (*e, i);
     if (!g) continue;
     if (g->op != INPUT) continue;
     fprintf (file, "c index %d input %d gate %d", i, g->input, g->idx);
@@ -342,9 +342,9 @@ void encode_circuit (Circuit * circuit,
 }
 
 void get_encoded_inputs (Encoding * e, IntStack * inputs) {
-  const int n = COUNT (e->inputs);
+  const int n = COUNT (*e);
   for (int i = 0; i < n; i++) {
-    Gate * g = e->inputs.start[i];
+    Gate * g = PEEK (*e, i);
     if (!g) continue;
     assert (!SIGN (g));
     if (g->op != INPUT) continue;
