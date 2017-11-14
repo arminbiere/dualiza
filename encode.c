@@ -22,7 +22,7 @@ void delete_encoding (Encoding * e) {
   DELETE (e);
 }
 
-static void encode_input (Encoding * e, Gate * g, int idx) {
+void encode_input (Encoding * e, Gate * g, int idx) {
   assert (idx > 0);
   assert (g->op == INPUT);
   while (COUNT (*e) <= idx)

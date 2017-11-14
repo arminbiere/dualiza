@@ -175,7 +175,7 @@ static void parse (const char * input_name) {
   } else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
 }
 
-static void generate_dual () {
+static void generate_dual_circuit () {
   assert (checking + printing + (enumerate!=0) + counting == 1);
   assert (primal_circuit);
   assert (!dual_circuit);
@@ -270,7 +270,6 @@ static BDD * simulate_primal () {
 }
 
 static void check () {
-  encoding = new_encoding ();
   if (bdd) {
     msg (1, "checking with BDD engine");
     init_bdds ();
@@ -331,7 +330,6 @@ static void check () {
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("checking with dual SAT engine not implement yet");
-  delete_encoding (encoding);
 }
 
 static void print (const char * output_name) {
@@ -348,12 +346,10 @@ static void print (const char * output_name) {
     println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
     cnf = new_cnf ();
-    encoding = new_encoding ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
     print_dimacs_encoding_to_file (encoding, output->file);
     print_cnf_to_file (cnf, output->file);
     delete_cnf (cnf);
-    delete_encoding (encoding);
   } else {
     assert (aiger);
     die ("printing of AIGER files not implemented yet");
@@ -364,7 +360,6 @@ static void print (const char * output_name) {
 }
 
 static void all () {
-  encoding = new_encoding ();
   if (bdd) {
     msg (1, "enumerating with BDD engine");
     init_bdds ();
@@ -388,11 +383,9 @@ static void all () {
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("enumerating with dual SAT engine not implement yet (use '-b')");
-  delete_encoding (encoding);
 }
 
 static void count () {
-  encoding = new_encoding ();
   if (bdd) {
     msg (1, "counting with BDD engine");
     init_bdds ();
@@ -436,13 +429,18 @@ static void count () {
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("counting with dual SAT engine not implement yet (use '-b')");
-  delete_encoding (encoding);
+}
+
+static void init () {
+  generate_dual_circuit ();
+  encoding = new_encoding ();
 }
 
 static void reset () {
   if (primal_circuit)  delete_circuit (primal_circuit);
   if (dual_circuit)    delete_circuit (dual_circuit);
   if (symbols) delete_symbols (symbols);
+  if (encoding) delete_encoding (encoding);
 }
 
 static void setup_messages (const char * output_name) {
@@ -515,7 +513,7 @@ int main (int argc, char ** argv) {
 #else
   parse (input_name);
   delete_reader (input);
-  generate_dual ();
+  init ();
        if (checking)  check ();
   else if (printing)  print (output_name);
   else if (enumerate) all ();
