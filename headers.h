@@ -20,6 +20,7 @@
 #include "logging.h"
 #include "mem.h"
 #include "msg.h"
+#include "name.h"
 #include "negate.h"
 #include "num.h"
 #include "options.h"

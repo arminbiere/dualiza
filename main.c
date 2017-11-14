@@ -243,6 +243,7 @@ static void generate_dual_circuit () {
   }
 }
 
+#if 0
 static const char * name_input (int i) {
 #if 0
   assert (encoding);
@@ -257,6 +258,23 @@ static const char * name_input (int i) {
   assert (res);
   return res;
 }
+#else
+
+static const char *
+name_circuit_input (Circuit * circuit, int i) {
+  assert (circuit);
+  Gate * g = PEEK (circuit->inputs, i);
+  Symbol * s = g->symbol;
+  assert (s);
+  const char * res = s->name;
+  assert (res);
+  return res;
+}
+
+#define name_input \
+construct_name (primal_circuit, (GetName) name_circuit_input)
+
+#endif
 
 static BDD * simulate_primal () {
   double start = process_time ();
@@ -322,7 +340,7 @@ static void check () {
 	int idx = *p, val = primal_deref (solver, idx);
 	if (p != inputs.start) fputc (' ', stdout);
 	if (val < 0) fputc ('!', stdout);
-	fputs (name_input (idx-1), stdout);
+	fputs (name_circuit_input (primal_circuit, idx-1), stdout);
       }
       fputc ('\n', stdout);
     }

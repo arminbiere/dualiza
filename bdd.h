@@ -23,7 +23,7 @@ BDD * xnor_bdd (BDD *, BDD *);
 void print_bdd_to_file (BDD *, FILE *);
 void print_bdd (BDD *);
 
-typedef const char * (*Name)(int);
+#include "name.h"
 
 void print_one_satisfying_cube (BDD *, Name);
 void print_one_falsifying_cube (BDD *, Name);

@@ -204,8 +204,13 @@ static void visualize_bdd_recursive (BDD * b, FILE * file, Name name) {
     fprintf (file, "b%lu [label=\"", b->idx);
     unsigned var = b->var - 2;
     const char * s;
+#if 0
     if (name && (s = name (var))) fputs (s, file);
     else fprintf (file, "%u", var);
+#else
+    s = name.get (name.state, var);
+    fputs (s, file);
+#endif
     fprintf (file, "\",shape=circle];\n");
     fprintf (file,
       "b%lu -> b%lu [style=solid];\n",
@@ -887,7 +892,7 @@ static void print_one_satisfying_cube_to_file_recursively (
   }
   if (c != a->then) fputc ('!', stdout);
   assert (a->var > 1);
-  fputs (name (a->var - 2), file);
+  fputs (name.get (name.state, a->var - 2), file);
 }
 
 static void
@@ -917,7 +922,7 @@ static void print_one_falsifying_cube_to_file_recursively (
   }
   if (c != a->then) fputc ('!', stdout);
   assert (a->var > 1);
-  fputs (name (a->var - 2), file);
+  fputs (name.get (name.state, a->var - 2), file);
 }
 
 void print_one_falsifying_cube (BDD * a, Name name) {
@@ -939,7 +944,7 @@ static void print_linked_bdd_cube (Link * l, FILE* file, Name name) {
   if (p->other == c) fputc ('!', file);
   else assert (p->then == c);
   assert (p->var > 1);
-  fputs (name (p->var - 2), file);
+  fputs (name.get (name.state, p->var - 2), file);
   print_linked_bdd_cube (k, file, name);
 }
 
