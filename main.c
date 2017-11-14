@@ -151,7 +151,9 @@ static long parse_non_negative_number (const char * s) {
 
 static Reader * input;
 static Symbols * symbols;
+static Encoding * encoding;
 static Circuit * primal_circuit, * dual_circuit;
+static CNF * cnf;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -291,8 +293,8 @@ static void check () {
     reset_bdds ();
   } else if (primal) {
     msg (1, "checking with primal SAT engine");
-    CNF * cnf = new_cnf ();
-    Encoding * encoding = new_encoding ();
+    cnf = new_cnf ();
+    encoding = new_encoding ();
     Circuit * circuit = tautology ? dual_circuit : primal_circuit;
     encode_circuit (circuit, cnf, encoding, 0);
     IntStack inputs;
@@ -340,13 +342,13 @@ static void print (const char * output_name) {
     msg (1, "printing formula to '%s'", output->name);
     println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
-    CNF * f = new_cnf ();
-    Encoding * e = new_encoding ();
-    encode_circuit (primal_circuit, f, e, 0);
-    print_dimacs_encoding_to_file (e, output->file);
-    print_cnf_to_file (f, output->file);
-    delete_cnf (f);
-    delete_encoding (e);
+    cnf = new_cnf ();
+    encoding = new_encoding ();
+    encode_circuit (primal_circuit, cnf, encoding, 0);
+    print_dimacs_encoding_to_file (encoding, output->file);
+    print_cnf_to_file (cnf, output->file);
+    delete_cnf (cnf);
+    delete_encoding (encoding);
   } else {
     assert (aiger);
     die ("printing of AIGER files not implemented yet");
@@ -369,8 +371,8 @@ static void all () {
     reset_bdds ();
   } else if (primal) {
     msg (1, "enumerating with primal SAT engine");
-    CNF * cnf = new_cnf ();
-    Encoding * encoding = new_encoding ();
+    cnf = new_cnf ();
+    encoding = new_encoding ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
@@ -410,8 +412,8 @@ static void count () {
     reset_bdds ();
   } else if (primal) {
     msg (1, "counting with primal SAT engine");
-    CNF * cnf = new_cnf ();
-    Encoding * encoding = new_encoding ();
+    cnf = new_cnf ();
+    encoding = new_encoding ();
     encode_circuit (primal_circuit, cnf, encoding, 0);
     IntStack inputs;
     INIT (inputs);
