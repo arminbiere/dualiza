@@ -255,18 +255,18 @@ static void encode_gate (Gate * g, Encoder *e) {
 static int encode_inputs (Encoder * e) {
   Circuit * c = e->circuit;
   Gate ** p = c->inputs.start;
-  int res = 0;
+  int res = 0, * map = e->map;
   while (p < c->inputs.top) {
     Gate * g = *p++;
     assert (g);
     assert (!SIGN (g));
     assert (g->op == INPUT);
-    assert (e->map[!g->idx]);
+    assert (!map[g->idx]);
     const int idx = encode_input (c, g);
     if (idx > res) res = idx;
-    e->map[g->idx] = idx;
+    map[g->idx] = idx;
   }
-  assert (res == COUNT (c->inputs) + 1);
+  assert (res == COUNT (c->inputs));
   msg (2, "encoded %d inputs", res);
   return res;
 }
