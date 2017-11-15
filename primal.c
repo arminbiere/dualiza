@@ -128,6 +128,12 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   return res;
 }
 
+void primal_input (Primal * solver, int input) {
+  assert (input), assert (input != INT_MIN);
+  int idx = abs (input);
+  assert (idx <= solver->max_var);
+}
+
 void delete_primal (Primal * solver) {
   LOG ("deleting primal solver");
   RELEASE (solver->trail);

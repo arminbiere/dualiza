@@ -151,7 +151,6 @@ static long parse_non_negative_number (const char * s) {
 
 static Reader * input;
 static Symbols * symbols;
-static Encoding * encoding;
 static Circuit * primal_circuit, * dual_circuit;
 static CNF * cnf;
 
@@ -320,10 +319,10 @@ static void check () {
     msg (1, "checking with primal SAT engine");
     cnf = new_cnf ();
     Circuit * circuit = tautology ? dual_circuit : primal_circuit;
-    encode_circuit (circuit, cnf, encoding, 0);
+    encode_circuit (circuit, cnf, 0);
     IntStack inputs;
     INIT (inputs);
-    get_encoded_inputs (encoding, &inputs);
+    get_encoded_inputs (circuit, &inputs);
     Primal * solver = new_primal (cnf, &inputs);
     int res = primal_sat (solver);
     if (sat) {
@@ -366,8 +365,8 @@ static void print (const char * output_name) {
     println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
     cnf = new_cnf ();
-    encode_circuit (primal_circuit, cnf, encoding, 0);
-    print_dimacs_encoding_to_file (encoding, output->file);
+    encode_circuit (primal_circuit, cnf, 0);
+    print_dimacs_encoding_to_file (primal_circuit, output->file);
     print_cnf_to_file (cnf, output->file);
     delete_cnf (cnf);
   } else {
@@ -393,10 +392,10 @@ static void all () {
   } else if (options.primal) {
     msg (1, "enumerating with primal SAT engine");
     cnf = new_cnf ();
-    encode_circuit (primal_circuit, cnf, encoding, 0);
+    encode_circuit (primal_circuit, cnf, 0);
     IntStack inputs;
     INIT (inputs);
-    get_encoded_inputs (encoding, &inputs);
+    get_encoded_inputs (primal_circuit, &inputs);
     Primal * solver = new_primal (cnf, &inputs);
     primal_enumerate (solver, name_input);
     delete_primal (solver);
@@ -432,10 +431,10 @@ static void count () {
   } else if (options.primal) {
     msg (1, "counting with primal SAT engine");
     cnf = new_cnf ();
-    encode_circuit (primal_circuit, cnf, encoding, 0);
+    encode_circuit (primal_circuit, cnf, 0);
     IntStack inputs;
     INIT (inputs);
-    get_encoded_inputs (encoding, &inputs);
+    get_encoded_inputs (primal_circuit, &inputs);
     Primal * solver = new_primal (cnf, &inputs);
     Number n;
     init_number (n);
@@ -453,14 +452,12 @@ static void count () {
 
 static void init () {
   generate_dual_circuit ();
-  encoding = new_encoding ();
 }
 
 static void reset () {
   if (primal_circuit)  delete_circuit (primal_circuit);
   if (dual_circuit)    delete_circuit (dual_circuit);
   if (symbols) delete_symbols (symbols);
-  if (encoding) delete_encoding (encoding);
 }
 
 static void setup_messages (const char * output_name) {
