@@ -242,40 +242,17 @@ static void generate_dual_circuit () {
   }
 }
 
-#if 0
-
-static const char * name_input (int i) {
-#if 0
-  assert (encoding);
-  Gate * g = PEEK (encoding->inputs, i);
-#else
-  assert (primal_circuit);
-  Gate * g = PEEK (primal_circuit->inputs, i);
-#endif
-  Symbol * s = g->symbol;
-  assert (s);
-  const char * res = s->name;
-  assert (res);
-  return res;
-}
-
-#else
-
 static const char *
 name_circuit_input (Circuit * circuit, int i) {
-  assert (circuit);
-  Gate * g = PEEK (circuit->inputs, i);
+  Gate * g = decode_literal (circuit, i);
+  assert (g);
+  assert (!SIGN (g));
   Symbol * s = g->symbol;
   assert (s);
   const char * res = s->name;
   assert (res);
   return res;
 }
-
-#define name_input \
-construct_name (primal_circuit, (GetName) name_circuit_input)
-
-#endif
 
 static BDD * simulate_primal () {
   double start = process_time ();
@@ -284,7 +261,10 @@ static BDD * simulate_primal () {
   double time = process_time ();
   double delta = time - start;
   msg (1, "BDD simulation of primal circuit in %.3f seconds", delta);
-  if (visualize) visualize_bdd (res, name_input);
+  if (visualize) {
+    Name n = construct_name (primal_circuit, (GetName) name_circuit_input);
+    visualize_bdd (res, n);
+  }
   return res;
 }
 
@@ -293,12 +273,13 @@ static void check () {
     msg (1, "checking with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
+    Name n = construct_name (primal_circuit, (GetName) name_circuit_input);
     if (sat) { 
       if (is_false_bdd (b)) printf ("UNSATISFIABLE\n");
       else {
 	printf ("SATISFIABLE\n");
 	fflush (stdout);
-	print_one_satisfying_cube (b, name_input);
+	print_one_satisfying_cube (b, n);
 	fputc ('\n', stdout);
 	fflush (stdout);
       }
@@ -308,7 +289,7 @@ static void check () {
       else {
 	printf ("INVALID\n");
 	fflush (stdout);
-	print_one_falsifying_cube (b, name_input);
+	print_one_falsifying_cube (b, n);
 	fputc ('\n', stdout);
 	fflush (stdout);
       }
@@ -341,7 +322,7 @@ static void check () {
 	int idx = *p, val = primal_deref (solver, idx);
 	if (p != inputs.start) fputc (' ', stdout);
 	if (val < 0) fputc ('!', stdout);
-	fputs (name_circuit_input (primal_circuit, idx-1), stdout);
+	fputs (name_circuit_input (primal_circuit, idx), stdout);
       }
       fputc ('\n', stdout);
     }
@@ -379,6 +360,7 @@ static void print (const char * output_name) {
 }
 
 static void all () {
+  Name n = construct_name (primal_circuit, (GetName) name_circuit_input);
   if (bdd) {
     msg (1, "enumerating with BDD engine");
     init_bdds ();
@@ -386,7 +368,7 @@ static void all () {
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
     fflush (stdout);
-    print_all_satisfying_cubes (b, name_input);
+    print_all_satisfying_cubes (b, n);
     delete_bdd (b);
     reset_bdds ();
   } else if (options.primal) {
@@ -397,7 +379,7 @@ static void all () {
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
     Primal * solver = new_primal (cnf, &inputs);
-    primal_enumerate (solver, name_input);
+    primal_enumerate (solver, n);
     delete_primal (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
@@ -417,7 +399,7 @@ static void count () {
       double start = process_time ();
       Number n;
       init_number (n);
-      count_bdd (n, b, num_inputs-1);
+      count_bdd (n, b, num_inputs);
       double time = process_time ();
       double delta = time - start;
       msg (1,

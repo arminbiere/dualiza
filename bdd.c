@@ -845,8 +845,8 @@ static void reset_count () {
 
 static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
   assert (a);
-  assert (max_var >= 1);
-  assert (a->var <= max_var);
+  assert (0 < max_var);
+  assert (a->var <= max_var + 1);
   if (a == false_bdd_node) return;
   if (a == true_bdd_node) {
     assert (is_zero_number (res));
