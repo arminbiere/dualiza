@@ -373,7 +373,7 @@ static void print_model (Primal * solver, Name name) {
     const int tmp = val (solver, lit);
     assert (tmp);
     if (tmp < 0) fputc ('!', stdout);
-    fputs (name.get (name.state, i), stdout);
+    fputs (name.get (name.state, lit), stdout);
   }
   fputc ('\n', stdout);
 }
