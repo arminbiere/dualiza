@@ -56,7 +56,7 @@ static BDD * simulate_circuit_recursive (Gate * g, BDD ** cache, Circuit * c) {
         break;
       case INPUT:
 	LOG ("simulating INPUT %d", g->input);
-        res = new_bdd (g->input);
+        res = new_bdd (g->input + 1);
         break;
       case AND:
 	res = simulate_gates (inputs, n, cache, c, and_bdd, "AND");

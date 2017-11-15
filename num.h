@@ -1,3 +1,6 @@
+#ifndef NUM_H_INCLUDED
+#define NUM_H_INCLUDED
+
 #ifdef GMP
 #include <gmp.h>
 typedef mpz_t Number;
@@ -23,3 +26,5 @@ void add_number (Number, const Number);
 void print_number_to_file (Number, FILE *);
 void println_number_to_file (Number, FILE *);
 void println_number (Number);
+
+#endif

@@ -11,7 +11,7 @@ int is_true_bdd (BDD *);
 
 BDD * false_bdd ();
 BDD * true_bdd ();
-BDD * new_bdd (unsigned var);	// 0,1,...
+BDD * new_bdd (int var);
 BDD * not_bdd (BDD *);
 
 BDD * and_bdd (BDD *, BDD *);
@@ -32,7 +32,7 @@ void print_all_satisfying_cubes (BDD *, Name);
 void visualize_bdd (BDD *, Name);
 
 #include "num.h"
-void count_bdd (Number res, BDD *, unsigned max_var_idx);
+void count_bdd (Number res, BDD *, int max_var_idx);
 
 extern long bdd_lookups, bdd_collisions;
 extern long cache_lookups, cache_collisions;

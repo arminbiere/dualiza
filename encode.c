@@ -33,14 +33,15 @@ void encode_input (Encoding * e, Gate * g, int idx) {
     g->input, g->idx, idx);
 }
 
-#if 0
-Gate * decode_literal (Encoding * e, int idx) {
-  assert (0 < idx), assert (idx < COUNT (e->inputs));
-  Gate * res  = e->inputs.start[idx];
-  assert (res);
+Gate * decode_literal (Encoding * e, int lit) {
+  assert (lit), assert (lit != INT_MIN);
+  int idx = abs (lit);
+  if (idx >= COUNT (*e)) return 0;
+  Gate * res  = PEEK (*e, idx);
+  if (!res) return 0;
+  if (lit < 0) res = NOT (res);
   return res;
 }
-#endif
 
 void print_dimacs_encoding_to_file (Encoding * e, FILE * file) {
   const int num_encoded = COUNT (*e);

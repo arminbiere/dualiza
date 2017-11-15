@@ -244,6 +244,7 @@ static void generate_dual_circuit () {
 }
 
 #if 0
+
 static const char * name_input (int i) {
 #if 0
   assert (encoding);
@@ -258,6 +259,7 @@ static const char * name_input (int i) {
   assert (res);
   return res;
 }
+
 #else
 
 static const char *

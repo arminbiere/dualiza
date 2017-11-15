@@ -154,11 +154,11 @@ void reset_bdds () {
   true_bdd_node = 0;
 }
 
-BDD * new_bdd (unsigned var) {
-  assert (var >= 0);
+BDD * new_bdd (int var) {
+  assert (var > 0);
   assert (true_bdd_node);
   assert (false_bdd_node);
-  unsigned internal = 2 + (unsigned) var;
+  unsigned internal = 1 + (unsigned) var;
   return new_bdd_node (internal, true_bdd_node, false_bdd_node);
 }
 
@@ -174,7 +174,7 @@ static void print_bdd_recursive (BDD * b, FILE * file) {
   print_bdd_recursive (b->other, file);
   fprintf (file,
     "%lu %u %lu %lu\n",
-    b->idx, b->var-2, b->then->idx, b->other->idx);
+    b->idx, b->var-1, b->then->idx, b->other->idx);
   b->mark = bdd_mark;
 }
 
@@ -202,7 +202,7 @@ static void visualize_bdd_recursive (BDD * b, FILE * file, Name name) {
     visualize_bdd_recursive (b->other, file, name);
     assert (b->var > 1);
     fprintf (file, "b%lu [label=\"", b->idx);
-    unsigned var = b->var - 2;
+    unsigned var = b->var - 1;
     const char * s;
 #if 0
     if (name && (s = name (var))) fputs (s, file);
@@ -867,12 +867,13 @@ static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
   cache_count (a, res);
 }
 
-void count_bdd (Number res, BDD * b, unsigned max_var) {
+void count_bdd (Number res, BDD * b, int max_var) {
+  assert (max_var >= 0);
   LOG ("count_bdd (%lu, %u)", b->idx, max_var);
   assert (b);
-  assert (b->var <= max_var + 2);
+  assert (b->var <= max_var + 1);
   init_count ();
-  count_bdd_recursive (res, b, max_var + 2);
+  count_bdd_recursive (res, b, max_var + 1);
   reset_count ();
 }
 
@@ -892,7 +893,7 @@ static void print_one_satisfying_cube_to_file_recursively (
   }
   if (c != a->then) fputc ('!', stdout);
   assert (a->var > 1);
-  fputs (name.get (name.state, a->var - 2), file);
+  fputs (name.get (name.state, a->var - 1), file);
 }
 
 static void
@@ -922,7 +923,7 @@ static void print_one_falsifying_cube_to_file_recursively (
   }
   if (c != a->then) fputc ('!', stdout);
   assert (a->var > 1);
-  fputs (name.get (name.state, a->var - 2), file);
+  fputs (name.get (name.state, a->var - 1), file);
 }
 
 void print_one_falsifying_cube (BDD * a, Name name) {
@@ -944,7 +945,7 @@ static void print_linked_bdd_cube (Link * l, FILE* file, Name name) {
   if (p->other == c) fputc ('!', file);
   else assert (p->then == c);
   assert (p->var > 1);
-  fputs (name.get (name.state, p->var - 2), file);
+  fputs (name.get (name.state, p->var - 1), file);
   print_linked_bdd_cube (k, file, name);
 }
 
