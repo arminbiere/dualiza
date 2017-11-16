@@ -367,9 +367,10 @@ static int resolve_literal (Primal * solver, int lit) {
   if (v->seen) return 0;
   v->seen = 1;
   PUSH (solver->seen, v);
-  POG ("resolved %s %d", type (v), lit);
+  POG ("seen %s literal %d", type (v), lit);
   assert (val (solver, lit) < 0);
   if (v->level == solver->level) return 1;
+  POG ("adding %s literal %d", type (v), lit);
   PUSH (solver->clause, lit);
   return 0;
 }
@@ -423,10 +424,11 @@ static int analyze (Primal * solver, Clause * conflict) {
     assert (p > solver->trail.start);
     while (!var (solver, (uip = *--p))->seen)
       assert (p > solver->trail.start);
-    POG ("analyze %d", uip);
     if (!--unresolved) break;
+    POG ("resolving %s literal %d", type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
   }
+  POG ("first uip %s literal %d", type (var (solver, uip)), uip);
   PUSH (solver->clause, uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
