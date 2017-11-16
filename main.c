@@ -94,7 +94,7 @@ static void check_options (const char * output_name) {
   if (checking && enumerate)
     die ("can not combine%s%s and%s", CHECKING, ENUMERATE);
   if (!printing && output_name)
-    die ("can output specified without printing option");
+    die ("output specified without printing option");
   if (printing && bdd)
     die ("can not use%s%s%s and%s", PRINTING, BDD);
   if (checking && negate)
@@ -439,7 +439,7 @@ static void init () {
 static void reset () {
   if (primal_circuit)  delete_circuit (primal_circuit);
   if (dual_circuit)    delete_circuit (dual_circuit);
-  if (symbols) delete_symbols (symbols);
+  if (symbols)         delete_symbols (symbols);
 }
 
 static void setup_messages (const char * output_name) {
