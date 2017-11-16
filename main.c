@@ -104,14 +104,14 @@ static void check_options (const char * output_name) {
 }
 
 static void init_mode () {
-  if (formula) msg (1, "formula printing mode due to%s", FORMULA);
-  if (dimacs) msg (1, "DIMACS printing mode due to%s", DIMACS);
-  if (aiger) msg (1, "AIGER printing mode due to%s", AIGER);
-  if (sat) msg (1, "satisfiability checking mode due to%s", SAT);
+  counting = !printing && !checking && !enumerate;
+  if (formula)   msg (1, "formula printing mode due to%s", FORMULA);
+  if (dimacs)    msg (1, "DIMACS printing mode due to%s", DIMACS);
+  if (aiger)     msg (1, "AIGER printing mode due to%s", AIGER);
+  if (sat)       msg (1, "satisfiability checking mode due to%s", SAT);
   if (tautology) msg (1, "tautology checking mode due to%s", TAUTOLOGY);
   if (enumerate) msg (1, "enumeration mode due to%s", ENUMERATE);
-  counting = !printing && !checking && !enumerate;
-  if (counting) msg (1, "default counting mode");
+  if (counting)  msg (1, "default counting mode");
   assert (checking + printing + (enumerate!=0) + counting == 1);
 }
 
