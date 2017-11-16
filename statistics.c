@@ -1,15 +1,30 @@
 #include "headers.h"
 
-long enqueues, dequeues, searches;
-long decisions, propagations, conflicts;
+long bumped, searched;
+long decisions, propagated, conflicts;
+
+static double average (double a, double b) { return b ? a / b : 0; }
+// static double percent (double a, double b) { return b ? 100*a / b : 0; }
 
 void print_statistics () {
   if (options.verbosity < 1) return;
   long bytes = maximum_resident_set_size ();
   double seconds = process_time ();
-  if (decisions || propagations || conflicts)
-    msg (1, "%ld decisions, %ld propagations, %ld conflicts",
-      decisions, propagations, conflicts);
+  if (conflicts)
+    msg (1, "%ld conflicts (%.0f per second)",
+      conflicts, average (conflicts, seconds));
+  if (decisions)
+    msg (1, "%ld decisions (%.0f per second)",
+      decisions, average (decisions, seconds));
+  if (propagated)
+    msg (1, "%ld propagations (%.3f million per second)",
+      propagated, average (propagated / 1e6, seconds));
+  if (bumped)
+    msg (1, "bumped %ld variables (%.2f per conflict)",
+      bumped, average (bumped, conflicts));
+  if (searched)
+    msg (1, "searched %ld variables (%.2f per decision)",
+      searched, average (searched, decisions));
   if (bdd_lookups)
     msg (1, "looked up %ld BDD nodes, %ld collisions (%.1f per look-up)",
       bdd_lookups, bdd_collisions,

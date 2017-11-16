@@ -43,11 +43,15 @@ static Var * var (Primal * solver, int lit) {
   return solver->vars + idx;
 }
 
+#ifndef NLOG
+
 static int var2idx (Primal * solver, Var * v) {
   assert (solver->vars < v);
   assert (v <= solver->vars + solver->max_var);
   return (int)(long)(v - solver->vars);
 }
+
+#endif
 
 static int val (Primal * solver, int lit) {
   Var * v = var (solver, lit);
@@ -80,7 +84,6 @@ static const char * type (Var * v) {
 #endif
 
 static void enqueue (Primal * solver, Var * v) {
-  enqueues++;
   Queue * q = queue (solver, v);
   assert (!v->next);
   assert (!v->prev);
@@ -95,7 +98,6 @@ static void enqueue (Primal * solver, Var * v) {
 }
 
 static void dequeue (Primal * solver, Var * v) {
-  dequeues++;
   Queue * q = queue (solver, v);
   POG ("dequeue %s variable %d stamp %ld",
     type (v), var2idx (solver, v), v->stamp);
@@ -153,12 +155,6 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (res->inputs.stamp == num_inputs);
   assert (res->gates.stamp == num_gates);
   return res;
-}
-
-void primal_input (Primal * solver, int input) {
-  assert (input), assert (input != INT_MIN);
-  int idx = abs (input);
-  assert (idx <= solver->max_var);
 }
 
 void delete_primal (Primal * solver) {
@@ -242,7 +238,7 @@ static Clause * bcp (Primal * solver) {
     int lit = solver->trail.start[solver->next++];
     assert (val (solver, lit) > 0);
     POG ("propagating %d", lit);
-    propagations++;
+    propagated++;
     Clauses * o = occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
@@ -302,7 +298,7 @@ static void dec_level (Primal * solver) {
 static Var * decide_input (Primal * solver) {
   Var * res = solver->inputs.search;
   while (res && res->val) 
-    res = res->prev, searches++;
+    res = res->prev, searched++;
   update_queue (solver, &solver->inputs, res);
   return res;
 }
@@ -310,7 +306,7 @@ static Var * decide_input (Primal * solver) {
 static Var * decide_gate (Primal * solver) {
   Var * res = solver->gates.search;
   while (res && res->val)
-    res = res->prev, searches++;
+    res = res->prev, searched++;
   update_queue (solver, &solver->gates, res);
   return res;
 }
@@ -400,6 +396,7 @@ static void sort_seen (Primal * solver) {
 }
 
 static void bump_variable (Primal * solver, Var * v) {
+  bumped++;
   POG ("bump %s variable %d", type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
