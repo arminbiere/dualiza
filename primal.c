@@ -12,9 +12,9 @@ typedef struct Var Var;
 typedef struct Queue Queue;
 
 struct Var {
-  char input, decision;
+  char input, decision, seen;
   signed char val, phase;
-  int level, mark;
+  int level;
   Clause * reason;
   long stamp;
   Var * prev, * next;
@@ -29,7 +29,7 @@ struct Queue {
 struct Primal {
   Var * vars;
   int max_var, next, level;
-  IntStack trail, seen, * sorted;
+  IntStack trail, seen, clause, * sorted;
   Queue inputs, gates;
   CNF * cnf;
 };
@@ -138,6 +138,8 @@ void primal_input (Primal * solver, int input) {
 void delete_primal (Primal * solver) {
   LOG ("deleting primal solver");
   RELEASE (solver->trail);
+  RELEASE (solver->seen);
+  RELEASE (solver->clause);
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = solver->vars + idx;
     RELEASE (v->occs[0]);
@@ -345,8 +347,45 @@ void check_falsified (Primal * solver, Clause * c) {
 #endif
 }
 
+static int add_literal_to_clause (Primal * solver, int lit) {
+  Var * v = var (solver, lit);
+  if (v->level) return 0;
+  if (v->seen) return 0;
+  v->seen = 1;
+  PUSH (solver->seen, lit);
+  LOG ("seen %s %d", type (v), lit);
+  assert (val (solver, lit) < 0);
+  if (v->level < solver->level) return 0;
+  PUSH (solver->clause, lit);
+  return 1;
+}
+
+static int resolve_clause (Primal * solver, Clause * c) {
+  assert (c);
+  POGCLS (c, "resolving");
+  int added = 0;
+  for (int i = 0; i < c->size; i++)
+    if (add_literal_to_clause (solver, c->literals[i])) added++;
+  return added;
+}
+
 static int analyze (Primal * solver, Clause * conflict) {
   check_falsified (solver, conflict);
+  Clause * c = conflict;
+  const int * p = solver->trail.top;
+  int resolvent_size = 0, uip = 0;
+  for (;;) {
+    resolvent_size += resolve_clause (solver, c);
+    LOG ("resolvent size %d", resolvent_size);
+    while (!var (solver, (uip = *--p))->seen)
+      ;
+    LOG ("analyze %d", uip);
+    if (!--resolvent_size) break;
+    c = var (solver, uip)->reason;
+  }
+  while (!EMPTY (solver->seen))
+    var (solver, POP (solver->seen))->seen = 0;
+  CLEAR (solver->clause);
   return backtrack (solver);
 }
 
