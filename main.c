@@ -77,8 +77,9 @@ static long limit;
 # define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
 # define BDD       (bdd      >0?" '--bdd'"      :(bdd<0      ?" '-b'":""))
 # define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
-# define PRINTING FORMULA,AIGER,DIMACS
-# define CHECKING SAT,TAUTOLOGY
+
+# define PRINTING  FORMULA,AIGER,DIMACS
+# define CHECKING  SAT,TAUTOLOGY
 
 static void check_options (const char * output_name) {
   printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
