@@ -13,7 +13,6 @@ Clause * new_clause (const int * literals, const int size) {
   res->size = size;
   for (int i = 0; i < size; i++)
     res->literals[i] = literals[i];
-  LOGCLS (res, "new");
   return res;
 }
 

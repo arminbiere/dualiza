@@ -127,6 +127,7 @@ static void encode_clause (Encoder * e) {
     const int size = COUNT (e->clause);
     Clause * c = new_clause (e->clause.start, size);
     c->negative = e->negative;
+    LOGCLS (c, "encoded new");
     add_clause_to_cnf (c, e->cnf);
   }
   unmark_clause_literals (e);

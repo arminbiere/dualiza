@@ -3,6 +3,7 @@
 
 #define OPTIONS_ALL \
 OPTION (bump,		1, "bump variables") \
+OPTION (learn,          0, "learn clauses") \
 OPTION (primal,         1, "use primal SAT engine only") \
 OPTION (print,		1, "print model or number of all assignments") \
 OPTION (verbosity,	0, "verbose level") \

@@ -182,6 +182,7 @@ static void assign (Primal * solver, int lit, Clause * reason) {
   else v->val = v->phase = 1;
   v->level = solver->level;
   v->reason = reason;
+  if (reason) mark_clause_active (reason, solver->cnf);
   PUSH (solver->trail, lit);
 }
 
@@ -332,6 +333,7 @@ static void unassign (Primal * solver, int lit) {
   POG ("unassign %s %d", type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
+  if (v->reason) unmark_clause_active (v->reason, solver->cnf);
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);
@@ -418,7 +420,29 @@ static void reset_seen (Primal * solver) {
     POP (solver->seen)->seen = 0;
 }
 
+static void sort_clause (Primal * solver, const int size) {
+  assert (size > 1);
+  assert (size == COUNT (solver->clause));
+  int * lits = solver->clause.start;
+  for (int i = 0; i < 2; i++)
+    for (int j = i + 1; j < size; j++)
+      if (var (solver, lits[i])->level < var (solver, lits[j])->level) 
+	SWAP (int, lits[i], lits[j]);
+}
+
+static Clause * learn_clause (Primal * solver) {
+  const int size = COUNT (solver->clause);
+  if (size > 1) sort_clause (solver, size);
+  Clause * res = new_clause (solver->clause.start, size);
+  res->redundant = 1;
+  POGCLS (res, "learned new");
+  add_clause_to_cnf (res, solver->cnf);
+  if (size > 1) connect_clause (solver, res);
+  return res;
+}
+
 static int analyze (Primal * solver, Clause * conflict) {
+  if (!solver->level) return 0;
   Clause * c = conflict;
   const int * p = solver->trail.top;
   int unresolved = 0, uip = 0;
@@ -431,12 +455,30 @@ static int analyze (Primal * solver, Clause * conflict) {
     POG ("resolving %s literal %d", type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
   }
-  POG ("first uip %s literal %d", type (var (solver, uip)), uip);
+  POG ("first UIP %s literal %d", type (var (solver, uip)), uip);
   PUSH (solver->clause, uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
+  if (options.learn) c = learn_clause (solver);
   CLEAR (solver->clause);
-  return backtrack (solver);
+  if (!options.learn) return backtrack (solver);
+  assert (c->literals[0] == uip);
+  int level = c->size > 1 ? var (solver, c->literals[1])->level : 0;
+  POG ("backtrack to level %d", level);
+  while (!EMPTY (solver->trail)) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
+    if (v->level == level) break;
+    (void) POP (solver->trail);
+    const int decision = v->decision;
+    unassign (solver, lit);
+    if (decision) dec_level (solver);
+  }
+  assert (!val (solver, uip));
+  assert (solver->level == level);
+  solver->next = COUNT (solver->trail);
+  assign (solver, -uip, c);
+  return 1;
 }
 
 int primal_sat (Primal * solver) {
