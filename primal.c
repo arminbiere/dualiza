@@ -14,7 +14,8 @@ typedef struct Queue Queue;
 struct Var {
   char input, decision;
   signed char val, phase;
-  int level;
+  int level, mark;
+  Clause * reason;
   long stamp;
   Var * prev, * next;
   Clauses occs[2];
@@ -28,7 +29,7 @@ struct Queue {
 struct Primal {
   Var * vars;
   int max_var, next, level;
-  IntStack trail, * sorted;
+  IntStack trail, seen, * sorted;
   Queue inputs, gates;
   CNF * cnf;
 };
@@ -146,15 +147,17 @@ void delete_primal (Primal * solver) {
   DELETE (solver);
 }
 
-static void assign (Primal * solver, int lit) {
+static void assign (Primal * solver, int lit, Clause * reason) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
   Var * v = solver->vars + idx;
-  POG ("assign %s %d", type (v), lit);
+  if (!reason) POG ("assign %s %d decision", type (v), lit); 
+  else POGCLS (reason, "assign %s %d reason", type (v), lit);
   assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
   v->level = solver->level;
+  v->reason = reason;
   PUSH (solver->trail, lit);
 }
 
@@ -196,7 +199,7 @@ static int connect_cnf (Primal * solver) {
 	LOG ("found already falsified unit %d", unit);
 	return 0;
       }
-      assign (solver, unit);
+      assign (solver, unit, c);
     } else {
       assert (c->size > 1);
       connect_clause (solver, c);
@@ -205,16 +208,16 @@ static int connect_cnf (Primal * solver) {
   return 1;
 }
 
-static int bcp (Primal * solver) {
-  int res = 1;
-  while (res && solver->next < COUNT (solver->trail)) {
+static Clause * bcp (Primal * solver) {
+  Clause * res = 0;
+  while (!res && solver->next < COUNT (solver->trail)) {
     int lit = solver->trail.start[solver->next++];
     assert (val (solver, lit) > 0);
     POG ("propagating %d", lit);
     propagations++;
     Clauses * o = occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
-    while (res && p < o->top) {
+    while (!res && p < o->top) {
       Clause * c = *q++ = *p++;
       POGCLS (c, "visiting while propagating %d", lit);
       assert (c->size > 1);
@@ -238,18 +241,18 @@ static int bcp (Primal * solver) {
 	q--;
       } else if (!other_val) {
 	POGCLS (c, "forcing %d", other);
-	assign (solver, other);
+	assign (solver, other, c);
       } else {
 	assert (other_val < 0);
 	POGCLS (c, "conflicting");
 	conflicts++;
-	res = 0;
+	res = c;
       }
     }
     while (p < o->top) *q++ = *p++;
     o->top = q;
   }
-  if (!res) conflicts++;
+  if (res) conflicts++;
   return res;
 }
 
@@ -292,7 +295,7 @@ static void decide (Primal * solver) {
   if (v->phase < 0) lit = -lit;
   inc_level (solver);
   POG ("decide %s %d", type (v), lit);
-  assign (solver, lit);
+  assign (solver, lit, 0);
   assert (!v->decision);
   v->decision = 1;
   decisions++;
@@ -334,35 +337,52 @@ static int backtrack (Primal * solver) {
   return 0;
 }
 
+void check_falsified (Primal * solver, Clause * c) {
+#ifndef NDEBUG
+  assert (c);
+  for (int i = 0; i < c->size; i++)
+    assert (val (solver, c->literals[i]) < 0);
+#endif
+}
+
+static int analyze (Primal * solver, Clause * conflict) {
+  check_falsified (solver, conflict);
+  return backtrack (solver);
+}
+
 int primal_sat (Primal * solver) {
   if (!connect_cnf (solver)) return 20;
-  if (!bcp (solver)) return 20;
+  if (bcp (solver)) return 20;
   if (satisfied (solver)) return 10;
   int res = 0;
-  while (!res)
-    if (!bcp (solver)) {
-       if (!backtrack (solver)) res = 20;
+  while (!res) {
+    Clause * conflict = bcp (solver);
+    if (conflict) {
+       if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
     else decide (solver);
+  }
   return res;
 }
 
 void primal_count (Number res, Primal * solver) {
   if (!connect_cnf (solver)) return;
-  if (!bcp (solver)) return;
+  if (bcp (solver)) return;
   if (satisfied (solver)) {
     POG ("single root level model");
     inc_number (res);
     return;
   }
-  for (;;)
-    if (!bcp (solver)) {
-      if (!backtrack (solver)) return;
+  for (;;) {
+    Clause * conflict = bcp (solver);
+    if (conflict) {
+      if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
       POG ("new model");
       inc_number (res);
       if (!backtrack (solver)) return;
     } else decide (solver);
+  }
 }
 
 static void print_model (Primal * solver, Name name) {
@@ -382,13 +402,15 @@ void primal_enumerate (Primal * solver, Name name) {
   if (!connect_cnf (solver)) return;
   if (!bcp (solver)) return;
   if (satisfied (solver)) { print_model (solver, name); return; }
-  for (;;)
-    if (!bcp (solver)) {
-      if (!backtrack (solver)) return;
+  for (;;) {
+    Clause * conflict = bcp (solver);
+    if (conflict) {
+      if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
       print_model (solver, name);
       if (!backtrack (solver)) return;
     } else decide (solver);
+  }
 }
 
 int primal_deref (Primal * solver, int lit) {

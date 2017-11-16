@@ -22,7 +22,7 @@ void usage_options () {
   fputs (buffer, stdout); \
   for (int i = strlen (buffer) - 5; i < len; i++) \
     fputc (' ', stdout); \
-  fputs (#DESCRIPTION, stdout); \
+  fputs (DESCRIPTION, stdout); \
   fputc ('\n', stdout);
   OPTIONS
 }
