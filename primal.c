@@ -337,22 +337,26 @@ static void unassign (Primal * solver, int lit) {
     update_queue (solver, q, v);
 }
 
+static void flip (Primal * solver, Var * v, int lit) {
+  assert (val (solver, lit) > 0);
+  assert (var (solver, lit) == v);
+  assert (v->decision != 2);
+  v->decision = 2;
+  POG ("flip %s %d", type (v), lit);
+  POG ("assign %s %d", type (v), -lit);
+  int n = COUNT (solver->trail) - 1;
+  POKE (solver->trail, n, -lit);
+  solver->next = n;
+  v->val = -v->val;
+}
+
 static int backtrack (Primal * solver) {
   POG ("backtrack");
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
     const int decision = v->decision;
-    if (decision == 1) {
-      v->decision = 2;
-      POG ("flip %s %d", type (v), lit);
-      POG ("assign %s %d", type (v), -lit);
-      int n = COUNT (solver->trail) - 1;
-      POKE (solver->trail, n, -lit);
-      solver->next = n;
-      v->val = -v->val;
-      return 1;
-    }
+    if (decision == 1) { flip (solver, v, lit); return 1; }
     unassign (solver, lit);
     if (decision == 2) dec_level (solver);
     (void) POP (solver->trail);
@@ -421,9 +425,8 @@ static int analyze (Primal * solver, Clause * conflict) {
   for (;;) {
     unresolved += resolve_clause (solver, c);
     POG ("unresolved literals %d", unresolved);
-    assert (p > solver->trail.start);
     while (!var (solver, (uip = *--p))->seen)
-      assert (p > solver->trail.start);
+      ;
     if (!--unresolved) break;
     POG ("resolving %s literal %d", type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
