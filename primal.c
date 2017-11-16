@@ -400,6 +400,7 @@ static void sort_seen (Primal * solver) {
 }
 
 static void bump_variable (Primal * solver, Var * v) {
+  POG ("bump %s variable %d", type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
 }
