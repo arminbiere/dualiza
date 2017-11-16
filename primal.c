@@ -339,50 +339,43 @@ static int backtrack (Primal * solver) {
   return 0;
 }
 
-void check_falsified (Primal * solver, Clause * c) {
-#ifndef NDEBUG
-  assert (c);
-  for (int i = 0; i < c->size; i++)
-    assert (val (solver, c->literals[i]) < 0);
-#endif
-}
-
-static int add_literal_to_clause (Primal * solver, int lit) {
+static int resolve_literal (Primal * solver, int lit) {
   Var * v = var (solver, lit);
-  if (v->level) return 0;
+  if (!v->level) return 0;
   if (v->seen) return 0;
   v->seen = 1;
   PUSH (solver->seen, lit);
-  LOG ("seen %s %d", type (v), lit);
+  POG ("resolved %s %d", type (v), lit);
   assert (val (solver, lit) < 0);
-  if (v->level < solver->level) return 0;
+  if (v->level == solver->level) return 1;
   PUSH (solver->clause, lit);
-  return 1;
+  return 0;
 }
 
 static int resolve_clause (Primal * solver, Clause * c) {
   assert (c);
   POGCLS (c, "resolving");
-  int added = 0;
+  int opened = 0;
   for (int i = 0; i < c->size; i++)
-    if (add_literal_to_clause (solver, c->literals[i])) added++;
-  return added;
+    if (resolve_literal (solver, c->literals[i])) opened++;
+  return opened;
 }
 
 static int analyze (Primal * solver, Clause * conflict) {
-  check_falsified (solver, conflict);
   Clause * c = conflict;
   const int * p = solver->trail.top;
   int resolvent_size = 0, uip = 0;
   for (;;) {
     resolvent_size += resolve_clause (solver, c);
-    LOG ("resolvent size %d", resolvent_size);
+    POG ("resolvent size %d", resolvent_size);
+    assert (p > solver->trail.start);
     while (!var (solver, (uip = *--p))->seen)
-      ;
-    LOG ("analyze %d", uip);
+      assert (p > solver->trail.start);
+    POG ("analyze %d", uip);
     if (!--resolvent_size) break;
     c = var (solver, uip)->reason;
   }
+  PUSH (solver->clause, uip);
   while (!EMPTY (solver->seen))
     var (solver, POP (solver->seen))->seen = 0;
   CLEAR (solver->clause);
