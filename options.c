@@ -39,7 +39,9 @@ void print_options () {
   OPTIONS
 }
 
-static int mystrcmp (const char * a, const char * b) { return strcmp (a, b);
+static int
+mystrcmp (const char * a, const char * b) {
+  return strcmp (a, b);
 }
 
 static int parse_option_aux (char * arg) {

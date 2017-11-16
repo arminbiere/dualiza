@@ -10,6 +10,7 @@
 
 typedef struct Var Var;
 typedef struct Queue Queue;
+typedef STACK (Var *) VarStack;
 
 struct Var {
   char input, decision, seen;
@@ -29,7 +30,8 @@ struct Queue {
 struct Primal {
   Var * vars;
   int max_var, next, level;
-  IntStack trail, seen, clause, * sorted;
+  IntStack trail, clause, * sorted;
+  VarStack seen;
   Queue inputs, gates;
   CNF * cnf;
 };
@@ -39,6 +41,12 @@ static Var * var (Primal * solver, int lit) {
   int idx = abs (lit);
   assert (idx <= solver->max_var);
   return solver->vars + idx;
+}
+
+static int var2idx (Primal * solver, Var * v) {
+  assert (solver->vars < v);
+  assert (v <= solver->vars + solver->max_var);
+  return (int)(long)(v - solver->vars);
 }
 
 static int val (Primal * solver, int lit) {
@@ -71,18 +79,36 @@ static const char * type (Var * v) {
 
 #endif
 
-static void enqueue (Primal * solver, int idx) {
+static void enqueue (Primal * solver, Var * v) {
   enqueues++;
-  Var * v = var (solver, idx);
-  POG ("enqueue %s variable %d", type (v), idx);
   Queue * q = queue (solver, v);
   assert (!v->next);
   assert (!v->prev);
   v->stamp = ++q->stamp;
+  POG ("enqueue %s variable %d stamp %ld",
+    type (v), var2idx (solver, v), v->stamp);
   if (!q->first) q->first = v;
+  if (q->last) q->last->next = v;
   v->prev = q->last;
   q->last = v;
   if (!v->val) update_queue (solver, q, v);
+}
+
+static void dequeue (Primal * solver, Var * v) {
+  dequeues++;
+  Queue * q = queue (solver, v);
+  POG ("dequeue %s variable %d stamp %ld",
+    type (v), var2idx (solver, v), v->stamp);
+  if (v->prev) assert (v->prev->next == v), v->prev->next = v->next;
+  else assert (q->first == v), q->first = v->next;
+  if (v->next) assert (v->next->prev == v), v->next->prev = v->prev;
+  else assert (q->last == v), q->last = v->prev;
+  if (q->search == v) {
+    Var * u = v->next;
+    if (!u) u = v->prev;
+    update_queue (solver, q, u);
+  }
+  v->next = v->prev = 0;
 }
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
@@ -123,7 +149,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   LOG ("connecting variables");
 #endif
   for (int idx = 1; idx <= res->max_var; idx++)
-    enqueue (res, idx);
+    enqueue (res, var (res, idx));
   assert (res->inputs.stamp == num_inputs);
   assert (res->gates.stamp == num_gates);
   return res;
@@ -344,7 +370,7 @@ static int resolve_literal (Primal * solver, int lit) {
   if (!v->level) return 0;
   if (v->seen) return 0;
   v->seen = 1;
-  PUSH (solver->seen, lit);
+  PUSH (solver->seen, v);
   POG ("resolved %s %d", type (v), lit);
   assert (val (solver, lit) < 0);
   if (v->level == solver->level) return 1;
@@ -355,29 +381,57 @@ static int resolve_literal (Primal * solver, int lit) {
 static int resolve_clause (Primal * solver, Clause * c) {
   assert (c);
   POGCLS (c, "resolving");
-  int opened = 0;
+  int unresolved = 0;
   for (int i = 0; i < c->size; i++)
-    if (resolve_literal (solver, c->literals[i])) opened++;
-  return opened;
+    unresolved += resolve_literal (solver, c->literals[i]);
+  return unresolved;
+}
+
+static int cmp_seen (const void * p, const void * q) {
+  Var * u = * (Var **) p, * v = * (Var **) q;
+  if (u->stamp < v->stamp) return -1;
+  if (u->stamp > v->stamp) return 1;
+  return 0;
+}
+
+static void sort_seen (Primal * solver) {
+  const int n = COUNT (solver->seen);
+  qsort (solver->seen.start, n, sizeof *solver->seen.start, cmp_seen);
+}
+
+static void bump_variable (Primal * solver, Var * v) {
+  dequeue (solver, v);
+  enqueue (solver, v);
+}
+
+static void bump_seen (Primal * solver) {
+  sort_seen (solver);
+  for (Var ** p = solver->seen.start; p < solver->seen.top; p++)
+    bump_variable (solver, *p);
+}
+
+static void reset_seen (Primal * solver) {
+  while (!EMPTY (solver->seen))
+    POP (solver->seen)->seen = 0;
 }
 
 static int analyze (Primal * solver, Clause * conflict) {
   Clause * c = conflict;
   const int * p = solver->trail.top;
-  int resolvent_size = 0, uip = 0;
+  int unresolved = 0, uip = 0;
   for (;;) {
-    resolvent_size += resolve_clause (solver, c);
-    POG ("resolvent size %d", resolvent_size);
+    unresolved += resolve_clause (solver, c);
+    POG ("unresolved literals %d", unresolved);
     assert (p > solver->trail.start);
     while (!var (solver, (uip = *--p))->seen)
       assert (p > solver->trail.start);
     POG ("analyze %d", uip);
-    if (!--resolvent_size) break;
+    if (!--unresolved) break;
     c = var (solver, uip)->reason;
   }
   PUSH (solver->clause, uip);
-  while (!EMPTY (solver->seen))
-    var (solver, POP (solver->seen))->seen = 0;
+  if (options.bump) bump_seen (solver);
+  reset_seen (solver);
   CLEAR (solver->clause);
   return backtrack (solver);
 }
