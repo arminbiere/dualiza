@@ -456,6 +456,7 @@ static int analyze (Primal * solver, Clause * conflict) {
     c = var (solver, uip)->reason;
   }
   POG ("first UIP %s literal %d", type (var (solver, uip)), uip);
+  uip = -uip;
   PUSH (solver->clause, uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
@@ -464,7 +465,7 @@ static int analyze (Primal * solver, Clause * conflict) {
   if (!options.learn) return backtrack (solver);
   assert (c->literals[0] == uip);
   int level = c->size > 1 ? var (solver, c->literals[1])->level : 0;
-  POG ("backtrack to level %d", level);
+  POG ("backjump to level %d", level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -477,7 +478,7 @@ static int analyze (Primal * solver, Clause * conflict) {
   assert (!val (solver, uip));
   assert (solver->level == level);
   solver->next = COUNT (solver->trail);
-  assign (solver, -uip, c);
+  assign (solver, uip, c);
   return 1;
 }
 
