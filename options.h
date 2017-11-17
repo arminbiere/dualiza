@@ -2,7 +2,7 @@
 // List of long options available in all build configurations.
 
 #define OPTIONS_ALL \
-\
+ \
 OPTION (bump,		1, "bump variables") \
 OPTION (learn,          1, "learn clauses") \
 OPTION (primal,         1, "use primal SAT engine only") \
