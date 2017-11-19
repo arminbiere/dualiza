@@ -180,6 +180,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (res->inputs.stamp == num_inputs);
   assert (res->gates.stamp == num_gates);
   PUSH (res->frames, new_frame (res, 0));
+  assert (COUNT (res->frames) == res->level + 1);
   return res;
 }
 
@@ -356,6 +357,8 @@ static void decide (Primal * solver) {
   assert (!v->decision);
   v->decision = 1;
   decisions++;
+  PUSH (solver->frames, new_frame (solver, lit));
+  assert (COUNT (solver->frames) == solver->level + 1);
 }
 
 static void unassign (Primal * solver, int lit) {
@@ -434,6 +437,7 @@ static int bound (Primal * solver) {
     assert (!v->decision);
     v->decision = 2;
     bounds++;
+    PUSH (solver->frames, new_frame (solver, lit));
     return 1;
   }
   return 0;
