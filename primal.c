@@ -10,7 +10,10 @@
 
 typedef struct Var Var;
 typedef struct Queue Queue;
+typedef struct Frame Frame;
+
 typedef STACK (Var *) VarStack;
+typedef STACK (Frame) FrameStack;
 
 struct Var {
   char input, decision, seen;
@@ -27,10 +30,16 @@ struct Queue {
   long stamp;
 };
 
+struct Frame {
+  int decision;
+  char flipped, seen;
+};
+
 struct Primal {
   Var * vars;
   int max_var, next, level;
   IntStack trail, bounds, clause, * sorted;
+  FrameStack frames;
   VarStack seen;
   Queue inputs, gates;
   CNF * cnf;
@@ -113,6 +122,22 @@ static void dequeue (Primal * solver, Var * v) {
   v->next = v->prev = 0;
 }
 
+static Frame new_frame (Primal * solver, int decision) {
+  Frame res = { decision, 0, 0 };
+  return res;
+}
+
+static Frame * current_frame (Primal * solver) {
+  assert (solver->level < COUNT (solver->frames));
+  return solver->frames.start + solver->level;
+}
+
+static Frame * frame (Primal * solver, int lit) {
+  Var * v = var (solver, lit);
+  assert (v->level < COUNT (solver->frames));
+  return solver->frames.start + v->level;
+}
+
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
   LOG ("new primal solver over %ld clauses and %ld inputs",
@@ -154,12 +179,14 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     enqueue (res, var (res, idx));
   assert (res->inputs.stamp == num_inputs);
   assert (res->gates.stamp == num_gates);
+  PUSH (res->frames, new_frame (res, 0));
   return res;
 }
 
 void delete_primal (Primal * solver) {
   LOG ("deleting primal solver");
   RELEASE (solver->bounds);
+  RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
   RELEASE (solver->clause);
@@ -295,6 +322,10 @@ static void dec_level (Primal * solver) {
   assert (solver->level > 0);
   solver->level--;
   POG ("decremented decision level");
+  Frame f = POP (solver->frames);
+  POG ("popped %s frame", f.flipped ? "flipped" : "decision");
+  (void) f;
+  assert (COUNT (solver->frames) == solver->level + 1);
 }
 
 static Var * decide_input (Primal * solver) {
@@ -348,9 +379,14 @@ static void flip (Primal * solver, Var * v, int lit) {
   POG ("flip %s %d", type (v), lit);
   POG ("assign %s %d", type (v), -lit);
   int n = COUNT (solver->trail) - 1;
+  assert (PEEK (solver->trail, n) == lit);
   POKE (solver->trail, n, -lit);
   solver->next = n;
   v->val = -v->val;
+  Frame * f = frame (solver, lit);
+  assert (f->decision == lit);
+  assert (!f->flipped);
+  f->flipped = 1;
 }
 
 static void clear_bounds (Primal * solver) {
@@ -497,8 +533,8 @@ static int analyze (Primal * solver, Clause * conflict) {
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
   int learn = options.learn;
-  if (learn && var (solver, uip)->decision == 2) {
-    POG ("first UIP %d was flipped and leads to backtracking", -uip);
+  if (learn && current_frame (solver)->flipped) {
+    POG ("flipped current decision frame flipped leads to backtracking");
     learn = 0;
   }
   if (learn) c = learn_clause (solver);
@@ -601,3 +637,23 @@ void primal_enumerate (Primal * solver, Name name) {
 int primal_deref (Primal * solver, int lit) {
   return val (solver, lit);
 }
+
+#ifndef NDEBUG
+void print_trail (Primal * solver) {
+  int prev = 0;
+  for (const int * p = solver->trail.start; p < solver->trail.top; p++) {
+    int lit = *p;
+    Var * v = var (solver, lit);
+    if (p > solver->trail.start) {
+      if (v->level > prev) fputs (" | ", stdout);
+      else fputc (' ', stdout);
+    }
+    prev = v->level;
+    printf ("%d", lit);
+    if (v->decision == 0) fputc ('p', stdout);
+    if (v->decision == 1) fputc ('d', stdout);
+    if (v->decision == 2) fputc ('f', stdout);
+  }
+  fputc ('\n', stdout);
+}
+#endif

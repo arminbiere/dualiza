@@ -22,6 +22,12 @@ static int is_symbol_character (int ch) {
   return is_symbol_start (ch);
 }
 
+static int is_start_of_basic_expression_character (int ch) {
+  if (ch == '(' || ch == '!') return 1;
+  if (ch == '0' || ch == '1') return 1;
+  return is_symbol_start (ch); 
+}
+
 static Gate * parse_basic (Parser * parser) {
   Char ch = next_non_white_space_char (parser->reader);
   Gate * res = 0;
@@ -62,7 +68,11 @@ static Gate * parse_and (Parser * parser) {
   Gate * res = parse_basic (parser), * and = 0;
   for (;;) {
     Char ch = next_non_white_space_char (parser->reader);
-    if (ch.code != '&') { prev_char (parser->reader, ch); return res; }
+    if (ch.code != '&') { 
+      prev_char (parser->reader, ch); 
+      if (!is_start_of_basic_expression_character (ch.code))
+	return res;
+    }
     Gate * tmp = parse_basic (parser);
     if (!and) {
       and = new_and_gate (parser->circuit);
