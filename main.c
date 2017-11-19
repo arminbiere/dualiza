@@ -280,9 +280,11 @@ static void check () {
       else {
 	printf ("SATISFIABLE\n");
 	fflush (stdout);
-	print_one_satisfying_cube (b, n);
-	fputc ('\n', stdout);
-	fflush (stdout);
+	if (options.print) {
+	  print_one_satisfying_cube (b, n);
+	  fputc ('\n', stdout);
+	  fflush (stdout);
+	}
       }
     } else {
       assert (tautology);
@@ -290,9 +292,11 @@ static void check () {
       else {
 	printf ("INVALID\n");
 	fflush (stdout);
-	print_one_falsifying_cube (b, n);
-	fputc ('\n', stdout);
-	fflush (stdout);
+	if (options.print) {
+	  print_one_falsifying_cube (b, n);
+	  fputc ('\n', stdout);
+	  fflush (stdout);
+	}
       }
     }
     delete_bdd (b);
@@ -318,7 +322,7 @@ static void check () {
       else printf ("UNKNOWN\n");
     }
     fflush (stdout);
-    if (res == 10) {
+    if (options.print && res == 10) {
       for (int * p = inputs.start; p < inputs.top; p++) {
 	int idx = *p, val = primal_deref (solver, idx);
 	if (p != inputs.start) fputc (' ', stdout);
