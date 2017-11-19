@@ -1,4 +1,4 @@
 extern long decisions, propagated, conflicts;
-extern long bumped, searched;
+extern long bounds, bumped, searched;
 
 void print_statistics ();

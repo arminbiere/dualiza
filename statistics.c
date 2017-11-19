@@ -1,6 +1,6 @@
 #include "headers.h"
 
-long bumped, searched;
+long bumped, searched, bounds;
 long decisions, propagated, conflicts;
 
 static double average (double a, double b) { return b ? a / b : 0; }
@@ -17,6 +17,9 @@ void print_statistics () {
       decisions, average (decisions, seconds));
     msg (1, "%ld propagations (%.3f million per second)",
       propagated, average (propagated / 1e6, seconds));
+    if (bounds)
+      msg (1, "%ld bounds, %.2f per decision",
+	bounds, average (bounds, decisions));
   }
   if (bumped || searched) {
     msg (1, "bumped %ld variables (%.2f per conflict)",

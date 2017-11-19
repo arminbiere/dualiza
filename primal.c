@@ -30,7 +30,7 @@ struct Queue {
 struct Primal {
   Var * vars;
   int max_var, next, level;
-  IntStack trail, clause, * sorted;
+  IntStack trail, bounds, clause, * sorted;
   VarStack seen;
   Queue inputs, gates;
   CNF * cnf;
@@ -159,6 +159,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
 
 void delete_primal (Primal * solver) {
   LOG ("deleting primal solver");
+  RELEASE (solver->bounds);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
   RELEASE (solver->clause);
@@ -352,6 +353,14 @@ static void flip (Primal * solver, Var * v, int lit) {
   v->val = -v->val;
 }
 
+static void clear_bounds (Primal * solver) {
+  while (!EMPTY (solver->bounds)) {
+    int lit = POP (solver->bounds);
+    (void) lit;
+    POG ("flushing bound %d", lit);
+  }
+}
+
 static int backtrack (Primal * solver) {
   POG ("backtrack");
   while (!EMPTY (solver->trail)) {
@@ -364,6 +373,34 @@ static int backtrack (Primal * solver) {
     (void) POP (solver->trail);
   }
   solver->next = 0;
+  clear_bounds (solver);
+  return 0;
+}
+
+static int bound (Primal * solver) {
+  while (!EMPTY (solver->bounds)) {
+    const int lit = POP (solver->bounds);
+    const int tmp = val (solver, lit);
+    if (tmp > 0) {
+      POG ("ignoring satisfied bound %d", lit);
+      continue;
+    }
+    if (tmp < 0) {
+      POG ("found falsified bound %d", lit);
+      backtrack (solver);
+      return 1;
+    }
+    assert (!tmp);
+    inc_level (solver);
+    Var * v = var (solver, lit);
+    POG ("bound %s %d", type (v), lit);
+    assign (solver, lit, 0);
+    assert (v->input);
+    assert (!v->decision);
+    v->decision = 2;
+    bounds++;
+    return 1;
+  }
   return 0;
 }
 
@@ -513,7 +550,7 @@ void primal_count (Number res, Primal * solver) {
       POG ("new model");
       inc_number (res);
       if (!backtrack (solver)) return;
-    } else decide (solver);
+    } else if (!bound (solver)) decide (solver);
   }
 }
 
@@ -541,7 +578,7 @@ void primal_enumerate (Primal * solver, Name name) {
     } else if (satisfied (solver)) {
       print_model (solver, name);
       if (!backtrack (solver)) return;
-    } else decide (solver);
+    } else if (!bound (solver)) decide (solver);
   }
 }
 
