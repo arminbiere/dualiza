@@ -384,6 +384,8 @@ static void all () {
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
     Primal * solver = new_primal (cnf, &inputs);
+    if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
+    else printf ("ALL SATISFYING ASSIGNMENTS\n");
     primal_enumerate (solver, n);
     delete_primal (solver);
     RELEASE (inputs);

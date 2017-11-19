@@ -581,7 +581,7 @@ static void print_model (Primal * solver, Name name) {
 
 void primal_enumerate (Primal * solver, Name name) {
   if (!connect_cnf (solver)) return;
-  if (!bcp (solver)) return;
+  if (bcp (solver)) return;
   if (satisfied (solver)) { print_model (solver, name); return; }
   for (;;) {
     Clause * conflict = bcp (solver);
