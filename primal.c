@@ -387,8 +387,7 @@ static int bound (Primal * solver) {
     }
     if (tmp < 0) {
       POG ("found falsified bound %d", lit);
-      backtrack (solver);
-      return 1;
+      return backtrack (solver) ? 1 : -1;
     }
     assert (!tmp);
     inc_level (solver);
@@ -497,9 +496,14 @@ static int analyze (Primal * solver, Clause * conflict) {
   PUSH (solver->clause, uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
-  if (options.learn) c = learn_clause (solver);
+  int learn = options.learn;
+  if (learn && var (solver, uip)->decision == 2) {
+    POG ("first UIP %d was flipped and leads to backtracking", -uip);
+    learn = 0;
+  }
+  if (learn) c = learn_clause (solver);
   CLEAR (solver->clause);
-  if (!options.learn) return backtrack (solver);
+  if (!learn) return backtrack (solver);
   assert (c->literals[0] == uip);
   int level = c->size > 1 ? var (solver, c->literals[1])->level : 0;
   POG ("backjump to level %d", level);
@@ -510,6 +514,10 @@ static int analyze (Primal * solver, Clause * conflict) {
     (void) POP (solver->trail);
     const int decision = v->decision;
     unassign (solver, lit);
+    if (decision == 2) {
+      POG ("saving bound %d", lit);
+      PUSH (solver->bounds, lit);
+    }
     if (decision) dec_level (solver);
   }
   assert (!val (solver, uip));
@@ -550,7 +558,11 @@ void primal_count (Number res, Primal * solver) {
       POG ("new model");
       inc_number (res);
       if (!backtrack (solver)) return;
-    } else if (!bound (solver)) decide (solver);
+    } else {
+      int tmp = bound (solver);
+      if (tmp < 0) return;
+      if (!tmp) decide (solver);
+    }
   }
 }
 
@@ -578,7 +590,11 @@ void primal_enumerate (Primal * solver, Name name) {
     } else if (satisfied (solver)) {
       print_model (solver, name);
       if (!backtrack (solver)) return;
-    } else if (!bound (solver)) decide (solver);
+    } else {
+      int tmp = bound (solver);
+      if (tmp < 0) return;
+      if (!tmp) decide (solver);
+    }
   }
 }
 
