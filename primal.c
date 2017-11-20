@@ -133,6 +133,11 @@ static Frame * frame (Primal * solver, int lit) {
   return solver->frames.start + v->level;
 }
 
+static Frame * current_frame (Primal * solver) {
+  assert (solver->level < COUNT (solver->frames));
+  return solver->frames.start + solver->level;
+}
+
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
   LOG ("new primal solver over %ld clauses and %ld inputs",
@@ -548,6 +553,7 @@ static void resolve_conflict (Primal * solver, Clause * conflict) {
 
 static int analyze (Primal * solver, Clause * conflict) {
   if (!solver->level) return 0;
+  if (current_frame (solver)->flipped) return backtrack (solver);
   resolve_conflict (solver, conflict);
   Clause * c = learn_clause (solver);
   CLEAR (solver->clause);
