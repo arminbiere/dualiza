@@ -1,10 +1,11 @@
 #include "headers.h"
 
-long bumped, searched, bounds;
+long bumped, searched;
 long decisions, propagated, conflicts;
+long backtracked, backjumped;
 
 static double average (double a, double b) { return b ? a / b : 0; }
-// static double percent (double a, double b) { return b ? 100*a / b : 0; }
+static double percent (double a, double b) { return b ? 100*a / b : 0; }
 
 void print_statistics () {
   if (options.verbosity < 1) return;
@@ -17,9 +18,12 @@ void print_statistics () {
       decisions, average (decisions, seconds));
     msg (1, "%ld propagations (%.3f million per second)",
       propagated, average (propagated / 1e6, seconds));
-    if (bounds)
-      msg (1, "%ld bounds, %.2f per decision",
-	bounds, average (bounds, decisions));
+    if (backtracked)
+      msg (1, "%ld backtracked (%.0f%% per conflict)",
+      backtracked, percent (backtracked, conflicts));
+    if (backjumped)
+      msg (1, "%ld backjumped (%.0f%% per conflict)",
+      backjumped, percent (backjumped, conflicts));
   }
   if (bumped || searched) {
     msg (1, "bumped %ld variables (%.2f per conflict)",

@@ -14,7 +14,6 @@ do
   reduced=reduced-count-$seed.cnf
   cp $cnf $bug
   echo "$bug `grep 'p cnf' $bug`"
-  ./cnfdd $bug $reduced ./cmpcount.sh
+  ./cnfdd $bug $reduced ./cmpcount.sh > /dev/null 2>/dev/null
   echo "$reduced `grep 'p cnf' $reduced`"
-  sleep 10
 done

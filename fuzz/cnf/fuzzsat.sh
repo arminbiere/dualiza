@@ -14,7 +14,6 @@ do
   reduced=reduced-sat-$seed.cnf
   cp $cnf $bug
   echo "$bug `grep 'p cnf' $bug`"
-  ./cnfdd $bug $reduced ./cmpsat.sh
+  ./cnfdd $bug $reduced ./cmpsat.sh >/dev/null 2>/dev/null
   echo "$reduced `grep 'p cnf' $reduced`"
-  sleep 10
 done

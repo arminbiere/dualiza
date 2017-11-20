@@ -38,7 +38,7 @@ struct Frame {
 struct Primal {
   Var * vars;
   int max_var, next, level;
-  IntStack trail, bounds, clause, * sorted;
+  IntStack trail, clause, * sorted;
   FrameStack frames;
   VarStack seen;
   Queue inputs, gates;
@@ -79,7 +79,7 @@ static void update_queue (Primal * solver, Queue * q, Var * v) {
 #ifndef NLOG
   const int idx = (v ? (long)(v - solver->vars) : 0l);
   const char * t = (q == &solver->inputs ? "input" : "gate");
-  POG ("update %s search to variable %d", t, idx);
+  POG ("%s update %d", t, idx);
 #endif
 }
 
@@ -97,7 +97,7 @@ static void enqueue (Primal * solver, Var * v) {
   assert (!v->next);
   assert (!v->prev);
   v->stamp = ++q->stamp;
-  POG ("enqueue %s variable %d stamp %ld",
+  POG ("%s enqueue variable %d stamp %ld",
     type (v), var2idx (solver, v), v->stamp);
   if (!q->first) q->first = v;
   if (q->last) q->last->next = v;
@@ -108,7 +108,7 @@ static void enqueue (Primal * solver, Var * v) {
 
 static void dequeue (Primal * solver, Var * v) {
   Queue * q = queue (solver, v);
-  POG ("dequeue %s variable %d stamp %ld",
+  POG ("%s dequeue variable %d stamp %ld",
     type (v), var2idx (solver, v), v->stamp);
   if (v->prev) assert (v->prev->next == v), v->prev->next = v->next;
   else assert (q->first == v), q->first = v->next;
@@ -125,11 +125,6 @@ static void dequeue (Primal * solver, Var * v) {
 static Frame new_frame (Primal * solver, int decision) {
   Frame res = { decision, 0, 0 };
   return res;
-}
-
-static Frame * current_frame (Primal * solver) {
-  assert (solver->level < COUNT (solver->frames));
-  return solver->frames.start + solver->level;
 }
 
 static Frame * frame (Primal * solver, int lit) {
@@ -186,7 +181,6 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
 
 void delete_primal (Primal * solver) {
   LOG ("deleting primal solver");
-  RELEASE (solver->bounds);
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
@@ -204,8 +198,8 @@ static void assign (Primal * solver, int lit, Clause * reason) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
   Var * v = solver->vars + idx;
-  if (!reason) POG ("assign %s %d decision", type (v), lit); 
-  else POGCLS (reason, "assign %s %d reason", type (v), lit);
+  if (!reason) POG ("%s assign %d decision", type (v), lit); 
+  else POGCLS (reason, "%s assign %d reason", type (v), lit);
   assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
@@ -352,7 +346,7 @@ static void decide (Primal * solver) {
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   inc_level (solver);
-  POG ("decide %s %d", type (v), lit);
+  POG ("%s decide %d", type (v), lit);
   assign (solver, lit, 0);
   assert (!v->decision);
   v->decision = 1;
@@ -365,7 +359,7 @@ static void unassign (Primal * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
   solver->level = v->level;		// TODO remove
-  POG ("unassign %s %d", type (v), lit);
+  POG ("%s unassign %d", type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
   if (v->reason) unmark_clause_active (v->reason, solver->cnf);
@@ -379,8 +373,8 @@ static void flip (Primal * solver, Var * v, int lit) {
   assert (var (solver, lit) == v);
   assert (v->decision != 2);
   v->decision = 2;
-  POG ("flip %s %d", type (v), lit);
-  POG ("assign %s %d", type (v), -lit);
+  POG ("%s flip %d", type (v), lit);
+  POG ("%s assign %d", type (v), -lit);
   int n = COUNT (solver->trail) - 1;
   assert (PEEK (solver->trail, n) == lit);
   POKE (solver->trail, n, -lit);
@@ -392,16 +386,14 @@ static void flip (Primal * solver, Var * v, int lit) {
   f->flipped = 1;
 }
 
-static void clear_bounds (Primal * solver) {
-  while (!EMPTY (solver->bounds)) {
-    int lit = POP (solver->bounds);
-    (void) lit;
-    POG ("flushing bound %d", lit);
-  }
-}
-
 static int backtrack (Primal * solver) {
-  POG ("backtrack");
+#ifndef NLOG
+  int level = solver->level;
+  while (PEEK (solver->frames, level).decision == 2)
+    level--;
+  POG ("backtrack to level %d", level);
+#endif
+  backtracked++;
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -412,34 +404,6 @@ static int backtrack (Primal * solver) {
     (void) POP (solver->trail);
   }
   solver->next = 0;
-  clear_bounds (solver);
-  return 0;
-}
-
-static int bound (Primal * solver) {
-  while (!EMPTY (solver->bounds)) {
-    const int lit = POP (solver->bounds);
-    const int tmp = val (solver, lit);
-    if (tmp > 0) {
-      POG ("ignoring satisfied bound %d", lit);
-      continue;
-    }
-    if (tmp < 0) {
-      POG ("found falsified bound %d", lit);
-      return backtrack (solver) ? 1 : -1;
-    }
-    assert (!tmp);
-    inc_level (solver);
-    Var * v = var (solver, lit);
-    POG ("bound %s %d", type (v), lit);
-    assign (solver, lit, 0);
-    assert (v->input);
-    assert (!v->decision);
-    v->decision = 2;
-    bounds++;
-    PUSH (solver->frames, new_frame (solver, lit));
-    return 1;
-  }
   return 0;
 }
 
@@ -449,10 +413,10 @@ static int resolve_literal (Primal * solver, int lit) {
   if (v->seen) return 0;
   v->seen = 1;
   PUSH (solver->seen, v);
-  POG ("seen %s literal %d", type (v), lit);
+  POG ("%s seen literal %d", type (v), lit);
   assert (val (solver, lit) < 0);
   if (v->level == solver->level) return 1;
-  POG ("adding %s literal %d", type (v), lit);
+  POG ("%s adding literal %d", type (v), lit);
   PUSH (solver->clause, lit);
   return 0;
 }
@@ -480,7 +444,7 @@ static void sort_seen (Primal * solver) {
 
 static void bump_variable (Primal * solver, Var * v) {
   bumped++;
-  POG ("bump %s variable %d", type (v), var2idx (solver, v));
+  POG ("%s bump variable %d", type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
 }
@@ -496,19 +460,43 @@ static void reset_seen (Primal * solver) {
     POP (solver->seen)->seen = 0;
 }
 
-static void sort_clause (Primal * solver, const int size) {
-  assert (size > 1);
-  assert (size == COUNT (solver->clause));
+static int sort_clause (Primal * solver) {
+  const int size = COUNT (solver->clause);
   int * lits = solver->clause.start;
-  for (int i = 0; i < 2; i++)
+  for (int i = 0; i < 2 && i < size; i++)
     for (int j = i + 1; j < size; j++)
       if (var (solver, lits[i])->level < var (solver, lits[j])->level) 
 	SWAP (int, lits[i], lits[j]);
+#ifndef NLOG
+  if (size > 0) POG ("first sorted literal %d", lits[0]);
+  if (size > 1) POG ("second sorted literal %d", lits[1]);
+#endif
+  return size;
+}
+
+static int jump_level (Primal * solver, int * lits, int size) {
+  if (size < 2) return 0;
+  assert (var (solver, lits[0])->level == solver->level);
+  assert (var (solver, lits[1])->level < solver->level);
+  return var (solver, lits[1])->level;
 }
 
 static Clause * learn_clause (Primal * solver) {
+  if (!options.learn) return 0;
+  sort_clause (solver);
   const int size = COUNT (solver->clause);
-  if (size > 1) sort_clause (solver, size);
+  const int level = jump_level (solver, solver->clause.start, size);
+  POG ("jump level %d of size %d clause", level, size);
+  int flipped = level + 1;
+  while (flipped <= solver->level) {
+    Frame * f = solver->frames.start + flipped;
+    if (f->flipped) break;
+    flipped++;
+  }
+  if (flipped <= solver->level) {
+    POG ("flipped frame %d forces backtracking", flipped);
+    return 0;
+  }
   Clause * res = new_clause (solver->clause.start, size);
   res->redundant = 1;
   POGCLS (res, "learned new");
@@ -517,8 +505,29 @@ static Clause * learn_clause (Primal * solver) {
   return res;
 }
 
-static int analyze (Primal * solver, Clause * conflict) {
-  if (!solver->level) return 0;
+static int backjump (Primal * solver, Clause * c) {
+  assert (c->size > 0);
+  const int forced = c->literals[0];
+  const int level = jump_level (solver, c->literals, c->size);
+  POG ("backjump to level %d", level);
+  backjumped++;
+  while (!EMPTY (solver->trail)) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
+    if (v->level == level) break;
+    (void) POP (solver->trail);
+    const int decision = v->decision;
+    unassign (solver, lit);
+    if (decision) dec_level (solver);
+  }
+  assert (!val (solver, forced));
+  assert (solver->level == level);
+  solver->next = COUNT (solver->trail);
+  assign (solver, forced, c);
+  return 1;
+}
+
+static void resolve_conflict (Primal * solver, Clause * conflict) {
   Clause * c = conflict;
   const int * p = solver->trail.top;
   int unresolved = 0, uip = 0;
@@ -528,43 +537,22 @@ static int analyze (Primal * solver, Clause * conflict) {
     while (!var (solver, (uip = *--p))->seen)
       ;
     if (!--unresolved) break;
-    POG ("resolving %s literal %d", type (var (solver, uip)), uip);
+    POG ("%s resolving literal %d", type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
   }
-  POG ("first UIP %s literal %d", type (var (solver, uip)), uip);
-  uip = -uip;
-  PUSH (solver->clause, uip);
+  POG ("%s first UIP literal %d", type (var (solver, uip)), uip);
+  PUSH (solver->clause, -uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
-  int learn = options.learn;
-  if (learn && current_frame (solver)->flipped) {
-    POG ("flipped current decision frame flipped leads to backtracking");
-    learn = 0;
-  }
-  if (learn) c = learn_clause (solver);
+}
+
+static int analyze (Primal * solver, Clause * conflict) {
+  if (!solver->level) return 0;
+  resolve_conflict (solver, conflict);
+  Clause * c = learn_clause (solver);
   CLEAR (solver->clause);
-  if (!learn) return backtrack (solver);
-  assert (c->literals[0] == uip);
-  int level = c->size > 1 ? var (solver, c->literals[1])->level : 0;
-  POG ("backjump to level %d", level);
-  while (!EMPTY (solver->trail)) {
-    const int lit = TOP (solver->trail);
-    Var * v = var (solver, lit);
-    if (v->level == level) break;
-    (void) POP (solver->trail);
-    const int decision = v->decision;
-    unassign (solver, lit);
-    if (decision == 2) {
-      POG ("saving bound %d", lit);
-      PUSH (solver->bounds, lit);
-    }
-    if (decision) dec_level (solver);
-  }
-  assert (!val (solver, uip));
-  assert (solver->level == level);
-  solver->next = COUNT (solver->trail);
-  assign (solver, uip, c);
-  return 1;
+  if (c) return backjump (solver, c);
+  else return backtrack (solver);
 }
 
 int primal_sat (Primal * solver) {
@@ -598,11 +586,7 @@ void primal_count (Number res, Primal * solver) {
       POG ("new model");
       inc_number (res);
       if (!backtrack (solver)) return;
-    } else {
-      int tmp = bound (solver);
-      if (tmp < 0) return;
-      if (!tmp) decide (solver);
-    }
+    } else decide (solver);
   }
 }
 
@@ -630,11 +614,7 @@ void primal_enumerate (Primal * solver, Name name) {
     } else if (satisfied (solver)) {
       print_model (solver, name);
       if (!backtrack (solver)) return;
-    } else {
-      int tmp = bound (solver);
-      if (tmp < 0) return;
-      if (!tmp) decide (solver);
-    }
+    } else decide (solver);
   }
 }
 
