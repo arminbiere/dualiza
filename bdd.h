@@ -33,6 +33,3 @@ void visualize_bdd (BDD *, Name);
 
 #include "num.h"
 void count_bdd (Number res, BDD *, int max_var_idx);
-
-extern long bdd_lookups, bdd_collisions;
-extern long cache_lookups, cache_collisions;

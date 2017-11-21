@@ -16,5 +16,3 @@ Symbols * new_symbols ();
 void delete_symbols (Symbols *);
 
 Symbol * find_or_create_symbol (Symbols *, const char *);
-
-extern long symbol_lookups, symbol_collisions;

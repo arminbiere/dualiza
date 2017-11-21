@@ -528,6 +528,6 @@ int main (int argc, char ** argv) {
 #endif
   reset_signal_handlers ();
   print_statistics ();
-  assert (!allocated);
+  assert (!stats.bytes.current);
   return 0;
 }

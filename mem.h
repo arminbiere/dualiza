@@ -1,15 +1,14 @@
-extern long allocated, max_allocated;
-
 #define INC_ALLOCATED(B) \
 do { \
-  allocated += (B); \
-  if (allocated > max_allocated) max_allocated = allocated; \
+  stats.bytes.current += (B); \
+  if (stats.bytes.current > stats.bytes.max) \
+    stats.bytes.max = stats.bytes.current; \
 } while (0)
 
 #define DEC_ALLOCATED(B) \
 do { \
-  assert (allocated >= (B)); \
-  allocated -= (B); \
+  assert (stats.bytes.current >= (B)); \
+  stats.bytes.current -= (B); \
 } while (0)
 
 #define ALLOC(P,N) \

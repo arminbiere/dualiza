@@ -1,7 +1,5 @@
 #include "headers.h"
 
-long symbol_lookups, symbol_collisions;
-
 Symbols * new_symbols () {
   Symbols * res;
   NEW (res);
@@ -45,11 +43,11 @@ static unsigned hash_string (const char * name) {
 }
 
 static Symbol ** lookup_symbol (Symbols * t, const char * name) {
-  symbol_lookups++;
+  stats.symbol.lookups++;
   unsigned h = hash_string (name) & (t->size - 1);
   Symbol ** p, * s;
   for (p = t->table + h; (s = *p) && strcmp (name, s->name); p = &s->next)
-    symbol_collisions++;
+    stats.symbol.collisions++;
   return p;
 }
 

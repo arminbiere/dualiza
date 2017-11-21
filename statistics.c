@@ -1,51 +1,52 @@
 #include "headers.h"
 
-long bumped, searched;
-long decisions, propagated, conflicts;
-long backtracked, backjumped;
+Stats stats;
 
 static double average (double a, double b) { return b ? a / b : 0; }
 static double percent (double a, double b) { return b ? 100*a / b : 0; }
 
 void print_statistics () {
   if (options.verbosity < 1) return;
-  long bytes = maximum_resident_set_size ();
+  long resident = maximum_resident_set_size ();
   double seconds = process_time ();
-  if (conflicts || decisions || propagated) {
+  if (stats.conflicts || stats.decisions || stats.propagated) {
     msg (1, "%ld conflicts (%.0f per second)",
-      conflicts, average (conflicts, seconds));
+      stats.conflicts, average (stats.conflicts, seconds));
     msg (1, "%ld decisions (%.0f per second)",
-      decisions, average (decisions, seconds));
+      stats.decisions, average (stats.decisions, seconds));
     msg (1, "%ld propagations (%.3f million per second)",
-      propagated, average (propagated / 1e6, seconds));
-    if (backtracked)
+      stats.propagated, average (stats.propagated / 1e6, seconds));
+    if (stats.backtracked)
       msg (1, "%ld backtracked (%.0f%% per conflict)",
-      backtracked, percent (backtracked, conflicts));
-    if (backjumped)
+      stats.backtracked, percent (stats.backtracked, stats.conflicts));
+    if (stats.backjumped)
       msg (1, "%ld backjumped (%.0f%% per conflict)",
-      backjumped, percent (backjumped, conflicts));
+      stats.backjumped, percent (stats.backjumped, stats.conflicts));
   }
-  if (bumped || searched) {
+  if (stats.bumped || stats.searched) {
     msg (1, "bumped %ld variables (%.2f per conflict)",
-      bumped, average (bumped, conflicts));
+      stats.bumped, average (stats.bumped, stats.conflicts));
     msg (1, "searched %ld variables (%.2f per decision)",
-      searched, average (searched, decisions));
+      stats.searched, average (stats.searched, stats.decisions));
   }
-  if (bdd_lookups || cache_lookups) {
+  if (stats.bdd.node.lookups || stats.bdd.cache.lookups) {
     msg (1, "looked up %ld BDD nodes, %ld collisions (%.1f per look-up)",
-      bdd_lookups, bdd_collisions,
-      bdd_lookups ? bdd_collisions / (double) bdd_lookups : 0.0);
+      stats.bdd.node.lookups, stats.bdd.node.collisions,
+      stats.bdd.node.lookups ?
+        stats.bdd.node.collisions/(double)stats.bdd.node.lookups : 0.0);
     msg (1, "looked up %ld BDD cache, %ld collisions (%.1f per look-up)",
-      cache_lookups, cache_collisions,
-      cache_lookups ? cache_collisions / (double) cache_lookups : 0.0);
+      stats.bdd.cache.lookups, stats.bdd.cache.collisions,
+      stats.bdd.cache.lookups ?
+        stats.bdd.cache.collisions/(double)stats.bdd.cache.lookups : 0.0);
   }
-  if (symbol_lookups)
+  if (stats.symbol.lookups)
     msg (1, "looked up %ld symbols, %ld collisions (%.1f per look-up)",
-      symbol_lookups, symbol_collisions,
-      symbol_lookups ? symbol_collisions / (double) symbol_lookups : 0.0);
+      stats.symbol.lookups, stats.symbol.collisions,
+      stats.symbol.lookups ?
+        stats.symbol.collisions/(double) stats.symbol.lookups : 0.0);
   msg (1, "maximum allocated %ld bytes (%.1f MB)",
-    max_allocated, max_allocated / (double)(1<<20));
+    stats.bytes.max, stats.bytes.max / (double)(1<<20));
   msg (1, "maximum resident set size %ld bytes (%.1f MB)",
-    bytes, bytes / (double)(1<<20));
+    resident, resident / (double)(1<<20));
   msg (1, "process time %.2f seconds", seconds);
 }

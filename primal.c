@@ -11,6 +11,7 @@
 typedef struct Var Var;
 typedef struct Queue Queue;
 typedef struct Frame Frame;
+typedef struct Limit Limit;
 
 typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
@@ -35,6 +36,12 @@ struct Frame {
   char flipped, seen;
 };
 
+struct Limit {
+  struct {
+    long learned, interval, increment;
+  } reduce;
+};
+
 struct Primal {
   Var * vars;
   int max_var, next, level;
@@ -42,6 +49,7 @@ struct Primal {
   FrameStack frames;
   VarStack seen;
   Queue inputs, gates;
+  Limit limit;
   CNF * cnf;
 };
 
@@ -133,6 +141,14 @@ static Frame * frame (Primal * solver, int lit) {
   return solver->frames.start + v->level;
 }
 
+static void init_primal_limits (Primal * primal) {
+  primal->limit.reduce.learned = MAX (options.reduceinit, 0);
+  primal->limit.reduce.interval = MAX (options.reduceinit, 0);
+  primal->limit.reduce.increment = MAX (options.reduceinc, 1);
+  LOG ("initial reduce interval %ld", primal->limit.reduce.interval);
+  LOG ("initial reduce increment %ld", primal->limit.reduce.increment);
+}
+
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
   LOG ("new primal solver over %ld clauses and %ld inputs",
@@ -176,6 +192,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (res->gates.stamp == num_gates);
   PUSH (res->frames, new_frame (res, 0));
   assert (COUNT (res->frames) == res->level + 1);
+  init_primal_limits (res);
   return res;
 }
 
@@ -262,7 +279,7 @@ static Clause * bcp (Primal * solver) {
     int lit = solver->trail.start[solver->next++];
     assert (val (solver, lit) > 0);
     POG ("propagating %d", lit);
-    propagated++;
+    stats.propagated++;
     Clauses * o = occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
@@ -293,14 +310,14 @@ static Clause * bcp (Primal * solver) {
       } else {
 	assert (other_val < 0);
 	POGCLS (c, "conflicting");
-	conflicts++;
+	stats.conflicts++;
 	res = c;
       }
     }
     while (p < o->top) *q++ = *p++;
     o->top = q;
   }
-  if (res) conflicts++;
+  if (res) stats.conflicts++;
   return res;
 }
 
@@ -326,7 +343,7 @@ static void dec_level (Primal * solver) {
 static Var * decide_input (Primal * solver) {
   Var * res = solver->inputs.search;
   while (res && res->val) 
-    res = res->prev, searched++;
+    res = res->prev, stats.searched++;
   update_queue (solver, &solver->inputs, res);
   return res;
 }
@@ -334,7 +351,7 @@ static Var * decide_input (Primal * solver) {
 static Var * decide_gate (Primal * solver) {
   Var * res = solver->gates.search;
   while (res && res->val)
-    res = res->prev, searched++;
+    res = res->prev, stats.searched++;
   update_queue (solver, &solver->gates, res);
   return res;
 }
@@ -350,7 +367,7 @@ static void decide (Primal * solver) {
   assign (solver, lit, 0);
   assert (!v->decision);
   v->decision = 1;
-  decisions++;
+  stats.decisions++;
   PUSH (solver->frames, new_frame (solver, lit));
   assert (COUNT (solver->frames) == solver->level + 1);
 }
@@ -393,7 +410,7 @@ static int backtrack (Primal * solver) {
     level--;
   POG ("backtrack to level %d", level);
 #endif
-  backtracked++;
+  stats.backtracked++;
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -443,7 +460,7 @@ static void sort_seen (Primal * solver) {
 }
 
 static void bump_variable (Primal * solver, Var * v) {
-  bumped++;
+  stats.bumped++;
   POG ("%s bump variable %d", type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
@@ -510,7 +527,7 @@ static int backjump (Primal * solver, Clause * c) {
   const int forced = c->literals[0];
   const int level = jump_level (solver, c->literals, c->size);
   POG ("backjump to level %d", level);
-  backjumped++;
+  stats.backjumped++;
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -555,6 +572,23 @@ static int analyze (Primal * solver, Clause * conflict) {
   else return backtrack (solver);
 }
 
+static int reducing (Primal * solver) {
+  return stats.learned > solver->limit.reduce.learned;
+}
+
+static void reduce (Primal * solver) {
+  stats.reductions++;
+  POG ("reduced %ld", stats.reductions);
+  long inc = solver->limit.reduce.increment;
+  POG ("reduce interval increment %d", inc);
+  assert (inc > 0);
+  solver->limit.reduce.interval += inc;
+  POG ("new reduce interval %ld", solver->limit.reduce.interval);
+  solver->limit.reduce.learned =
+    stats.learned + solver->limit.reduce.interval;
+  POG ("new reduce limit %d", solver->limit.reduce.learned);
+}
+
 int primal_sat (Primal * solver) {
   if (!connect_cnf (solver)) return 20;
   if (bcp (solver)) return 20;
@@ -565,6 +599,7 @@ int primal_sat (Primal * solver) {
     if (conflict) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
+    else if (reducing (solver)) reduce (solver);
     else decide (solver);
   }
   return res;
@@ -586,7 +621,8 @@ void primal_count (Number res, Primal * solver) {
       POG ("new model");
       inc_number (res);
       if (!backtrack (solver)) return;
-    } else decide (solver);
+    } else if (reducing (solver)) reduce (solver);
+    else decide (solver);
   }
 }
 
@@ -614,7 +650,8 @@ void primal_enumerate (Primal * solver, Name name) {
     } else if (satisfied (solver)) {
       print_model (solver, name);
       if (!backtrack (solver)) return;
-    } else decide (solver);
+    } else if (reducing (solver)) reduce (solver);
+    else decide (solver);
   }
 }
 
