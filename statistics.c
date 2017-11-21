@@ -22,6 +22,9 @@ void print_statistics () {
     if (stats.backjumped)
       msg (1, "%ld backjumped (%.0f%% per conflict)",
       stats.backjumped, percent (stats.backjumped, stats.conflicts));
+    if (stats.reductions)
+      msg (1, "%ld reductions (%.0f%% per learned)",
+      stats.reductions, percent (stats.reductions, stats.learned));
   }
   if (stats.bumped || stats.searched) {
     msg (1, "bumped %ld variables (%.2f per conflict)",

@@ -309,15 +309,14 @@ static Clause * bcp (Primal * solver) {
 	assign (solver, other, c);
       } else {
 	assert (other_val < 0);
-	POGCLS (c, "conflicting");
 	stats.conflicts++;
+	POGCLS (c, "conflict %ld", stats.conflicts);
 	res = c;
       }
     }
     while (p < o->top) *q++ = *p++;
     o->top = q;
   }
-  if (res) stats.conflicts++;
   return res;
 }
 
@@ -404,13 +403,13 @@ static void flip (Primal * solver, Var * v, int lit) {
 }
 
 static int backtrack (Primal * solver) {
+  stats.backtracked++;
 #ifndef NLOG
   int level = solver->level;
   while (PEEK (solver->frames, level).decision == 2)
     level--;
-  POG ("backtrack to level %d", level);
+  POG ("backtrack %ld to level %d", stats.backtracked, level);
 #endif
-  stats.backtracked++;
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -514,6 +513,8 @@ static Clause * learn_clause (Primal * solver) {
     POG ("flipped frame %d forces backtracking", flipped);
     return 0;
   }
+  stats.learned++;
+  POG ("learning clause number %ld of size %d", stats.learned, size);
   Clause * res = new_clause (solver->clause.start, size);
   res->redundant = 1;
   POGCLS (res, "learned new");
@@ -526,8 +527,8 @@ static int backjump (Primal * solver, Clause * c) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   const int level = jump_level (solver, c->literals, c->size);
-  POG ("backjump to level %d", level);
   stats.backjumped++;
+  POG ("backjump %ld, to level %d", stats.backjumped, level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
