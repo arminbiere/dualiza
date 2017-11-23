@@ -282,6 +282,7 @@ static int check () {
     BDD * b = simulate_primal ();
     Name n = construct_name (primal_circuit, (GetName) name_circuit_input);
     if (sat) { 
+      if (sat_competition_mode) fputs ("s ", stdout);
       if (is_false_bdd (b)) {
 	res = 20;
 	printf ("UNSATISFIABLE\n");
@@ -289,8 +290,13 @@ static int check () {
 	res = 10;
 	printf ("SATISFIABLE\n");
 	fflush (stdout);
-	if (options.print) {
+	if (sat_competition_mode || options.print) {
+	  if (sat_competition_mode) fputs ("v ", stdout);
 	  print_one_satisfying_cube (b, n);
+	  if (sat_competition_mode) {
+	    if (!is_true_bdd (b)) fputc ('\n', stdout);
+	    fputs ("v 0", stdout);
+	  }
 	  fputc ('\n', stdout);
 	  fflush (stdout);
 	}

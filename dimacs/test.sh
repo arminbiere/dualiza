@@ -15,11 +15,10 @@ sat () {
   if [ "$picosat" ]
   then
     execute "$picosat" $1
-    res=`echo $firstline|awk '{print $2}'`
-    if [ ! "$res" = "$last" ]
+    if [ ! "$firstline" = "$last" ]
     then
       error \
-"sat checking mismatch between SAT engine and PicoSAT: '$last' and '$res'"
+"sat checking mismatch between SAT engine and PicoSAT: '$last' and '$firstline'"
     fi
   fi
 }

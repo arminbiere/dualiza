@@ -874,6 +874,8 @@ void count_bdd (Number res, BDD * b, int max_var) {
 
 /*------------------------------------------------------------------------*/
 
+extern int sat_competition_mode;
+
 static void print_one_satisfying_cube_to_file_recursively (
   BDD * a, FILE * file, Name name)
 {
@@ -886,7 +888,7 @@ static void print_one_satisfying_cube_to_file_recursively (
     print_one_satisfying_cube_to_file_recursively (c, file, name);
     fputc (' ', stdout);
   }
-  if (c != a->then) fputc ('!', stdout);
+  if (c != a->then) fputc ((sat_competition_mode ? '-' : '!'), stdout);
   assert (a->var > 1);
   fputs (name.get (name.state, a->var - 1), file);
 }
