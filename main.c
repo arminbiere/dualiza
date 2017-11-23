@@ -63,6 +63,7 @@ fputs (
 , stdout);
 }
 
+int sat_competition_mode;
 static int formula, aiger, dimacs, negate;
 static int printing, checking, counting;
 static int sat, tautology, enumerate;
@@ -170,6 +171,10 @@ static void parse (const char * input_name) {
     msg (1, "parsing input as formula");
     primal_circuit = parse_formula (input, symbols);
   } else if (type == DIMACS) {
+    if (checking) {
+      msg (1, "switching to SAT solver competition mode");
+      sat_competition_mode = 1;
+    }
     msg (1, "parsing input as DIMACS file");
     primal_circuit = parse_dimacs (input, symbols);
   } else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
@@ -269,15 +274,19 @@ static BDD * simulate_primal () {
   return res;
 }
 
-static void check () {
+static int check () {
+  int res = 0;
   if (bdd) {
     msg (1, "checking with BDD engine");
     init_bdds ();
     BDD * b = simulate_primal ();
     Name n = construct_name (primal_circuit, (GetName) name_circuit_input);
     if (sat) { 
-      if (is_false_bdd (b)) printf ("UNSATISFIABLE\n");
-      else {
+      if (is_false_bdd (b)) {
+	res = 20;
+	printf ("UNSATISFIABLE\n");
+      } else {
+	res = 10;
 	printf ("SATISFIABLE\n");
 	fflush (stdout);
 	if (options.print) {
@@ -310,8 +319,9 @@ static void check () {
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
     Primal * solver = new_primal (cnf, &inputs);
-    int res = primal_sat (solver);
+    res = primal_sat (solver);
     if (sat) {
+      if (sat_competition_mode) fputs ("s ", stdout);
       if (res == 20) printf ("UNSATISFIABLE\n");
       else if (res == 10) printf ("SATISFIABLE\n");
       else printf ("UNKNOWN\n");
@@ -322,12 +332,17 @@ static void check () {
       else printf ("UNKNOWN\n");
     }
     fflush (stdout);
-    if (options.print && res == 10) {
+    if (res == 10 && (sat_competition_mode || options.print)) {
       for (int * p = inputs.start; p < inputs.top; p++) {
 	int idx = *p, val = primal_deref (solver, idx);
 	if (p != inputs.start) fputc (' ', stdout);
-	if (val < 0) fputc ('!', stdout);
+	else if (sat_competition_mode) fputs ("v ", stdout);
+	if (val < 0) fputc ((sat_competition_mode ? '-': '!'), stdout);
 	fputs (name_circuit_input (primal_circuit, idx), stdout);
+      }
+      if (sat_competition_mode) {
+	if (!EMPTY (inputs)) fputc ('\n', stdout);
+	fputs ("v 0", stdout);
       }
       fputc ('\n', stdout);
     }
@@ -335,6 +350,7 @@ static void check () {
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("checking with dual SAT engine not implement yet");
+  return res;
 }
 
 static void print (const char * output_name) {
@@ -452,9 +468,9 @@ static void reset () {
 static void setup_messages (const char * output_name) {
   if (!printing) return;
   if (output_name) return;
-       if (dimacs)  message_prefix = "c ";
-  else if (formula) message_prefix = "-- ";
-  else if (aiger && options.verbosity) message_file = stderr;
+  if (formula) message_prefix = "-- ";
+  else message_prefix = "c ";
+  if (aiger && options.verbosity) message_file = stderr;
 }
 
 int main (int argc, char ** argv) {
@@ -520,7 +536,8 @@ int main (int argc, char ** argv) {
   parse (input_name);
   delete_reader (input);
   init ();
-       if (checking)  check ();
+  int res = 0;
+       if (checking)  res = check ();
   else if (printing)  print (output_name);
   else if (enumerate) all ();
   else                count ();
@@ -529,5 +546,5 @@ int main (int argc, char ** argv) {
   reset_signal_handlers ();
   print_statistics ();
   assert (!stats.bytes.current);
-  return 0;
+  return res;
 }

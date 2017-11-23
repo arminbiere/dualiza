@@ -1,5 +1,7 @@
 #include "headers.h"
 
+extern int sat_competition_mode;
+
 Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
   Circuit * res = new_circuit ();
   Char ch;
@@ -59,7 +61,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];
-    sprintf (name, "x%d", i + 1);
+    sprintf (name, "%s%d", (sat_competition_mode ? "" : "x"), i + 1);
     Gate * g = new_input_gate (res);
     assert (g->input == i);
     assert (g->idx == i);

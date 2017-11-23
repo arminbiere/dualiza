@@ -1,6 +1,6 @@
 #include "headers.h"
 
-const char * mesage_prefix;
+const char * message_prefix = "c ";
 FILE * message_file;
 
 void die (const char * fmt, ...) {
