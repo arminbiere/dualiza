@@ -181,7 +181,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     num_inputs++;
     v->input = 1;
   }
-#ifndef NLOG
+#if !defined(NLOG) || !defined(NDEBUG)
   const int num_gates = res->max_var - num_inputs;
   LOG ("using %d inputs and %d gate variables", num_inputs, num_gates);
   LOG ("connecting variables");
