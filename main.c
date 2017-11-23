@@ -290,7 +290,7 @@ static int check () {
 	res = 10;
 	printf ("SATISFIABLE\n");
 	fflush (stdout);
-	if (sat_competition_mode || options.print) {
+	if (options.print) {
 	  if (sat_competition_mode) fputs ("v ", stdout);
 	  print_one_satisfying_cube (b, n);
 	  if (sat_competition_mode) {
@@ -338,7 +338,7 @@ static int check () {
       else printf ("UNKNOWN\n");
     }
     fflush (stdout);
-    if (res == 10 && (sat_competition_mode || options.print)) {
+    if (res == 10 && options.print) {
       for (int * p = inputs.start; p < inputs.top; p++) {
 	int idx = *p, val = primal_deref (solver, idx);
 	if (p != inputs.start) fputc (' ', stdout);
