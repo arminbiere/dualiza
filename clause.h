@@ -1,7 +1,8 @@
 typedef struct Clause Clause;
 
 struct Clause {
-  char negative, redundant, active, recent, garbage;
+  char negative, redundant, keep;
+  char active, recent, garbage;
   int glue, size, literals[];
 };
 

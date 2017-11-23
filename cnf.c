@@ -64,7 +64,7 @@ void mark_clause_active (Clause * c, CNF * cnf) {
   cnf->active++;
 }
 
-void unmark_clause_active (Clause * c, CNF * cnf) {
+void mark_clause_inactive (Clause * c, CNF * cnf) {
   assert (c->active);
   c->active = 0;
   assert (cnf->active > 0);

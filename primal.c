@@ -378,7 +378,7 @@ static void unassign (Primal * solver, int lit) {
   POG ("%s unassign %d", type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
-  if (v->reason) unmark_clause_active (v->reason, solver->cnf);
+  if (v->reason) mark_clause_inactive (v->reason, solver->cnf);
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);

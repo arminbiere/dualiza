@@ -15,6 +15,6 @@ void print_cnf (CNF *);
 
 void add_clause_to_cnf (Clause *, CNF *);
 void mark_clause_active (Clause *, CNF *);
-void unmark_clause_active (Clause *, CNF *);
+void mark_clause_inactive (Clause *, CNF *);
 
 void collect_garbage_clause (CNF *);

@@ -4,6 +4,8 @@
 #define OPTIONS_ALL \
  \
 OPTION (bump,		1,	"bump variables") \
+OPTION (keepglue,	3,	"keep all clause of this glue") \
+OPTION (keepsize,	3,	"keep all clause of this size") \
 OPTION (learn,          1,	"learn clauses") \
 OPTION (primal,         1,	"use primal SAT engine only") \
 OPTION (print,		1,	"print model or number of all assignments") \
