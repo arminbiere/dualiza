@@ -34,6 +34,7 @@ struct Queue {
 struct Frame {
   int decision;
   char flipped, seen;
+  int prev_flipped;
 };
 
 struct Limit {
@@ -44,7 +45,7 @@ struct Limit {
 
 struct Primal {
   Var * vars;
-  int max_var, next, level;
+  int max_var, next, level, flipped;
   IntStack trail, clause, * sorted;
   FrameStack frames;
   VarStack seen;
@@ -131,7 +132,7 @@ static void dequeue (Primal * solver, Var * v) {
 }
 
 static Frame new_frame (Primal * solver, int decision) {
-  Frame res = { decision, 0, 0 };
+  Frame res = { decision, 0, 0, solver->flipped };
   return res;
 }
 
@@ -335,7 +336,12 @@ static void dec_level (Primal * solver) {
   POG ("decremented decision level");
   Frame f = POP (solver->frames);
   POG ("popped %s frame", f.flipped ? "flipped" : "decision");
-  (void) f;
+  if (f.prev_flipped != solver->flipped) {
+    assert (f.prev_flipped < solver->flipped);
+    assert (solver->flipped == solver->level + 1);
+    solver->flipped = f.prev_flipped;
+    POG ("restored flipped level %d", solver->flipped);
+  }
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
@@ -400,6 +406,9 @@ static void flip (Primal * solver, Var * v, int lit) {
   assert (f->decision == lit);
   assert (!f->flipped);
   f->flipped = 1;
+  assert (solver->flipped < solver->level);
+  solver->flipped = solver->level;
+  POG ("new flipped level %d", solver->flipped);
 }
 
 static int backtrack (Primal * solver) {
@@ -503,6 +512,13 @@ static Clause * learn_clause (Primal * solver) {
   const int size = COUNT (solver->clause);
   const int level = jump_level (solver, solver->clause.start, size);
   POG ("jump level %d of size %d clause", level, size);
+#if 1
+  assert (solver->flipped <= solver->level);
+  if (solver->flipped > level) {
+    POG ("flipped frame %d forces backtracking", solver->flipped);
+    return 0;
+  }
+#else
   int flipped = level + 1;
   while (flipped <= solver->level) {
     Frame * f = solver->frames.start + flipped;
@@ -513,6 +529,7 @@ static Clause * learn_clause (Primal * solver) {
     POG ("flipped frame %d forces backtracking", flipped);
     return 0;
   }
+#endif
   stats.learned++;
   POG ("learning clause number %ld of size %d", stats.learned, size);
   Clause * res = new_clause (solver->clause.start, size);
