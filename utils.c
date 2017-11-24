@@ -42,5 +42,5 @@ unsigned primes[num_primes] = {
 };
 
 int is_space_character (int ch) {
-  return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n';
+  return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n' || ch == '\r';
 }
