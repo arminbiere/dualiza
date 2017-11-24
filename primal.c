@@ -512,24 +512,11 @@ static Clause * learn_clause (Primal * solver) {
   const int size = COUNT (solver->clause);
   const int level = jump_level (solver, solver->clause.start, size);
   POG ("jump level %d of size %d clause", level, size);
-#if 1
   assert (solver->flipped <= solver->level);
   if (solver->flipped > level) {
     POG ("flipped frame %d forces backtracking", solver->flipped);
     return 0;
   }
-#else
-  int flipped = level + 1;
-  while (flipped <= solver->level) {
-    Frame * f = solver->frames.start + flipped;
-    if (f->flipped) break;
-    flipped++;
-  }
-  if (flipped <= solver->level) {
-    POG ("flipped frame %d forces backtracking", flipped);
-    return 0;
-  }
-#endif
   stats.learned++;
   POG ("learning clause number %ld of size %d", stats.learned, size);
   Clause * res = new_clause (solver->clause.start, size);
