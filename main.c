@@ -339,15 +339,17 @@ static int check () {
     }
     fflush (stdout);
     if (res == 10 && options.print) {
+      int printed = 0;
       for (int * p = inputs.start; p < inputs.top; p++) {
-	int idx = *p, val = primal_deref (solver, idx);
-	if (p != inputs.start) fputc (' ', stdout);
+	const int idx = *p, val = primal_deref (solver, idx);
+	if (!val) continue;
+	if (printed++) fputc (' ', stdout);
 	else if (sat_competition_mode) fputs ("v ", stdout);
 	if (val < 0) fputc ((sat_competition_mode ? '-': '!'), stdout);
 	fputs (name_circuit_input (primal_circuit, idx), stdout);
       }
       if (sat_competition_mode) {
-	if (!EMPTY (inputs)) fputc ('\n', stdout);
+	if (printed) fputc ('\n', stdout);
 	fputs ("v 0", stdout);
       }
       fputc ('\n', stdout);

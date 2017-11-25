@@ -46,7 +46,7 @@ struct Limit {
 struct Primal {
   Var * vars;
   int max_var, next, level, flipped;
-  IntStack trail, clause, * sorted;
+  IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
   Queue inputs, gates;
@@ -203,6 +203,7 @@ void delete_primal (Primal * solver) {
   RELEASE (solver->trail);
   RELEASE (solver->seen);
   RELEASE (solver->clause);
+  RELEASE (solver->levels);
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = solver->vars + idx;
     RELEASE (v->occs[0]);
@@ -380,7 +381,6 @@ static void decide (Primal * solver) {
 static void unassign (Primal * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
-  solver->level = v->level;		// TODO remove
   POG ("%s unassign %d", type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
@@ -440,6 +440,12 @@ static int resolve_literal (Primal * solver, int lit) {
   PUSH (solver->seen, v);
   POG ("%s seen literal %d", type (v), lit);
   assert (val (solver, lit) < 0);
+  Frame * f = frame (solver, lit);
+  if (!f->seen) {
+    POG ("seen level %d", v->level);
+    PUSH (solver->levels, v->level);
+    f->seen = 1;
+  }
   if (v->level == solver->level) return 1;
   POG ("%s adding literal %d", type (v), lit);
   PUSH (solver->clause, lit);
@@ -485,6 +491,19 @@ static void reset_seen (Primal * solver) {
     POP (solver->seen)->seen = 0;
 }
 
+static int reset_levels (Primal * solver) {
+  int res = COUNT (solver->levels);
+  POG ("seen %d levels", res);
+  while (!EMPTY (solver->levels)) {
+    int level = POP (solver->levels);
+    assert (0 <= level), assert (level < COUNT (solver->frames));
+    Frame * f = solver->frames.start + level;
+    assert (f->seen);
+    f->seen = 0;
+  }
+  return res;
+}
+
 static int sort_clause (Primal * solver) {
   const int size = COUNT (solver->clause);
   int * lits = solver->clause.start;
@@ -506,7 +525,7 @@ static int jump_level (Primal * solver, int * lits, int size) {
   return var (solver, lits[1])->level;
 }
 
-static Clause * learn_clause (Primal * solver) {
+static Clause * learn_clause (Primal * solver, int glue) {
   if (!options.learn) return 0;
   sort_clause (solver);
   const int size = COUNT (solver->clause);
@@ -520,7 +539,9 @@ static Clause * learn_clause (Primal * solver) {
   stats.learned++;
   POG ("learning clause number %ld of size %d", stats.learned, size);
   Clause * res = new_clause (solver->clause.start, size);
+  res->glue = glue;
   res->redundant = 1;
+  res->recent = 1;
   POGCLS (res, "learned new");
   add_clause_to_cnf (res, solver->cnf);
   if (size > 1) connect_clause (solver, res);
@@ -549,7 +570,9 @@ static int backjump (Primal * solver, Clause * c) {
   return 1;
 }
 
-static void resolve_conflict (Primal * solver, Clause * conflict) {
+static int resolve_conflict (Primal * solver, Clause * conflict) {
+  assert (EMPTY (solver->seen));
+  assert (EMPTY (solver->levels));
   Clause * c = conflict;
   const int * p = solver->trail.top;
   int unresolved = 0, uip = 0;
@@ -566,12 +589,13 @@ static void resolve_conflict (Primal * solver, Clause * conflict) {
   PUSH (solver->clause, -uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
+  return reset_levels (solver);
 }
 
 static int analyze (Primal * solver, Clause * conflict) {
   if (!solver->level) return 0;
-  resolve_conflict (solver, conflict);
-  Clause * c = learn_clause (solver);
+  int glue = resolve_conflict (solver, conflict);
+  Clause * c = learn_clause (solver, glue);
   CLEAR (solver->clause);
   if (c) return backjump (solver, c);
   else return backtrack (solver);
