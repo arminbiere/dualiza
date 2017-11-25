@@ -455,12 +455,12 @@ static void flip (Primal * solver, Var * v, int lit) {
 }
 
 static int backtrack (Primal * solver) {
-  stats.backtracked++;
+  stats.back.tracked++;
 #ifndef NLOG
   int level = solver->level;
   while (PEEK (solver->frames, level).decision == 2)
     level--;
-  POG ("backtrack %ld to level %d", stats.backtracked, level);
+  POG ("backtrack %ld to level %d", stats.back.tracked, level);
 #endif
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
@@ -595,8 +595,8 @@ static int backjump (Primal * solver, Clause * c) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   const int level = jump_level (solver, c->literals, c->size);
-  stats.backjumped++;
-  POG ("backjump %ld, to level %d", stats.backjumped, level);
+  stats.back.jumped++;
+  POG ("backjump %ld, to level %d", stats.back.jumped, level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -642,7 +642,9 @@ static int analyze (Primal * solver, Clause * conflict) {
   Clause * c = learn_clause (solver, glue);
   CLEAR (solver->clause);
   if (c) return backjump (solver, c);
-  else return backtrack (solver);
+  stats.back.forced++;
+  POG ("forced backtrack %ld", stats.back.forced);
+  return backtrack (solver);
 }
 
 static int reducing (Primal * solver) {

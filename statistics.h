@@ -2,7 +2,7 @@ typedef struct Stats Stats;
 
 struct Stats {
   long decisions, propagated, conflicts;
-  long backtracked, backjumped;
+  struct { long tracked, jumped, forced; } back;
   long bumped, searched, learned;
   long reductions, collected;
   long reports;

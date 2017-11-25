@@ -14,25 +14,28 @@ void print_statistics () {
       stats.conflicts, average (stats.conflicts, seconds));
     msg (1, "%ld decisions (%.0f per second)",
       stats.decisions, average (stats.decisions, seconds));
-    msg (1, "%ld propagations (%.3f million per second)",
+    msg (1, "%ld propagations (%.1f million per second)",
       stats.propagated, average (stats.propagated / 1e6, seconds));
-    if (stats.backtracked)
-      msg (1, "%ld backtracked (%.0f%% per conflict)",
-      stats.backtracked, percent (stats.backtracked, stats.conflicts));
-    if (stats.backjumped)
-      msg (1, "%ld backjumped (%.0f%% per conflict)",
-      stats.backjumped, percent (stats.backjumped, stats.conflicts));
+    if (stats.back.tracked)
+      msg (1, "%ld backtracked (%.0f%% per decision)",
+      stats.back.tracked, percent (stats.back.tracked, stats.decisions));
+    if (stats.back.jumped)
+      msg (1, "%ld back jumped (%.0f%% per conflict)",
+      stats.back.jumped, percent (stats.back.jumped, stats.conflicts));
+    if (stats.back.forced)
+      msg (1, "%ld forced backtracks (%.0f%% per conflict)",
+      stats.back.forced, percent (stats.back.forced, stats.conflicts));
     if (stats.reductions)
-      msg (1, "%ld reductions (%.0f%% per learned)",
-      stats.reductions, percent (stats.reductions, stats.learned));
+      msg (1, "%ld reductions (%.0f conflicts per reduction)",
+      stats.reductions, average (stats.conflicts, stats.reductions));
     if (stats.collected)
       msg (1, "collected %ld clauses (%.0f per reduction)",
       stats.collected, average (stats.collected, stats.reductions));
   }
   if (stats.bumped || stats.searched) {
-    msg (1, "bumped %ld variables (%.2f per conflict)",
+    msg (1, "bumped %ld variables (%.1f per conflict)",
       stats.bumped, average (stats.bumped, stats.conflicts));
-    msg (1, "searched %ld variables (%.2f per decision)",
+    msg (1, "searched %ld variables (%.1f per decision)",
       stats.searched, average (stats.searched, stats.decisions));
   }
   if (stats.bdd.node.lookups || stats.bdd.cache.lookups) {
