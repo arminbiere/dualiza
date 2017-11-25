@@ -2,7 +2,7 @@ typedef STACK (struct Clause *) Clauses;
 typedef struct CNF CNF;
 
 struct CNF {
-  int positive, negative, irredundant, redundant, active;
+  long added, positive, negative, irredundant, redundant, active;
   Clauses clauses;
 };
 
@@ -17,4 +17,4 @@ void add_clause_to_cnf (Clause *, CNF *);
 void mark_clause_active (Clause *, CNF *);
 void mark_clause_inactive (Clause *, CNF *);
 
-void collect_garbage_clause (CNF *);
+void collect_garbage_clauses (CNF *);

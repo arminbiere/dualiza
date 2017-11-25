@@ -74,7 +74,7 @@ do { \
 #define RELEASE(S) \
 do { \
   DEALLOC ((S).start, SIZE (S)); \
-  (S).top = (S).end = 0; \
+  (S).start = (S).top = (S).end = 0; \
 } while (0)
 
 typedef STACK (int) IntStack;

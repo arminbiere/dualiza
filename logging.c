@@ -22,7 +22,7 @@ void log_clause (Clause * c, const char * fmt, ...) {
   va_end (ap);
   if (c->negative) fputs (" negative", stdout);
   if (c->redundant) printf (" redundant glue %d", c->glue);
-  printf (" size %d clause", c->size);
+  printf (" size %d clause[%ld]", c->size, (long) c->id);
   for (int i = 0; i < c->size; i++)
     printf (" %d", c->literals[i]);
   fputc ('\n', stdout);

@@ -27,12 +27,9 @@ do { \
 
 #define DEALLOC(P,N) \
 do { \
-  if ((P)) { \
-    assert ((N) > 0); \
-    const long BYTES = (N) * sizeof *(P); \
-    DEC_ALLOCATED (BYTES); \
-    free (P); \
-  } else assert (!(N)); \
+  const long BYTES = (N) * sizeof *(P); \
+  DEC_ALLOCATED (BYTES); \
+  free (P); \
 } while (0)
 
 #define REALLOC(P,O,N) \

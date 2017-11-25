@@ -4,7 +4,7 @@ struct Stats {
   long decisions, propagated, conflicts;
   long backtracked, backjumped;
   long bumped, searched, learned;
-  long reductions;
+  long reductions, collected;
   struct {
     struct { long lookups, collisions; } node, cache;
   } bdd;

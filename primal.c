@@ -605,9 +605,7 @@ static int reducing (Primal * solver) {
   return stats.learned > solver->limit.reduce.learned;
 }
 
-static void reduce (Primal * solver) {
-  stats.reductions++;
-  POG ("reduced %ld", stats.reductions);
+static void inc_reduce_limit (Primal * solver) {
   long inc = solver->limit.reduce.increment;
   POG ("reduce interval increment %d", inc);
   assert (inc > 0);
@@ -616,6 +614,67 @@ static void reduce (Primal * solver) {
   solver->limit.reduce.learned =
     stats.learned + solver->limit.reduce.interval;
   POG ("new reduce limit %d", solver->limit.reduce.learned);
+}
+
+static int cmp_reduce (const void * p, const void * q) {
+  Clause * c = *(Clause**) p, * d = *(Clause**) q;
+  if (c->glue < d->glue) return 1;
+  if (c->glue > d->glue) return -1;
+  if (c->size < d->size) return 1;
+  if (c->size > d->size) return -1;
+  if (c->id < d->id) return 1;
+  assert (c->id > d->id);
+  return -1;
+}
+
+static void reduce (Primal * solver) {
+  stats.reductions++;
+  POG ("reduction %ld", stats.reductions);
+  Clauses candidates;
+  INIT (candidates);
+  CNF * cnf = solver->cnf;
+  for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++) {
+    Clause * c = *p;
+    if (c->active) continue;
+    if (!c->redundant) continue;
+    if (c->size <= options.keepsize) continue;
+    if (c->glue <= options.keepglue) continue;
+    const int recent = c->recent;
+    c->recent = 0;
+    if (recent) continue;
+    PUSH (candidates, c);
+  }
+  long n = COUNT (candidates);
+  POG ("found %ld reduce candidates out of %ld", n, cnf->redundant);
+  qsort (candidates.start, n, sizeof (Clause*), cmp_reduce);
+  long target = n/2, marked = 0;
+  POG ("target is to remove %ld clauses", target);
+  for (long i = 0; i < target; i++) {
+    Clause * c = PEEK (candidates, i);
+    if (c->garbage) continue;
+    POGCLS (c, "marking garbage");
+    c->garbage = 1;
+    marked++;
+  }
+  RELEASE (candidates);
+  POG ("marked %ld clauses as garbage", marked);
+  long flushed = 0;
+  for (int idx = 1; idx <= solver->max_var; idx++)
+    for (int sign = -1; sign <= 1; sign += 2) {
+      int lit = sign * idx;
+      Clauses * o = occs (solver, lit);
+      Clause ** q = o->start, ** p = q;
+      while (p < o->top) {
+	Clause * c = *p++;
+	if (c->garbage) flushed++;
+	else *q++ = c;
+      }
+      o->top = q;
+      if (EMPTY (*o)) RELEASE (*o);
+    }
+  POG ("flushed %ld occurrences to %ld garbage clauses", flushed, marked);
+  collect_garbage_clauses (cnf);
+  inc_reduce_limit (solver);
 }
 
 int primal_sat (Primal * solver) {

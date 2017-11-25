@@ -25,6 +25,9 @@ void print_statistics () {
     if (stats.reductions)
       msg (1, "%ld reductions (%.0f%% per learned)",
       stats.reductions, percent (stats.reductions, stats.learned));
+    if (stats.collected)
+      msg (1, "collected %ld clauses (%.0f per reduction)",
+      stats.collected, average (stats.collected, stats.reductions));
   }
   if (stats.bumped || stats.searched) {
     msg (1, "bumped %ld variables (%.2f per conflict)",

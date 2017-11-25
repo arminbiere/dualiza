@@ -9,7 +9,7 @@ CNF * new_cnf () {
 
 static void check_cnf (CNF * cnf) {
 #ifndef NDEBUG
-  int positive, negative, irredundant, redundant, active, clauses;
+  long positive, negative, irredundant, redundant, active, clauses;
   positive = negative = irredundant = redundant = active = clauses = 0;
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++) {
     Clause * c = *p;
@@ -45,16 +45,18 @@ void add_clause_to_cnf (Clause * c, CNF * cnf) {
   if (c->negative) cnf->negative++; else cnf->positive++;
   if (c->redundant) cnf->redundant++; else cnf->irredundant++;
   assert (!c->active);
+  c->id = cnf->added++;
   PUSH (cnf->clauses, c);
+  LOG ("added clause %lu to CNF", c->id);
 }
 
-static void remove_garbage_clause (Clause * c, CNF * cnf) {
+static void collect_garbage_clause (Clause * c, CNF * cnf) {
   assert (!c->active);
   assert (c->garbage);
-  if (c->negative) assert (cnf->negative > 0), cnf->negative++;
-  else assert (cnf->positive > 0), cnf->positive++;
-  if (c->redundant) assert (cnf->redundant > 0), cnf->redundant++;
-  else assert (cnf->irredundant > 0), cnf->irredundant++;
+  if (c->negative) assert (cnf->negative > 0), cnf->negative--;
+  else assert (cnf->positive > 0), cnf->positive--;
+  if (c->redundant) assert (cnf->redundant > 0), cnf->redundant--;
+  else assert (cnf->irredundant > 0), cnf->irredundant--;
   delete_clause (c);
 }
 
@@ -71,15 +73,20 @@ void mark_clause_inactive (Clause * c, CNF * cnf) {
   cnf->active--;
 }
 
-void collect_garbage_clause (CNF * cnf) {
+void collect_garbage_clauses (CNF * cnf) {
   Clause ** p = cnf->clauses.start, ** q = p;
+  long collected = 0;
   while (p < cnf->clauses.top) {
     Clause * c = *p++;
-    if (c->garbage) remove_garbage_clause (c, cnf);
-    else *q++ = c;
+    if (c->garbage) {
+      collect_garbage_clause (c, cnf);
+      collected++;
+    } else *q++ = c;
   }
   cnf->clauses.top = q;
   check_cnf (cnf);
+  LOG ("collected %ld garbage clauses", collected);
+  stats.collected += collected;
 }
 
 int maximum_variable_index (CNF * cnf) {
@@ -95,8 +102,9 @@ int maximum_variable_index (CNF * cnf) {
 }
 
 void print_cnf_to_file (CNF * cnf, FILE * file) {
-  int m = maximum_variable_index (cnf), n = COUNT (cnf->clauses);
-  fprintf (file, "p cnf %d %d\n", m, n);
+  int m = maximum_variable_index (cnf);
+  long n = COUNT (cnf->clauses);
+  fprintf (file, "p cnf %d %ld\n", m, n);
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++)
     print_clause_to_file (*p, file);
 }
