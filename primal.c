@@ -45,7 +45,8 @@ struct Limit {
 
 struct Primal {
   Var * vars;
-  int max_var, next, level, flipped;
+  char iterating;
+  int max_var, next, level, flipped, fixed;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
@@ -226,12 +227,12 @@ static void assign (Primal * solver, int lit, Clause * reason) {
   v->reason = reason;
   if (reason) mark_clause_active (reason, solver->cnf);
   PUSH (solver->trail, lit);
+  if (!solver->level) solver->fixed++;
 }
 
 static Clauses * occs (Primal * solver, int lit) {
   return &var (solver, lit)->occs[lit < 0];
 }
-
 
 static void connect_literal (Primal * solver, Clause * c, int lit) {
   POGCLS (c, "connecting literal %d to", lit);
@@ -273,6 +274,43 @@ static int connect_cnf (Primal * solver) {
     }
   }
   return 1;
+}
+
+static int remaining_variables (Primal * solver) {
+  return solver->max_var - solver->fixed;
+}
+
+static void header (Primal * solver) {
+  msg (1, "");
+  msg (1,
+    "  "
+    "    time "
+    "  memory"
+    "  conflicts"
+    "   learned "
+    "  clauses"
+    " variables");
+  msg (1, "");
+}
+
+static void report (Primal * solver, const char type) {
+  if (!options.verbosity) return;
+  if (!(stats.reports++ % 20)) header (solver);
+  msg (1,
+    "%c"
+    " %8.2f"
+    " %7.1f"
+    " %10ld"
+    " %10ld"
+    " %9ld"
+    " %8ld",
+    type,
+    process_time (),
+    current_resident_set_size ()/(double)(1<<20),
+    stats.conflicts,
+    solver->cnf->redundant,
+    solver->cnf->irredundant,
+    remaining_variables (solver));
 }
 
 static Clause * bcp (Primal * solver) {
@@ -318,6 +356,10 @@ static Clause * bcp (Primal * solver) {
     }
     while (p < o->top) *q++ = *p++;
     o->top = q;
+  }
+  if (solver->iterating) {
+    solver->iterating = 0;
+    report (solver, 'i');
   }
   return res;
 }
@@ -409,6 +451,7 @@ static void flip (Primal * solver, Var * v, int lit) {
   assert (solver->flipped < solver->level);
   solver->flipped = solver->level;
   POG ("new flipped level %d", solver->flipped);
+  if (!f->prev_flipped) solver->iterating = 1;
 }
 
 static int backtrack (Primal * solver) {
@@ -567,6 +610,7 @@ static int backjump (Primal * solver, Clause * c) {
   assert (solver->level == level);
   solver->next = COUNT (solver->trail);
   assign (solver, forced, c);
+  if (!level) solver->iterating = 1;
   return 1;
 }
 
@@ -675,6 +719,7 @@ static void reduce (Primal * solver) {
   POG ("flushed %ld occurrences to %ld garbage clauses", flushed, marked);
   collect_garbage_clauses (cnf);
   inc_reduce_limit (solver);
+  report (solver, '-');
 }
 
 int primal_sat (Primal * solver) {

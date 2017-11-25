@@ -5,6 +5,7 @@ struct Stats {
   long backtracked, backjumped;
   long bumped, searched, learned;
   long reductions, collected;
+  long reports;
   struct {
     struct { long lookups, collisions; } node, cache;
   } bdd;
