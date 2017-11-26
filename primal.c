@@ -46,12 +46,13 @@ struct Limit {
     long conflicts;
     double slow, fast;
   } restart;
+  struct { long conflicts; } rephase;
 };
 
 struct Primal {
   Var * vars;
   char iterating;
-  int max_var, next, level, flipped, fixed;
+  int max_var, next, level, flipped, fixed, phase;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
@@ -164,19 +165,26 @@ static void init_restart_limit (Primal * solver) {
     solver->limit.restart.conflicts);
 }
 
+static void init_rephase_limit (Primal * solver) {
+  solver->limit.rephase.conflicts = MAX (options.rephaseint, 1);
+  LOG ("initial rephase conflict limit %ld",
+    solver->limit.rephase.conflicts);
+}
+
 static void init_limits (Primal * solver) {
   init_reduce_limit (solver);
   init_restart_limit (solver);
+  init_rephase_limit (solver);
 }
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
-  Primal * res;
-  NEW (res);
+  Primal * solver;
+  NEW (solver);
   LOG ("new primal solver over %ld clauses and %ld inputs",
     (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
-  res->cnf = cnf;
-  res->sorted = inputs;
+  solver->cnf = cnf;
+  solver->sorted = inputs;
   int max_var_in_cnf = maximum_variable_index (cnf);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
   int max_var_in_inputs = 0;
@@ -186,34 +194,36 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
     if (input > max_var_in_inputs) max_var_in_inputs = input;
   }
   LOG ("maximum variable index %d in inputs", max_var_in_inputs);
-  res->max_var = MAX (max_var_in_cnf, max_var_in_inputs);
-  LOG ("maximum variable index %d", res->max_var);
-  ALLOC (res->vars, res->max_var + 1);
-  for (int idx = 1; idx <= res->max_var; idx++)
-    res->vars[idx].phase = -1;
+  solver->max_var = MAX (max_var_in_cnf, max_var_in_inputs);
+  LOG ("maximum variable index %d", solver->max_var);
+  ALLOC (solver->vars, solver->max_var + 1);
+  solver->phase = options.phaseinit ? 1 : -1;
+  LOG ("default initial phase %d", solver->phase);
+  for (int idx = 1; idx <= solver->max_var; idx++)
+    solver->vars[idx].phase = solver->phase;
   int num_inputs = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
     int input = abs (*p);
-    assert (input <= res->max_var);
-    Var * v = var (res, input);
+    assert (input <= solver->max_var);
+    Var * v = var (solver, input);
     if (v->input) continue;
     LOG ("input variable %d", input);
     num_inputs++;
     v->input = 1;
   }
 #if !defined(NLOG) || !defined(NDEBUG)
-  const int num_gates = res->max_var - num_inputs;
+  const int num_gates = solver->max_var - num_inputs;
   LOG ("using %d inputs and %d gate variables", num_inputs, num_gates);
   LOG ("connecting variables");
 #endif
-  for (int idx = 1; idx <= res->max_var; idx++)
-    enqueue (res, var (res, idx));
-  assert (res->inputs.stamp == num_inputs);
-  assert (res->gates.stamp == num_gates);
-  PUSH (res->frames, new_frame (res, 0));
-  assert (COUNT (res->frames) == res->level + 1);
-  init_limits (res);
-  return res;
+  for (int idx = 1; idx <= solver->max_var; idx++)
+    enqueue (solver, var (solver, idx));
+  assert (solver->inputs.stamp == num_inputs);
+  assert (solver->gates.stamp == num_gates);
+  PUSH (solver->frames, new_frame (solver, 0));
+  assert (COUNT (solver->frames) == solver->level + 1);
+  init_limits (solver);
+  return solver;
 }
 
 void delete_primal (Primal * solver) {
@@ -841,6 +851,26 @@ static void restart (Primal * solver) {
   report (solver, 2, 'r');
 }
 
+static int rephasing (Primal * solver) {
+  if (!options.rephase) return 0;
+  return stats.conflicts >= solver->limit.rephase.conflicts;
+}
+
+static void inc_rephase_limit (Primal * solver) {
+  solver->limit.rephase.conflicts *= 2;
+  POG ("new rephase conflict limit %ld", solver->limit.rephase.conflicts);
+}
+
+static void rephase (Primal * solver) {
+  stats.rephased++;
+  solver->phase *= -1;
+  LOG ("rephase %ld new phase %d", stats.rephased, solver->phase);
+  for (int idx = 1; idx <= solver->max_var; idx++)
+    var (solver, idx)->phase = solver->phase;
+  inc_rephase_limit (solver);
+  report (solver, 1, '~');
+}
+
 int primal_sat (Primal * solver) {
   if (!connect_cnf (solver)) return 20;
   if (bcp (solver)) return 20;
@@ -852,6 +882,7 @@ int primal_sat (Primal * solver) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
+    else if (rephasing (solver)) rephase (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
@@ -875,6 +906,7 @@ void primal_count (Number res, Primal * solver) {
       inc_number (res);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
+    else if (rephasing (solver)) rephase (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
@@ -906,6 +938,7 @@ void primal_enumerate (Primal * solver, Name name) {
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
+    else if (rephasing (solver)) rephase (solver);
     else decide (solver);
   }
 }

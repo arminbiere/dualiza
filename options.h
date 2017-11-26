@@ -7,11 +7,14 @@ OPTION (bump,		1,	"bump variables") \
 OPTION (keepglue,	3,	"keep all clause of this glue") \
 OPTION (keepsize,	3,	"keep all clause of this size") \
 OPTION (learn,          1,	"learn clauses") \
+OPTION (phaseinit,      1,      "initial default phase") \
 OPTION (primal,         1,	"use primal SAT engine only") \
 OPTION (print,		1,	"print model or number of all assignments") \
 OPTION (reduce,         1,      "garbage collect useless learned clauses") \
 OPTION (reduceinc,	300,	"reduce interval increment") \
 OPTION (reduceinit,	2000,	"initial reduce interval") \
+OPTION (rephase,        1,      "enable reinitializing default phase") \
+OPTION (rephaseint,     10000,  "reinitializing phase conflict interval") \
 OPTION (restart,        1,      "enable search restarts") \
 OPTION (restartint,     2,      "base restart interval") \
 OPTION (reuse,          1,      "reuse trail during restart") \
