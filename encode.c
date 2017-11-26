@@ -319,14 +319,19 @@ static int encode_gates (Encoder * e, int idx) {
   return idx;
 }
 
+static int encode_root (Encoder * encoder, Gate * output, int idx) {
+  idx = encode_gates (encoder, idx);
+  encode_unary (encoder, map_gate (output, encoder));
+  return idx;
+}
+
 void encode_circuit (Circuit * circuit, CNF * cnf, int negative)
 {
   assert (negative || !maximum_variable_index (cnf));
   cone_of_influence (circuit);
   Encoder * encoder = new_encoder (circuit, cnf, negative);
   int idx = encode_inputs (encoder);
-  idx = encode_gates (encoder, idx);
-  encode_unary (encoder, map_gate (circuit->output, encoder));
+  idx = encode_root (encoder, circuit->output, idx);
   delete_encoder (encoder);
   msg (2, "encoded %d gates in total", idx);
 }
