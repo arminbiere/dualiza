@@ -12,9 +12,6 @@ void print_statistics () {
   if (stats.conflicts || stats.decisions || stats.propagated) {
     msg (1, "%ld conflicts (%.0f per second)",
       stats.conflicts, average (stats.conflicts, seconds));
-    if (stats.restarts)
-      msg (1, "%ld restarts (%.0f conflicts per restart)",
-      stats.restarts, average (stats.conflicts, stats.restarts));
     msg (1, "%ld decisions (%.0f per second)",
       stats.decisions, average (stats.decisions, seconds));
     msg (1, "%ld propagations (%.1f million per second)",
@@ -28,6 +25,9 @@ void print_statistics () {
     if (stats.back.forced)
       msg (1, "%ld forced backtracks (%.0f%% per conflict)",
       stats.back.forced, percent (stats.back.forced, stats.conflicts));
+    if (stats.restarts)
+      msg (1, "%ld restarts (%.0f conflicts per restart)",
+      stats.restarts, average (stats.conflicts, stats.restarts));
     if (stats.reductions)
       msg (1, "%ld reductions (%.0f conflicts per reduction)",
       stats.reductions, average (stats.conflicts, stats.reductions));

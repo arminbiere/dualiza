@@ -682,10 +682,13 @@ static int analyze (Primal * solver, Clause * conflict) {
 
 static int reducing (Primal * solver) {
   if (!options.reduce) return 0;
+  if (!stats.conflicts &&
+      solver->fixed > solver->limit.reduce.fixed) return 1;
   return stats.learned > solver->limit.reduce.learned;
 }
 
 static void inc_reduce_limit (Primal * solver) {
+  if (!stats.conflicts) return;
   long inc = solver->limit.reduce.increment;
   POG ("reduce interval increment %d", inc);
   assert (inc > 0);
