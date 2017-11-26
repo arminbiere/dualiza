@@ -148,7 +148,7 @@ static Frame * frame (Primal * solver, int lit) {
   return solver->frames.start + v->level;
 }
 
-static void init_restart_limit (Primal * solver) {
+static void init_reduce_limit (Primal * solver) {
   solver->limit.reduce.learned = MAX (options.reduceinit, 0);
   solver->limit.reduce.interval = MAX (options.reduceinit, 0);
   solver->limit.reduce.increment = MAX (options.reduceinc, 1);
@@ -158,10 +158,10 @@ static void init_restart_limit (Primal * solver) {
     solver->limit.reduce.learned);
 }
 
-static void init_reduce_limit (Primal * solver) {
+static void init_restart_limit (Primal * solver) {
   solver->limit.restart.conflicts = MAX (options.restartint, 1);
   LOG ("initial restart conflict limit %ld",
-    solver->limit.reduce.conflicts);
+    solver->limit.restart.conflicts);
 }
 
 static void init_limits (Primal * solver) {
