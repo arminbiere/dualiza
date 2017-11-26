@@ -31,12 +31,17 @@ static void coi (Circuit * c, Gate * g, int sign) {
   }
 }
 
-void cone_of_influence (Circuit * c) {
-  check_circuit_connected (c);
+static void reset_pos_neg_mark_fields_of_circuit (Circuit * c) {
+  LOG ("resetting pos, neg, and mark fields of circuit");
   for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
     Gate * g = *p;
     g->pos = g->neg = g->mark = 0;
   }
+}
+
+void cone_of_influence (Circuit * c) {
+  check_circuit_connected (c);
+  reset_pos_neg_mark_fields_of_circuit (c);
   coi (c, c->output, 0);
   int pos = 0, neg = 0, both = 0, disconnected = 0;
   for (Gate ** p = c->gates.start; p < c->gates.top; p++) {

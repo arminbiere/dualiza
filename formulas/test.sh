@@ -52,7 +52,7 @@ count () {
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
   case `basename $1 .form` in
-    0000);; # sharpSAT gives wrong solution '1'
+    0000|0011);; # sharpSAT gives wrong solution '1'
     *)
       if [ "$sharpsat" ]
       then
