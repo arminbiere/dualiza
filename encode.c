@@ -5,7 +5,6 @@ typedef struct Encoder Encoder;
 struct Encoder {
   Circuit * circuit;
   CNF * cnf;
-  int * map;
   int negative;
   STACK (int) clause, marks;
 };
@@ -60,14 +59,10 @@ static Encoder * new_encoder (Circuit * circuit, CNF * cnf, int negative)
   res->circuit = circuit;
   res->cnf = cnf;
   res->negative = negative;
-  const int num_gates = COUNT (circuit->gates);
-  ALLOC (res->map, num_gates);
   return res;
 }
 
 static void delete_encoder (Encoder * e) {
-  const int num_gates = COUNT (e->circuit->gates);
-  DEALLOC (e->map, num_gates);
   RELEASE (e->clause);
   RELEASE (e->marks);
   DELETE (e);
@@ -76,7 +71,7 @@ static void delete_encoder (Encoder * e) {
 static int map_gate (Gate * g, Encoder * e) {
   int sign = SIGN (g);
   if (sign) g = NOT (g);
-  int res = e->map[g->idx];
+  int res = g->code;
   assert (res);
   if (sign) res = -res;
   return res;
@@ -180,7 +175,7 @@ static void encode_and (Gate * g, Encoder * e) {
 static void encode_xor (Gate * g, Encoder * e) {
   int n = COUNT (g->inputs);
   assert (n > 1);
-  int mapped = e->map[g->idx];
+  int mapped = g->code;
   LOG ("encoding %d-ary XOR gate %d with literal %d", n, g->idx, mapped);
   int idx = mapped - (n - 1);
   int a = map_input (g, 0, e);
@@ -225,7 +220,7 @@ static void encode_ite (Gate * g, Encoder * e) {
 static void encode_xnor (Gate * g, Encoder * e) {
   int n = COUNT (g->inputs);
   assert (n > 1);
-  int mapped = e->map[g->idx];
+  int mapped = g->code;
   LOG ("encoding %d-ary XNOR gate %d with literal %d", n, g->idx, mapped);
   int idx = mapped - (n - 1);
   int a = map_input (g, 0, e);
@@ -256,16 +251,16 @@ static void encode_gate (Gate * g, Encoder *e) {
 static int encode_inputs (Encoder * e) {
   Circuit * c = e->circuit;
   Gate ** p = c->inputs.start;
-  int res = 0, * map = e->map;
+  int res = 0;
   while (p < c->inputs.top) {
     Gate * g = *p++;
     assert (g);
     assert (!SIGN (g));
     assert (g->op == INPUT);
-    assert (!map[g->idx]);
+    assert (!g->code);
     const int idx = encode_input (c, g);
     if (idx > res) res = idx;
-    map[g->idx] = idx;
+    g->code = idx;
   }
   assert (res == COUNT (c->inputs));
   msg (2, "encoded %d inputs", res);
@@ -279,12 +274,12 @@ static int encode_gates (Encoder * e, int idx) {
   STACK (Gate *) stack;
   INIT (stack);
   PUSH (stack, STRIP (e->circuit->output));
-  int encoded = 0, * map = e->map;
+  int encoded = 0;
   while (!EMPTY (stack)) {
     Gate * g = TOP (stack);
     assert (!SIGN (g));
     if (g) {
-      if (map[g->idx]) (void) POP (stack);
+      if (g->code) (void) POP (stack);
       else {
 	assert (g->pos >0 || g->neg > 0);
 	PUSH (stack, 0);
@@ -292,7 +287,7 @@ static int encode_gates (Encoder * e, int idx) {
 	LOG ("traversing %d-ary %s gate", n, gate_name (g));
 	for (int i = n-1; i >= 0; i--) {
 	  Gate * other = STRIP (g->inputs.start[i]);
-	  if (!map[other->idx]) PUSH (stack, other);
+	  if (!other->code) PUSH (stack, other);
 	}
       }
     } else {
@@ -301,7 +296,7 @@ static int encode_gates (Encoder * e, int idx) {
       g = POP (stack);
       assert (g);
       assert (!SIGN (g));
-      if (map[g->idx]) continue;
+      if (g->code) continue;
       if (g->op == XOR || g->op == XNOR) {
 	int n = COUNT (g->inputs);
 	if (n > 2) {
@@ -311,7 +306,7 @@ static int encode_gates (Encoder * e, int idx) {
 	  idx += n-2;
 	}
       }
-      map[g->idx] = ++idx;
+      g->code = ++idx;
       encode_gate (g, e);
       encoded++;
     }

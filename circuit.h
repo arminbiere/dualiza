@@ -18,8 +18,7 @@ typedef STACK (Gate*) Gates;
 
 struct Gate {
   Operator op;
-  int idx, input;
-  int encoded;
+  int idx, input, code;
   char pos, neg, mark, root;
   Gates inputs, outputs;
   Circuit * circuit;
