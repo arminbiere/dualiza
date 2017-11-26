@@ -14,7 +14,7 @@ void print_statistics () {
       stats.conflicts, average (stats.conflicts, seconds));
     if (stats.restarts)
       msg (1, "%ld restarts (%.0f conflicts per restart)",
-      stats.collected, average (stats.conflicts, stats.restarts));
+      stats.restarts, average (stats.conflicts, stats.restarts));
     msg (1, "%ld decisions (%.0f per second)",
       stats.decisions, average (stats.decisions, seconds));
     msg (1, "%ld propagations (%.1f million per second)",
