@@ -171,10 +171,10 @@ static void init_limits (Primal * solver) {
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (cnf);
-  LOG ("new primal solver over %ld clauses and %ld inputs",
-    (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
   Primal * res;
   NEW (res);
+  LOG ("new primal solver over %ld clauses and %ld inputs",
+    (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
   res->cnf = cnf;
   res->sorted = inputs;
   int max_var_in_cnf = maximum_variable_index (cnf);
@@ -410,7 +410,7 @@ static void dec_level (Primal * solver) {
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
-static Var * decide_input (Primal * solver) {
+static Var * next_input (Primal * solver) {
   Var * res = solver->inputs.search;
   while (res && res->val) 
     res = res->prev, stats.searched++;
@@ -418,7 +418,7 @@ static Var * decide_input (Primal * solver) {
   return res;
 }
 
-static Var * decide_gate (Primal * solver) {
+static Var * next_gate (Primal * solver) {
   Var * res = solver->gates.search;
   while (res && res->val)
     res = res->prev, stats.searched++;
@@ -426,10 +426,17 @@ static Var * decide_gate (Primal * solver) {
   return res;
 }
 
-static void decide (Primal * solver) {
-  Var * v = decide_input (solver);
-  if (!v) v = decide_gate (solver);
+static Var * next_decision (Primal * solver) {
+  Var * v = next_input (solver);
+  if (!v) v = next_gate (solver);
   assert (v);
+  POG ("next %s decision %d stamped %ld",
+    type (v), var2idx (solver, v), v->stamp);
+  return v;
+}
+
+static void decide (Primal * solver) {
+  Var * v = next_decision (solver);
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   inc_level (solver);
@@ -786,6 +793,7 @@ static void reduce (Primal * solver) {
 static int restarting (Primal * solver) {
   if (!options.restart) return 0;
   if (solver->flipped) return 0;
+  if (!solver->level) return 0;
   if (stats.conflicts < solver->limit.restart.conflicts) return 0;
   double limit = solver->limit.restart.slow * 1.1;
   int res = solver->limit.restart.fast > limit;
@@ -800,13 +808,28 @@ static void inc_restart_limit (Primal * solver) {
     solver->limit.restart.conflicts);
 }
 
+static int reuse_trail (Primal * solver) {
+  if (!options.reuse) return 0;
+  Var * next = next_decision (solver);
+  int res = 0;
+  for (res = 0; res < solver->level; res++) {
+    Frame * f = solver->frames.start + res + 1;
+    Var * decision = var (solver, f->decision);
+    if (decision->stamp < next->stamp) break;
+  }
+  POG ("reuse trail level %d", res);
+  if (res) stats.reused++;
+  return res;
+}
+
 static void restart (Primal * solver) {
+  const int level = reuse_trail (solver);
   stats.restarts++;
   POG ("restart %d", stats.restarts);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
-    if (!v->level) break;
+    if (v->level == level) break;
     const int decision = v->decision;
     assert (decision != 2);
     unassign (solver, lit);

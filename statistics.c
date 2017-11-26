@@ -28,6 +28,9 @@ void print_statistics () {
     if (stats.restarts)
       msg (1, "%ld restarts (%.0f conflicts per restart)",
       stats.restarts, average (stats.conflicts, stats.restarts));
+    if (stats.reused)
+      msg (1, "%ld reused (%.0f%% per restart)",
+      stats.reused, percent (stats.reused, stats.restarts));
     if (stats.reductions)
       msg (1, "%ld reductions (%.0f conflicts per reduction)",
       stats.reductions, average (stats.conflicts, stats.reductions));

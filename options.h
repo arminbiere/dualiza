@@ -13,7 +13,8 @@ OPTION (reduce,         1,      "garbage collect useless learned clauses") \
 OPTION (reduceinc,	300,	"reduce interval increment") \
 OPTION (reduceinit,	2000,	"initial reduce interval") \
 OPTION (restart,        1,      "enable search restarts") \
-OPTION (restartint,     50,     "base restart interval") \
+OPTION (restartint,     2,      "base restart interval") \
+OPTION (reuse,          1,      "reuse trail during restart") \
 OPTION (verbosity,	0,	"verbose level") \
 
 /*------------------------------------------------------------------------*/
