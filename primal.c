@@ -520,6 +520,7 @@ static int resolve_literal (Primal * solver, int lit) {
 static int resolve_clause (Primal * solver, Clause * c) {
   assert (c);
   POGCLS (c, "resolving");
+  c->recent = 1;
   int unresolved = 0;
   for (int i = 0; i < c->size; i++)
     unresolved += resolve_literal (solver, c->literals[i]);
