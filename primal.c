@@ -40,6 +40,7 @@ struct Frame {
 struct Limit {
   struct {
     long learned, interval, increment;
+    int fixed;
   } reduce;
 };
 
@@ -224,10 +225,14 @@ static void assign (Primal * solver, int lit, Clause * reason) {
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
   v->level = solver->level;
-  v->reason = reason;
-  if (reason) mark_clause_active (reason, solver->cnf);
+  if (v->level) {
+    v->reason = reason;
+    if (reason) mark_clause_active (reason, solver->cnf);
+  } else {
+    solver->fixed++;
+    v->reason = 0;
+  }
   PUSH (solver->trail, lit);
-  if (!solver->level) solver->fixed++;
 }
 
 static Clauses * occs (Primal * solver, int lit) {
@@ -673,14 +678,34 @@ static int cmp_reduce (const void * p, const void * q) {
   return -1;
 }
 
+static int mark_satisfied_as_garbage (Primal * solver, Clause * c) {
+  assert (!c->garbage);
+  for (int i = 0; i < c->size; i++) {
+    const int lit = c->literals[i];
+    Var * v = var (solver, lit);
+    if (v->level) continue;
+    int tmp = v->val;
+    if (!tmp) continue;
+    if (lit < 0) tmp = -tmp;
+    if (tmp < 0) continue;
+    POGCLS (c, "root level satisfied by literal %d", lit);
+    c->garbage = 1;
+    return 1;
+  }
+  return 0;
+}
+
 static void reduce (Primal * solver) {
   stats.reductions++;
   POG ("reduction %ld", stats.reductions);
   Clauses candidates;
   INIT (candidates);
   CNF * cnf = solver->cnf;
+  const int simplify = solver->fixed > solver->limit.reduce.fixed;
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++) {
     Clause * c = *p;
+    if (c->garbage) continue;
+    if (simplify && mark_satisfied_as_garbage (solver, c)) continue;
     if (c->active) continue;
     if (!c->redundant) continue;
     if (c->size <= options.keepsize) continue;
@@ -690,6 +715,7 @@ static void reduce (Primal * solver) {
     if (recent) continue;
     PUSH (candidates, c);
   }
+  solver->limit.reduce.fixed = solver->fixed;
   long n = COUNT (candidates);
   POG ("found %ld reduce candidates out of %ld", n, cnf->redundant);
   qsort (candidates.start, n, sizeof (Clause*), cmp_reduce);

@@ -78,7 +78,7 @@ void collect_garbage_clauses (CNF * cnf) {
   long collected = 0;
   while (p < cnf->clauses.top) {
     Clause * c = *p++;
-    if (c->garbage) {
+    if (!c->active && c->garbage) {
       collect_garbage_clause (c, cnf);
       collected++;
     } else *q++ = c;
