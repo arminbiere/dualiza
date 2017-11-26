@@ -272,6 +272,8 @@ static int encode_inputs (Encoder * e) {
   return res;
 }
 
+#if 1
+
 static int encode_gates (Encoder * e, int idx) {
   LOG ("starting to encode gates");
   STACK (Gate *) stack;
@@ -325,12 +327,23 @@ static int encode_root (Encoder * encoder, Gate * output, int idx) {
   return idx;
 }
 
+#else
+
+static int encode_root (Encoder * encoder, Gate * output, int idx) {
+  idx = encode_gates (encoder, idx);
+  encode_unary (encoder, map_gate (output, encoder));
+  return idx;
+}
+
+#endif
+
 void encode_circuit (Circuit * circuit, CNF * cnf, int negative)
 {
   assert (negative || !maximum_variable_index (cnf));
   cone_of_influence (circuit);
   Encoder * encoder = new_encoder (circuit, cnf, negative);
   int idx = encode_inputs (encoder);
+  LOG ("starting to encode roots");
   idx = encode_root (encoder, circuit->output, idx);
   delete_encoder (encoder);
   msg (2, "encoded %d gates in total", idx);

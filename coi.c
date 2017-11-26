@@ -7,7 +7,7 @@ static void coi (Circuit * c, Gate * g, int sign) {
   const int mark = (1<<sign);
   if (g->mark & mark) return;
   g->mark |= mark;
-  if (sign) g->neg++; else g->pos++;
+  if (sign) g->neg = 1; else g->pos = 1;
   switch (g->op) {
     case OR:
     case AND:
