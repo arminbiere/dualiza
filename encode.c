@@ -267,63 +267,6 @@ static int encode_inputs (Encoder * e) {
   return res;
 }
 
-#if 0
-
-static int encode_gates (Encoder * e, int idx) {
-  LOG ("starting to encode gates");
-  STACK (Gate *) stack;
-  INIT (stack);
-  PUSH (stack, STRIP (e->circuit->output));
-  int encoded = 0;
-  while (!EMPTY (stack)) {
-    Gate * g = TOP (stack);
-    assert (!SIGN (g));
-    if (g) {
-      if (g->code) (void) POP (stack);
-      else {
-	assert (g->pos >0 || g->neg > 0);
-	PUSH (stack, 0);
-	int n = COUNT (g->inputs);
-	LOG ("traversing %d-ary %s gate", n, gate_name (g));
-	for (int i = n-1; i >= 0; i--) {
-	  Gate * other = STRIP (g->inputs.start[i]);
-	  if (!other->code) PUSH (stack, other);
-	}
-      }
-    } else {
-      (void) POP (stack);
-      assert (!EMPTY (stack));
-      g = POP (stack);
-      assert (g);
-      assert (!SIGN (g));
-      if (g->code) continue;
-      if (g->op == XOR || g->op == XNOR) {
-	int n = COUNT (g->inputs);
-	if (n > 2) {
-	  LOG (
-	    "reserving additional %d variables for %d-ary %s",
-	    n-2, n, (g->op == XOR ? "XOR" : "XNOR"));
-	  idx += n-2;
-	}
-      }
-      g->code = ++idx;
-      encode_gate (g, e);
-      encoded++;
-    }
-  }
-  RELEASE (stack);
-  msg (2, "encoded %d non-input gates", encoded);
-  return idx;
-}
-
-static int encode_roots (Encoder * encoder, Gate * output, int idx) {
-  idx = encode_gates (encoder, idx);
-  encode_unary (encoder, map_gate (output, encoder));
-  return idx;
-}
-
-#else
-
 static int encode_gates (Encoder * encoder, Gate * g, int idx) {
   g = STRIP (g);
   if (g->code) return idx;
@@ -360,12 +303,21 @@ static int encode_roots (Encoder * encoder, Gate * g, int idx) {
     if (g->root & 1) return idx;
     for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
       idx = encode_roots (encoder, *p, idx);
-    g->root += 1;
+    g->root |= 1;
+  } else if (!sign && g->op == OR) {
+    if (g->root & 1) return idx;
+    assert (EMPTY (encoder->clause));
+    for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
+      idx = encode_gates (encoder, *p, idx);
+    for (Gate ** p = g->inputs.start; p < g->inputs.top; p++) {
+      const int lit = map_gate (*p, encoder);
+      PUSH (encoder->clause, lit);
+    }
+    encode_clause (encoder);
+    g->root |= 1;
   } else idx = encode_root (encoder, g, idx);
   return idx;
 }
-
-#endif
 
 static void reset_code_root_fields_of_circuit (Circuit * c) {
   LOG ("resetting code and root fields of circuit");
