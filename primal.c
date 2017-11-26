@@ -42,6 +42,10 @@ struct Limit {
     long learned, interval, increment;
     int fixed;
   } reduce;
+  struct {
+    long conflicts;
+    double slow, fast;
+  } restart;
 };
 
 struct Primal {
@@ -144,12 +148,25 @@ static Frame * frame (Primal * solver, int lit) {
   return solver->frames.start + v->level;
 }
 
-static void init_primal_limits (Primal * primal) {
-  primal->limit.reduce.learned = MAX (options.reduceinit, 0);
-  primal->limit.reduce.interval = MAX (options.reduceinit, 0);
-  primal->limit.reduce.increment = MAX (options.reduceinc, 1);
-  LOG ("initial reduce interval %ld", primal->limit.reduce.interval);
-  LOG ("initial reduce increment %ld", primal->limit.reduce.increment);
+static void init_restart_limit (Primal * solver) {
+  solver->limit.reduce.learned = MAX (options.reduceinit, 0);
+  solver->limit.reduce.interval = MAX (options.reduceinit, 0);
+  solver->limit.reduce.increment = MAX (options.reduceinc, 1);
+  LOG ("initial reduce interval %ld", solver->limit.reduce.interval);
+  LOG ("initial reduce increment %ld", solver->limit.reduce.increment);
+  LOG ("initial reduce learned limit %ld",
+    solver->limit.reduce.learned);
+}
+
+static void init_reduce_limit (Primal * solver) {
+  solver->limit.restart.conflicts = MAX (options.restartint, 1);
+  LOG ("initial restart conflict limit %ld",
+    solver->limit.reduce.conflicts);
+}
+
+static void init_limits (Primal * solver) {
+  init_reduce_limit (solver);
+  init_restart_limit (solver);
 }
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
@@ -195,7 +212,7 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
   assert (res->gates.stamp == num_gates);
   PUSH (res->frames, new_frame (res, 0));
   assert (COUNT (res->frames) == res->level + 1);
-  init_primal_limits (res);
+  init_limits (res);
   return res;
 }
 
@@ -289,24 +306,24 @@ static void header (Primal * solver) {
   msg (1, "");
   msg (1,
     "  "
-    "    time "
+    "    time"
     "  memory"
-    "  conflicts"
-    "   learned "
-    "  clauses"
+    " conflicts"
+    "  learned"
+    "   clauses"
     " variables");
   msg (1, "");
 }
 
-static void report (Primal * solver, const char type) {
-  if (!options.verbosity) return;
+static void report (Primal * solver, int verbosity, const char type) {
+  if (options.verbosity < verbosity) return;
   if (!(stats.reports++ % 20)) header (solver);
   msg (1,
     "%c"
     " %8.2f"
     " %7.1f"
-    " %10ld"
-    " %10ld"
+    " %9ld"
+    " %8ld"
     " %9ld"
     " %8ld",
     type,
@@ -364,7 +381,7 @@ static Clause * bcp (Primal * solver) {
   }
   if (solver->iterating) {
     solver->iterating = 0;
-    report (solver, 'i');
+    report (solver, 1, 'i');
   }
   return res;
 }
@@ -539,6 +556,12 @@ static void reset_seen (Primal * solver) {
     POP (solver->seen)->seen = 0;
 }
 
+static void update_ema (Primal * solver, double * ema,
+                        double res, double n, double alpha) {
+  assert (n > 0);
+  *ema += MAX (1.0/n, alpha) * (res - *ema);
+}
+
 static int reset_levels (Primal * solver) {
   int res = COUNT (solver->levels);
   POG ("seen %d levels", res);
@@ -549,6 +572,11 @@ static int reset_levels (Primal * solver) {
     assert (f->seen);
     f->seen = 0;
   }
+  const long n = stats.conflicts;
+  update_ema (solver, &solver->limit.restart.fast, res, n, 3e-2);
+  update_ema (solver, &solver->limit.restart.slow, res, n, 1e-5);
+  POG ("new fast moving glue average %.2f", solver->limit.restart.fast);
+  POG ("new slow moving glue average %.2f", solver->limit.restart.slow);
   return res;
 }
 
@@ -653,6 +681,7 @@ static int analyze (Primal * solver, Clause * conflict) {
 }
 
 static int reducing (Primal * solver) {
+  if (!options.reduce) return 0;
   return stats.learned > solver->limit.reduce.learned;
 }
 
@@ -664,7 +693,7 @@ static void inc_reduce_limit (Primal * solver) {
   POG ("new reduce interval %ld", solver->limit.reduce.interval);
   solver->limit.reduce.learned =
     stats.learned + solver->limit.reduce.interval;
-  POG ("new reduce limit %d", solver->limit.reduce.learned);
+  POG ("new reduce learned limit %ld", solver->limit.reduce.learned);
 }
 
 static int cmp_reduce (const void * p, const void * q) {
@@ -747,7 +776,42 @@ static void reduce (Primal * solver) {
   POG ("flushed %ld occurrences to %ld garbage clauses", flushed, marked);
   collect_garbage_clauses (cnf);
   inc_reduce_limit (solver);
-  report (solver, '-');
+  report (solver, 1, '-');
+}
+
+static int restarting (Primal * solver) {
+  if (!options.restart) return 0;
+  if (solver->flipped) return 0;
+  if (stats.conflicts < solver->limit.restart.conflicts) return 0;
+  double limit = solver->limit.restart.slow * 1.1;
+  int res = solver->limit.restart.fast > limit;
+  if (!res) report (solver, 3, 'n');
+  return res;
+}
+
+static void inc_restart_limit (Primal * solver) {
+  const int inc = MAX (options.restartint, 1);
+  solver->limit.restart.conflicts = stats.conflicts + inc;
+  POG ("new restart conflicts limit %ld",
+    solver->limit.restart.conflicts);
+}
+
+static void restart (Primal * solver) {
+  stats.restarts++;
+  POG ("restart %d", stats.restarts);
+  while (!EMPTY (solver->trail)) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
+    if (!v->level) break;
+    const int decision = v->decision;
+    assert (decision != 2);
+    unassign (solver, lit);
+    if (decision) dec_level (solver);
+    (void) POP (solver->trail);
+  }
+  solver->next = COUNT (solver->trail);
+  inc_restart_limit (solver);
+  report (solver, 2, 'r');
 }
 
 int primal_sat (Primal * solver) {
@@ -761,6 +825,7 @@ int primal_sat (Primal * solver) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
+    else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
   return res;
@@ -783,6 +848,7 @@ void primal_count (Number res, Primal * solver) {
       inc_number (res);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
+    else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
 }
@@ -812,6 +878,7 @@ void primal_enumerate (Primal * solver, Name name) {
       print_model (solver, name);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
+    else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
 }

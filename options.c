@@ -39,6 +39,8 @@ void print_options () {
   OPTIONS
 }
 
+// TODO remove ...
+
 static int
 mystrcmp (const char * a, const char * b) {
   return strcmp (a, b);
@@ -64,6 +66,13 @@ static int parse_option_aux (char * arg) {
 int parse_option (const char * arg) {
   if (arg[0] != '-') return 0;
   if (arg[1] != '-') return 0;
+  if (arg[2] == 'n' && arg[3] == 'o' && arg[4] == '-') {
+#undef OPTION
+#define OPTION(NAME,DEFAULT,DESCRIPTION) \
+    if (!mystrcmp (arg + 5, #NAME)) { options.NAME = 0; return 1; }
+    OPTIONS
+    return 0;
+  }
   int len = strlen (arg + 2);
   char * tmp;
   ALLOC (tmp, len + 1);

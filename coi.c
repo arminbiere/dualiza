@@ -48,7 +48,7 @@ void cone_of_influence (Circuit * c) {
     else disconnected++;
     g->mark = 0;
   }
-  msg (2, "coi: %d pos, %d neg, %d both, %d disconnected",
+  msg (2, "cone of influence: %d pos, %d neg, %d both, %d disconnected",
     pos, neg, both, disconnected);
 }
 

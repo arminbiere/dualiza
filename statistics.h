@@ -5,7 +5,7 @@ struct Stats {
   struct { long tracked, jumped, forced; } back;
   long bumped, searched, learned;
   long reductions, collected;
-  long reports;
+  long reports, restarts;
   struct {
     struct { long lookups, collisions; } node, cache;
   } bdd;

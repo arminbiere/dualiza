@@ -12,6 +12,9 @@ void print_statistics () {
   if (stats.conflicts || stats.decisions || stats.propagated) {
     msg (1, "%ld conflicts (%.0f per second)",
       stats.conflicts, average (stats.conflicts, seconds));
+    if (stats.restarts)
+      msg (1, "%ld restarts (%.0f conflicts per restart)",
+      stats.collected, average (stats.conflicts, stats.restarts));
     msg (1, "%ld decisions (%.0f per second)",
       stats.decisions, average (stats.decisions, seconds));
     msg (1, "%ld propagations (%.1f million per second)",

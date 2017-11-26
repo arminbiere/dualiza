@@ -9,8 +9,11 @@ OPTION (keepsize,	3,	"keep all clause of this size") \
 OPTION (learn,          1,	"learn clauses") \
 OPTION (primal,         1,	"use primal SAT engine only") \
 OPTION (print,		1,	"print model or number of all assignments") \
+OPTION (reduce,         1,      "garbage collect useless learned clauses") \
 OPTION (reduceinc,	300,	"reduce interval increment") \
 OPTION (reduceinit,	2000,	"initial reduce interval") \
+OPTION (restart,        1,      "enable search restarts") \
+OPTION (restartint,     50,     "base restart interval") \
 OPTION (verbosity,	0,	"verbose level") \
 
 /*------------------------------------------------------------------------*/
