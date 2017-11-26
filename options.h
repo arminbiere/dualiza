@@ -3,7 +3,7 @@
 
 #define OPTIONS_ALL \
  \
-OPTION (bump,		1,	"bump variables") \
+OPTION (bump,		1,	"bump variables (1=resolved, 2=reason") \
 OPTION (keepglue,	3,	"keep all clause of this glue") \
 OPTION (keepsize,	3,	"keep all clause of this size") \
 OPTION (learn,          1,	"learn clauses") \

@@ -563,7 +563,26 @@ static void bump_variable (Primal * solver, Var * v) {
   enqueue (solver, v);
 }
 
+static void bump_reason_clause_literals (Primal * solver, Clause * c) {
+  if (!c) return;
+  for (int i = 0; i < c->size; i++) {
+    const int idx = abs (c->literals[i]);
+    Var * v = var (solver, idx);
+    if (v->seen) continue;
+    if (!v->level) continue;
+    POG ("also marking %s reason variable %d as seen", type (v), idx);
+    PUSH (solver->seen, v);
+    v->seen = 1;
+  }
+}
+
+static void bump_all_reason_literals (Primal * solver) {
+  for (Var ** p = solver->seen.start; p < solver->seen.top; p++)
+    bump_reason_clause_literals (solver, (*p)->reason);
+}
+
 static void bump_seen (Primal * solver) {
+  if (options.bump > 1) bump_all_reason_literals (solver);
   sort_seen (solver);
   for (Var ** p = solver->seen.start; p < solver->seen.top; p++)
     bump_variable (solver, *p);
