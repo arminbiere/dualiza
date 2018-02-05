@@ -114,3 +114,8 @@ run () {
   tautology $1
   count $1
 }
+configurations="\
+--block=0 \
+--block=1_--eager=1 \
+--block=1_--eager=0 \
+"
