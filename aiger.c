@@ -164,7 +164,30 @@ static void parse_ascii_aiger (Aiger * aiger) {
   connect_output (aiger->circuit, output_gate);
 }
 
+static Char parse_aiger_binary_char (Reader * reader) {
+  Char ch = next_char (reader);
+  if (ch.code == EOF)
+    parse_error (reader, ch,
+      "unexpected end-of-literal while reading binary literal");
+  return ch;
+}
+
+static unsigned
+parse_aiger_binary_number (Reader * reader, Char * chptr) {
+  unsigned res = 0, i = 0;
+  unsigned char uch;
+  Char ch;
+  while ((uch = (ch = parse_aiger_binary_char (reader)).code) & 0x80) {
+    if (i == 4 && uch > 15)
+      parse_error (reader, ch, "invalid binary encoding");
+    res |= (uch & 0x7f) << (7 * i++);
+  }
+  if (chptr) *chptr = ch;
+  return res | (uch << (7*i));
+}
+
 static void parse_binary_aiger (Aiger * aiger) {
+  Reader * r = aiger->reader;
   for (unsigned i = 0; i < aiger->num_inputs; i++) {
     assert (aiger->inputs[i] == UINT_MAX);
     unsigned input = 2*(i + 1);
@@ -175,7 +198,32 @@ static void parse_binary_aiger (Aiger * aiger) {
   setup_aiger_symbol_table (aiger);
   Char ch;
   unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
+  assert (is_valid_aiger_literal (aiger, output));
   LOG ("AIGER output literal %u", output);
+  for (unsigned i = 0; i < aiger->num_ands; i++) {
+    unsigned lhs = 2*(aiger->num_inputs + i + 1);
+    unsigned delta0 = parse_aiger_binary_number (r, &ch);
+    if (!delta0 || lhs < delta0)
+      parse_error (r, ch,
+        "invalid zero delta encoding in first argument");
+    unsigned rhs0 = lhs - delta0;
+    Gate * g0 = aiger_literal_to_gate (aiger, rhs0);
+    assert (g0);
+    unsigned delta1 = parse_aiger_binary_number (r, &ch);
+    if (rhs0 < delta1)
+      parse_error (r, ch,
+        "invalid zero delta encoding in first argument");
+    unsigned rhs1 = rhs0 - delta1;
+    Gate * g1 = aiger_literal_to_gate (aiger, rhs1);
+    assert (g1);
+    Gate * and = new_and_gate (aiger->circuit);
+    connect_gates (g0, and);
+    connect_gates (g1, and);
+    aiger->gates[lhs/2] = and;
+  }
+  Gate * output_gate = aiger_literal_to_gate (aiger, output);
+  assert (output_gate);
+  connect_output (aiger->circuit, output_gate);
 }
 
 Circuit * parse_aiger (Reader * r, Symbols * t) {

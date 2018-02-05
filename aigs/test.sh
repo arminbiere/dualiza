@@ -79,7 +79,7 @@ count () {
   done
 }
 
-for i in $dir/*.aag
+for i in $dir/*.a[ai]g
 do
   run $i
 done
