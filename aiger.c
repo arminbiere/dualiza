@@ -37,6 +37,23 @@ static void delete_aiger (Aiger * aiger) {
   DEALLOC (aiger->inputs, aiger->num_inputs);
   DELETE (aiger);
 }
+
+static int is_valid_aiger_literal (Aiger * aiger, unsigned lit) {
+  return lit <= 2*aiger->max_index + 1;
+}
+
+static Gate * aiger_literal_to_gate (Aiger * aiger, unsigned lit) {
+  assert (is_valid_aiger_literal (aiger, lit));
+  if (lit < 2) {
+    if (!aiger->gates[0]) {
+      LOG ("need AIGER constant too");
+      aiger->gates[0] = new_false_gate (aiger->circuit);
+    }
+  }
+  Gate * res = aiger->gates[lit/2];
+  if (res && (lit & 1)) res = NOT (res);
+  return res;
+}
  
 static unsigned
 parse_aiger_ascii_number (Reader * r, int expect_space, Char * chptr) {
@@ -68,8 +85,8 @@ parse_aiger_ascii_literal (Aiger * aiger, int expect_space, Char * chptr) {
   Char ch;
   unsigned res =
     parse_aiger_ascii_number (aiger->reader, expect_space, &ch);
-  if (res > 2*aiger->max_index)
-    parse_error (aiger->reader, ch, "literal %u too large", res);
+  if (!is_valid_aiger_literal (aiger, res))
+    parse_error (aiger->reader, ch, "invalid literal %u (too large)", res);
   if (chptr) *chptr = ch;
   return res;
 }
@@ -113,6 +130,7 @@ static void parse_ascii_aiger (Aiger * aiger) {
   }
   setup_aiger_symbol_table (aiger);
   unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
+  Char output_ch = ch;
   LOG ("AIGER output literal %u", output);
   for (unsigned i = 0; i < aiger->num_ands; i++) {
     unsigned lhs = parse_aiger_ascii_literal (aiger, 1, &ch);
@@ -125,11 +143,25 @@ static void parse_ascii_aiger (Aiger * aiger) {
     unsigned rhs0 = parse_aiger_ascii_literal (aiger, 1, &ch);
     if (rhs0 >= lhs)
       parse_error (r, ch, "AND gate argument %u >= %u", rhs0, lhs);
+    Gate * g0 = aiger_literal_to_gate (aiger, rhs0);
+    if (!g0)
+      parse_error (r, ch, "AND gate argument %u undefined", rhs0);
     unsigned rhs1 = parse_aiger_ascii_literal (aiger, 0, &ch);
     if (rhs1 >= lhs)
       parse_error (r, ch, "AND gate argument %u >= %u", rhs1, lhs);
+    Gate * g1 = aiger_literal_to_gate (aiger, rhs1);
+    if (!g1)
+      parse_error (r, ch, "AND gate argument %u undefined", rhs1);
     LOG ("parsed AIGER AND gate %u = %u & %u", lhs, rhs0, rhs1);
+    Gate * and = new_and_gate (aiger->circuit);
+    connect_gates (g0, and);
+    connect_gates (g1, and);
+    aiger->gates[lhs/2] = and;
   }
+  Gate * output_gate = aiger_literal_to_gate (aiger, output);
+  if (!output_gate)
+    parse_error (r, output_ch, "output literal %u undefined", output);
+  connect_output (aiger->circuit, output_gate);
 }
 
 static void parse_binary_aiger (Aiger * aiger) {

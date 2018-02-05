@@ -12,13 +12,17 @@ sat () {
     error \
 "sat checking mismatch between SAT and BDD engine: '$last' and '$firstline'"
   fi
-  if [ "$picosat" ]
+  if [ "$picosat" -a "$aigtocnf" ]
   then
-    execute "$picosat" $1
-    if [ ! "$firstline" = "$last" ]
+    cnf="$tmp.cnf"
+    if filter $aigtocnf $1 $cnf
     then
-      error \
-"sat checking mismatch between SAT engine and PicoSAT: '$last' and '$firstline'"
+      execute "$picosat" $cnf
+      if [ ! "$firstline" = "s $last" ]
+      then
+	error \
+  "sat checking mismatch between SAT engine and PicoSAT: '$last' and '$firstline'"
+      fi
     fi
   fi
 }
@@ -43,25 +47,39 @@ count () {
     error \
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
-  case `basename $1 .cnf` in
-    0000) ;; # sharpSAT gives wrong answer
+  case `basename $1|sed -e 's,.a[ai]g$,,'` in
+    false) ;; # sharpSAT gives wrong answer # TODO not adapted to aigs yet
     *)
-      if [ "$sharpsat" ]
+      if [ "$sharpsat" -a "$aigtocnf" ]
       then
-	filter "$sharpsat" $1
-	res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
-	[ -t 1 ] || echo $res
-	if [ ! "$res" = "$last" ]
+	cnf="$tmp.cnf"
+	if filter $aigtocnf $1 $cnf
 	then
-	  error \
-"sat checking mismatch between SAT engine and sharpSAT: '$last' and '$res'"
+	  filter "$sharpsat" $cnf
+	  res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
+	  [ -t 1 ] || echo $res
+	  if [ ! "$res" = "$last" ]
+	  then
+	    error \
+  "sat checking mismatch between SAT engine and sharpSAT: '$last' and '$res'"
+	  fi
 	fi
       fi
       ;;
   esac
+  for configuration in $configurations
+  do
+    args=`echo $configuration | sed -e 's,_, ,g'`
+    execute $dualiza $args $1
+    if [ ! "$last" = "$lastline" ]
+    then
+      error \
+  "counting mismatch with '$args' configuration: '$last' and '$lastline'"
+    fi
+  done
 }
 
-for i in $dir/*.cnf
+for i in $dir/*.aag
 do
   run $i
 done
