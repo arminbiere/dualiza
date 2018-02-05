@@ -177,7 +177,11 @@ static void parse (const char * input_name) {
     }
     msg (1, "parsing input as DIMACS file");
     primal_circuit = parse_dimacs (input, symbols);
-  } else { assert (type == AIGER); die ("can not parse AIGER files yet"); }
+  } else {
+    assert (type == AIGER);
+    msg (1, "parsing input as AIGER file");
+    primal_circuit = parse_aiger (input, symbols);
+  }
 }
 
 static void generate_dual_circuit () {
