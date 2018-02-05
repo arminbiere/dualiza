@@ -63,6 +63,17 @@ parse_aiger_ascii_number (Reader * r, int expect_space, Char * chptr) {
   return res;
 }
 
+static unsigned
+parse_aiger_ascii_literal (Aiger * aiger, int expect_space, Char * chptr) {
+  Char ch;
+  unsigned res =
+    parse_aiger_ascii_number (aiger->reader, expect_space, &ch);
+  if (res > 2*aiger->max_index)
+    parse_error (aiger->reader, ch, "literal %u too large", res);
+  if (chptr) *chptr = ch;
+  return res;
+}
+
 static void setup_aiger_symbol_table (Aiger * aiger) {
   for (unsigned i = 0; i < aiger->num_inputs; i++) {
     unsigned input = aiger->inputs[i];
@@ -87,21 +98,38 @@ static void setup_aiger_symbol_table (Aiger * aiger) {
 }
 
 static void parse_ascii_aiger (Aiger * aiger) {
+  Reader * r = aiger->reader;
+  Char ch;
   for (unsigned i = 0; i < aiger->num_inputs; i++) {
-    Char ch;
-    unsigned input = parse_aiger_ascii_number (aiger->reader, 0, &ch);
+    unsigned input = parse_aiger_ascii_literal (aiger, 0, &ch);
     if (input < 2)
-      parse_error (aiger->reader, ch, "invalid %u too small", input);
-    if (input > 2*aiger->max_index)
-      parse_error (aiger->reader, ch, "input %u too large", input);
+      parse_error (r, ch, "input literal %u too small", input);
     if (input & 1)
-      parse_error (aiger->reader, ch, "invalid odd input %u", input);
+      parse_error (r, ch, "invalid odd input literal %u", input);
     aiger->inputs[i] = input;
     if (aiger->gates[input/2])
-      parse_error (aiger->reader, ch, "input %u defined twice", input);
+      parse_error (r, ch, "input %u defined twice", input);
     aiger->gates[input/2] = new_input_gate (aiger->circuit);
   }
   setup_aiger_symbol_table (aiger);
+  unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
+  LOG ("AIGER output literal %u", output);
+  for (unsigned i = 0; i < aiger->num_ands; i++) {
+    unsigned lhs = parse_aiger_ascii_literal (aiger, 1, &ch);
+    if (lhs < 2)
+      parse_error (r, ch, "AND literal %u too small", lhs);
+    if (lhs & 1)
+      parse_error (r, ch, "invalid odd AND literal %u", lhs);
+    if (aiger->gates[lhs/2])
+      parse_error (r, ch, "AND literal %u already defined", lhs);
+    unsigned rhs0 = parse_aiger_ascii_literal (aiger, 1, &ch);
+    if (rhs0 >= lhs)
+      parse_error (r, ch, "AND gate argument %u >= %u", rhs0, lhs);
+    unsigned rhs1 = parse_aiger_ascii_literal (aiger, 0, &ch);
+    if (rhs1 >= lhs)
+      parse_error (r, ch, "AND gate argument %u >= %u", rhs1, lhs);
+    LOG ("parsed AIGER AND gate %u = %u & %u", lhs, rhs0, rhs1);
+  }
 }
 
 static void parse_binary_aiger (Aiger * aiger) {
@@ -113,6 +141,9 @@ static void parse_binary_aiger (Aiger * aiger) {
     aiger->gates[input/2] = new_input_gate (aiger->circuit);
   }
   setup_aiger_symbol_table (aiger);
+  Char ch;
+  unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
+  LOG ("AIGER output literal %u", output);
 }
 
 Circuit * parse_aiger (Reader * r, Symbols * t) {
