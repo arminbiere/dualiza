@@ -3,6 +3,7 @@
 typedef struct Aiger Aiger;
 
 struct Aiger {
+  Circuit * circuit;
   Reader * reader;
   Symbols * symbols;
   unsigned max_index;
@@ -11,6 +12,28 @@ struct Aiger {
   Gate * gates;
 };
 
+static Aiger *
+new_aiger (Circuit * c,
+           Reader * r, Symbols * t,
+	   unsigned M, unsigned I, unsigned A) {
+  assert (M == I + A);
+  Aiger * res;
+  NEW (res);
+  res->circuit = c;
+  res->reader = r;
+  res->symbols = t;
+  res->max_index = M;
+  res->num_inputs = I;
+  res->num_ands = A;
+  ALLOC (res->gates, M + 1);
+  return res;
+}
+
+static void delete_aiger (Aiger * aiger) {
+  DEALLOC (aiger->gates, aiger->max_index + 1);
+  DELETE (aiger);
+}
+ 
 static unsigned parse_header_number (Reader * r, int expect_space) {
   Char ch = next_char (r);
   if (!isdigit (ch.code))
@@ -54,6 +77,15 @@ Circuit * parse_aiger (Reader * r, Symbols * t) {
   L = parse_header_number (r, 1);
   O = parse_header_number (r, 1);
   A = parse_header_number (r, 0);
+  if (L) parse_error (r, ch, "can not handle latches");
+  if (O != 1)
+    parse_error (r, ch, "expected exactly one output but got %u", O);
+  if (M != I + A)
+    parse_error (r, ch,
+      "invalid header M I L O A = %u %u %u %u %u",
+      M, I, L, O, A);
   Circuit * res = new_circuit ();
+  Aiger * aiger = new_aiger (res, r, t, M, I, A);
+  delete_aiger (aiger);
   return res;
 }
