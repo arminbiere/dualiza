@@ -533,7 +533,7 @@ int main (int argc, char ** argv) {
   check_options (output_name);
   setup_messages (output_name);
   msg (1, "Dualiza #SAT Solver");
-  msg (1, "Copyright (C) 2017 Armin Biere Johannes Kepler University Linz");
+  msg (1, "Copyright (C) 2017-2018 Armin Biere Johannes Kepler University Linz");
   print_version ();
   init_mode ();
   set_signal_handlers ();

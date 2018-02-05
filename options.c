@@ -12,12 +12,12 @@ void usage_options () {
   char buffer[80];
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  sprintf (buffer, "%s=%d", #NAME, DEFAULT); \
+  sprintf (buffer, "%s=%d", #NAME, (int) DEFAULT); \
   if ((tmp = strlen (buffer)) > len) len = tmp;
   OPTIONS
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  sprintf (buffer, "%s=%d", #NAME, DEFAULT); \
+  sprintf (buffer, "%s=%d", #NAME, (int) DEFAULT); \
   fputs ("  --", stdout); \
   fputs (buffer, stdout); \
   for (int i = strlen (buffer) - 5; i < len; i++) \
@@ -39,13 +39,6 @@ void print_options () {
   OPTIONS
 }
 
-// TODO remove ...
-
-static int
-mystrcmp (const char * a, const char * b) {
-  return strcmp (a, b);
-}
-
 static int parse_option_aux (char * arg) {
   char * p = strchr (arg, '=');
   if (!p) return 0;
@@ -58,8 +51,10 @@ static int parse_option_aux (char * arg) {
   int res = 0;
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  if (!mystrcmp (arg, #NAME)) options.NAME = atoi (q), res = 1;
+  if (!strcmp (arg, #NAME)) options.NAME = atoi (q), res = 1;
   OPTIONS
+  if (!strcmp (arg, "eager") && options.eager) options.lazy = 0;
+  if (!strcmp (arg, "lazy") && options.lazy) options.eager = 0;
   return res;
 }
 
@@ -69,7 +64,7 @@ int parse_option (const char * arg) {
   if (arg[2] == 'n' && arg[3] == 'o' && arg[4] == '-') {
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-    if (!mystrcmp (arg + 5, #NAME)) { options.NAME = 0; return 1; }
+    if (!strcmp (arg + 5, #NAME)) { options.NAME = 0; return 1; }
     OPTIONS
     return 0;
   }
