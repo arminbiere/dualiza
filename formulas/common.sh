@@ -59,6 +59,23 @@ else
   echo "$0: no 'sharpSAT' found to test against"
 fi
 
+aigtocnf=""
+if which aigtocnf >/dev/null 2>/dev/null
+then
+  path="`which aigtocnf 2>/dev/null`"
+  if [ "`\"$path\" aigs/false.aig|fmt`" = "p cnf 0 1 0" ]
+  then
+    aigtocnf="$path"
+  fi
+fi
+if [ "$aigtocnf" ]
+then
+  echo "$0: using '$aigtocnf'"
+  aigtocnf=aigtocnf
+else
+  echo "$0: no 'aigtocnf' found to use for AIGER to CNF translation"
+fi
+
 firsterase=yes
 erase () {
   if [ $firsterase = yes ]
