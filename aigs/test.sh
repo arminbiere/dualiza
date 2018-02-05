@@ -15,7 +15,7 @@ sat () {
   if [ "$picosat" -a "$aigtocnf" ]
   then
     cnf="$tmp.cnf"
-    if filter $aigtocnf $1 $cnf
+    if filter $aigtocnf --no-pg $1 $cnf
     then
       execute "$picosat" $cnf
       if [ ! "$firstline" = "s $last" ]
@@ -53,7 +53,7 @@ count () {
       if [ "$sharpsat" -a "$aigtocnf" ]
       then
 	cnf="$tmp.cnf"
-	if filter $aigtocnf $1 $cnf
+	if filter $aigtocnf --no-pg $1 $cnf
 	then
 	  filter "$sharpsat" $cnf
 	  res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"
