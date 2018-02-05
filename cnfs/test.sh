@@ -59,6 +59,16 @@ count () {
       fi
       ;;
   esac
+  for configuration in $configurations
+  do
+    args=`echo $configuration | sed -e 's,_, ,g'`
+    execute $dualiza $args $1
+    if [ ! "$last" = "$lastline" ]
+    then
+      error \
+  "counting mismatch with '$args' configuration: '$last' and '$lastline'"
+    fi
+  done
 }
 
 for i in $dir/*.cnf
