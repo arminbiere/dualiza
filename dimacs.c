@@ -66,11 +66,11 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
     assert (g->input == i);
     assert (g->idx == i);
     assert (PEEK (res->inputs, i) == g);
-    Symbol * s = find_or_create_symbol (symbols, name);
-    g->symbol = s;
+    Symbol * symbol = find_or_create_symbol (symbols, name);
+    g->symbol = symbol;
     LOG (
       "DIMACS variable %d connected to input gate %d with symbol '%s'",
-      i + 1, g->input, s->name);
+      i + 1, g->input, symbol->name);
     assert (g->input == g->idx);
   }
   STACK (Gate *) clauses, clause;

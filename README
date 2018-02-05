@@ -1,7 +1,8 @@
 This is Dualiza a model counter, model enumerator and SAT solver.
 It works with DIMACS and AIGER files as well as plain formulas.
+Examples and test scripts are in 'cnfs', 'aigs' and 'formulas'.
 
 To compile run './configure.sh && make'.
 
 Armin Biere
-Mo 23. Oct. 08:20:11 CEST 2017
+Mon Feb  5 16:31:25 CET 2018
