@@ -4,7 +4,7 @@
 #define OPTIONS_ALL \
  \
 OPTION (blklim, INT_MAX, "blocking clauses limit") \
-OPTION (block,        0, "use blocking clauses") \
+OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
 OPTION (eager,        1, "eager blocking clauses (not '--lazy')") \
 OPTION (inputs,       0, "split on inputs first (in primal solver)") \

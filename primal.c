@@ -477,6 +477,9 @@ static void unassign (Primal * solver, int lit) {
 }
 
 static void block (Primal * solver, int lit) {
+  assert (solver->level > 0);
+  stats.blocked++;
+  POG ("adding blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
   Var * v = var (solver, lit);
   assert (v->decision == 1);
@@ -485,8 +488,31 @@ static void block (Primal * solver, int lit) {
     if (f->flipped) continue;
     int decision = f->decision;
     PUSH (solver->clause, -decision);
+    POG ("%s adding literal %d", type (var (solver, lit)), lit);
   }
+  const int size = COUNT (solver->clause);
+  POG ("found blocking clause of length %d", size);
+  assert (solver->clause.start[0] == -lit);
+  int other;
+  while ((other = TOP (solver->trail)) != lit) {
+    Var * v = var (solver, other);
+    const int decision = v->decision;
+    POP (solver->trail);
+    unassign (solver, other);
+    cover (decision);
+    if (decision) dec_level (solver);
+  }
+  unassign (solver, lit);
+  dec_level (solver);
+  Clause * c = new_clause (solver->clause.start, size);
+  assert (!c->glue), assert (!c->redundant);
+  POGCLS (c, "blocking");
+  add_clause_to_cnf (c, solver->cnf);
+  if (size > 1) connect_clause (solver, c);
+  // TODO check for subsumption for last learned clause(s)
   CLEAR (solver->clause);
+  assign (solver, -lit, c);
+  if (!solver->level) solver->iterating = 1;
 }
 
 static void flip (Primal * solver, int lit) {
@@ -512,6 +538,7 @@ static void flip (Primal * solver, int lit) {
 }
 
 static int backtrack (Primal * solver) {
+  if (!solver->level) return 0;
   stats.back.tracked++;
 #ifndef NLOG
   int level = solver->level;

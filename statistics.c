@@ -25,6 +25,8 @@ void print_statistics () {
     if (stats.back.forced)
       msg (1, "%ld forced backtracks (%.0f%% per conflict)",
       stats.back.forced, percent (stats.back.forced, stats.conflicts));
+    if (stats.blocked)
+      msg (1, "%ld blocking clauses", stats.blocked);
     if (stats.rephased)
       msg (1, "%ld rephased (%.0f conflicts per rephase)",
       stats.rephased, average (stats.conflicts, stats.rephased));
