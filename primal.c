@@ -86,6 +86,7 @@ static int val (Primal * solver, int lit) {
 }
 
 static Queue * queue (Primal * solver, Var * v) {
+  if (!options.inputs) return &solver->inputs;
   return v->input ? &solver->inputs : &solver->gates;
 }
 
@@ -218,8 +219,12 @@ Primal * new_primal (CNF * cnf, IntStack * inputs) {
 #endif
   for (int idx = 1; idx <= solver->max_var; idx++)
     enqueue (solver, var (solver, idx));
-  assert (solver->inputs.stamp == num_inputs);
-  assert (solver->gates.stamp == num_gates);
+#ifndef NDEBUG
+  if (options.inputs) {
+    assert (solver->inputs.stamp == num_inputs);
+    assert (solver->gates.stamp == num_gates);
+  }
+#endif
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
   init_limits (solver);
@@ -471,10 +476,23 @@ static void unassign (Primal * solver, int lit) {
     update_queue (solver, q, v);
 }
 
-static void flip (Primal * solver, Var * v, int lit) {
+static void block (Primal * solver, int lit) {
   assert (val (solver, lit) > 0);
-  assert (var (solver, lit) == v);
-  assert (v->decision != 2);
+  Var * v = var (solver, lit);
+  assert (v->decision == 1);
+  for (int level = solver->level; level > 0; level--) {
+    Frame * f = solver->frames.start + level;
+    if (f->flipped) continue;
+    int decision = f->decision;
+    PUSH (solver->clause, -decision);
+  }
+  CLEAR (solver->clause);
+}
+
+static void flip (Primal * solver, int lit) {
+  assert (val (solver, lit) > 0);
+  Var * v = var (solver, lit);
+  assert (v->decision == 1);
   v->decision = 2;
   POG ("%s flip %d", type (v), lit);
   POG ("%s assign %d", type (v), -lit);
@@ -505,7 +523,11 @@ static int backtrack (Primal * solver) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
     const int decision = v->decision;
-    if (decision == 1) { flip (solver, v, lit); return 1; }
+    if (decision == 1) {
+      if (options.block && options.eager) block (solver, lit);
+      else flip (solver, lit);
+      return 1;
+    }
     unassign (solver, lit);
     if (decision == 2) dec_level (solver);
     (void) POP (solver->trail);
@@ -686,6 +708,7 @@ static int backjump (Primal * solver, Clause * c) {
 
 static int resolve_conflict (Primal * solver, Clause * conflict) {
   assert (EMPTY (solver->seen));
+  assert (EMPTY (solver->clause));
   assert (EMPTY (solver->levels));
   Clause * c = conflict;
   const int * p = solver->trail.top;
@@ -843,8 +866,9 @@ static int reuse_trail (Primal * solver) {
   int res = 0;
   for (res = 0; res < solver->level; res++) {
     Frame * f = solver->frames.start + res + 1;
-    Var * decision = var (solver, f->decision);
-    if (decision->stamp < next->stamp) break;
+    Var * v = var (solver, f->decision);
+    assert (v->decision == 1);
+    if (v->stamp < next->stamp) break;
   }
   POG ("reuse trail level %d", res);
   if (res) stats.reused++;
