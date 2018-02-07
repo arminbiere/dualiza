@@ -34,7 +34,7 @@ struct Queue {
 struct Frame {
   int decision;
   char flipped, seen;
-  int prev_flipped;
+  int prev_flipped_level;
 };
 
 struct Limit {
@@ -52,7 +52,8 @@ struct Limit {
 struct Primal {
   Var * vars;
   char iterating;
-  int max_var, next, level, flipped, fixed, phase;
+  int max_var, next, level, fixed, phase;
+  int last_flipped_level, num_flipped_levels;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
@@ -140,7 +141,7 @@ static void dequeue (Primal * solver, Var * v) {
 }
 
 static Frame new_frame (Primal * solver, int decision) {
-  Frame res = { decision, 0, 0, solver->flipped };
+  Frame res = { decision, 0, 0, solver->last_flipped_level };
   return res;
 }
 
@@ -416,12 +417,15 @@ static void dec_level (Primal * solver) {
   POG ("decremented decision level");
   Frame f = POP (solver->frames);
   POG ("popped %s frame", f.flipped ? "flipped" : "decision");
-  if (f.prev_flipped != solver->flipped) {
-    assert (f.prev_flipped < solver->flipped);
-    assert (solver->flipped == solver->level + 1);
-    solver->flipped = f.prev_flipped;
-    POG ("restored flipped level %d", solver->flipped);
-  }
+  if (f.prev_flipped_level != solver->last_flipped_level) {
+    assert (f.flipped);
+    assert (f.prev_flipped_level < solver->last_flipped_level);
+    assert (solver->last_flipped_level == solver->level + 1);
+    solver->last_flipped_level = f.prev_flipped_level;
+    POG ("restored flipped level %d", solver->last_flipped_level);
+    assert (solver->num_flipped_levels);
+    solver->num_flipped_levels--;
+  } else assert (!f.flipped);
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
@@ -478,7 +482,7 @@ static void unassign (Primal * solver, int lit) {
 
 static void block (Primal * solver, int lit) {
   assert (solver->level > 0);
-  stats.blocked++;
+  stats.blocked.clauses++;
   POG ("adding blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
   Var * v = var (solver, lit);
@@ -492,6 +496,7 @@ static void block (Primal * solver, int lit) {
       type (var (solver, decision)), -decision);
   }
   const int size = COUNT (solver->clause);
+  stats.blocked.literals += size;
   POG ("found blocking clause of length %d", size);
   assert (solver->clause.start[0] == -lit);
   int other;
@@ -532,10 +537,22 @@ static void flip (Primal * solver, int lit) {
   assert (f->decision == lit);
   assert (!f->flipped);
   f->flipped = 1;
-  assert (solver->flipped < solver->level);
-  solver->flipped = solver->level;
-  POG ("new flipped level %d", solver->flipped);
-  if (!f->prev_flipped) solver->iterating = 1;
+  assert (solver->last_flipped_level < solver->level);
+  solver->last_flipped_level = solver->level;
+  solver->num_flipped_levels++;
+  POG ("new flipped level %d number %d",
+    solver->last_flipped_level, solver->num_flipped_levels);
+  if (solver->num_flipped_levels == solver->level)
+    solver->iterating = 1;
+}
+
+static int eager_blocking (Primal * solver) {
+  if (!options.block) return 0;
+  if (!options.eager) return 0;
+  assert (solver->level >= solver->num_flipped_levels);
+  const int size = solver->level - solver->num_flipped_levels;
+  POG ("expected blocking clause size %d", size);
+  return size <= options.blklim;
 }
 
 static int backtrack (Primal * solver) {
@@ -552,7 +569,7 @@ static int backtrack (Primal * solver) {
     Var * v = var (solver, lit);
     const int decision = v->decision;
     if (decision == 1) {
-      if (options.block && options.eager) block (solver, lit);
+      if (eager_blocking (solver)) block (solver, lit);
       else flip (solver, lit);
       return 1;
     }
@@ -694,9 +711,10 @@ static Clause * learn_clause (Primal * solver, int glue) {
   const int size = COUNT (solver->clause);
   const int level = jump_level (solver, solver->clause.start, size);
   POG ("jump level %d of size %d clause", level, size);
-  assert (solver->flipped <= solver->level);
-  if (solver->flipped > level) {
-    POG ("flipped frame %d forces backtracking", solver->flipped);
+  assert (solver->last_flipped_level <= solver->level);
+  if (solver->last_flipped_level > level) {
+    POG ("flipped frame %d forces backtracking",
+      solver->last_flipped_level);
     return 0;
   }
   stats.learned++;
@@ -872,7 +890,7 @@ static void reduce (Primal * solver) {
 
 static int restarting (Primal * solver) {
   if (!options.restart) return 0;
-  if (solver->flipped) return 0;
+  if (solver->last_flipped_level) return 0;
   if (!solver->level) return 0;
   if (stats.conflicts < solver->limit.restart.conflicts) return 0;
   double limit = solver->limit.restart.slow * 1.1;
