@@ -3,8 +3,8 @@ do { \
   if (!(C)) break; \
   fflush (stdout); \
   fprintf (stderr, \
-    "*** 'dualiza' in '%s' line '%d: Coverage goal `%s' reached\n", \
-    __FILE__, __LINE__, #C); \
+    "dualiza: %s:%d: %s: Coverage goal `%s' reached\n", \
+    __FILE__, __LINE__, __FUNCTION__, #C); \
   fflush (stderr); \
   abort (); \
 } while (0)
