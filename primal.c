@@ -480,13 +480,63 @@ static void unassign (Primal * solver, int lit) {
     update_queue (solver, q, v);
 }
 
+static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
+
+static void mark_literal (Primal * solver, int lit) {
+  POG ("marking literal %d", lit);
+  Var * v = var (solver, lit);
+  assert (!v->seen);
+  v->seen = lit_sign (lit);
+}
+
+static void unmark_literal (Primal * solver, int lit) {
+  POG ("unmarking literal %d", lit);
+  Var * v = var (solver, lit);
+  assert (v->seen == lit_sign (lit));
+  v->seen = 0;
+}
+
+static void mark_clause (Primal * solver, Clause * c) {
+  for (int i = 0; i < c->size; i++)
+    mark_literal (solver, c->literals[i]);
+}
+
+static void unmark_clause (Primal * solver, Clause * c) {
+  for (int i = 0; i < c->size; i++)
+    unmark_literal (solver, c->literals[i]);
+}
+
+static int marked_literal (Primal * solver, int lit) {
+  Var * v = var (solver, lit);
+  return v->seen == lit_sign (lit);
+}
+
+static int subsumed (Primal * solver, Clause * c, int expected) {
+  if (c->size < expected) return 0;
+  int slack = c->size - expected;
+  for (int i = 0; i < c->size; i++) {
+    int lit = c->literals[i];
+    if (marked_literal (solver, lit)) {
+      if (!--expected) return 1;
+      if (!slack--) return 0;
+    }
+  }
+  return 0;
+}
+
 static void subsume (Primal * solver, Clause * c) {
-  int limit = options.subsumelimit;
+  assert (!c->redundant);
+  mark_clause (solver, c);
+  int limit = MAX (options.subsumelimit, 0);
   Clause ** p = solver->cnf->clauses.top;
   while (p != solver->cnf->clauses.start) {
-    Clause * d = *p;
+    Clause * d = *--p;
+    if (d == c) continue;
+    if (subsumed (solver, d, c->size)) {
+      POGCLS (d, "subsumed");
+    } else if (!limit--) break;
   }
-
+  unmark_clause (solver, c);
 }
 
 static void block (Primal * solver, int lit) {
