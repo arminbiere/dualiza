@@ -488,22 +488,22 @@ static void block (Primal * solver, int lit) {
     if (f->flipped) continue;
     int decision = f->decision;
     PUSH (solver->clause, -decision);
-    POG ("%s adding literal %d", type (var (solver, lit)), lit);
+    POG ("%s adding literal %d",
+      type (var (solver, decision)), -decision);
   }
   const int size = COUNT (solver->clause);
   POG ("found blocking clause of length %d", size);
   assert (solver->clause.start[0] == -lit);
   int other;
-  while ((other = TOP (solver->trail)) != lit) {
+  for (;;) {
+    other = TOP (solver->trail);
     Var * v = var (solver, other);
     const int decision = v->decision;
     POP (solver->trail);
     unassign (solver, other);
-    cover (decision);
     if (decision) dec_level (solver);
+    if (other == lit) break;
   }
-  unassign (solver, lit);
-  dec_level (solver);
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
   POGCLS (c, "blocking");
@@ -511,6 +511,7 @@ static void block (Primal * solver, int lit) {
   if (size > 1) connect_clause (solver, c);
   // TODO check for subsumption for last learned clause(s)
   CLEAR (solver->clause);
+  solver->next = COUNT (solver->trail);
   assign (solver, -lit, c);
   if (!solver->level) solver->iterating = 1;
 }
