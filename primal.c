@@ -480,6 +480,15 @@ static void unassign (Primal * solver, int lit) {
     update_queue (solver, q, v);
 }
 
+static void subsume (Primal * solver, Clause * c) {
+  int limit = options.subsumelimit;
+  Clause ** p = solver->cnf->clauses.top;
+  while (p != solver->cnf->clauses.start) {
+    Clause * d = *p;
+  }
+
+}
+
 static void block (Primal * solver, int lit) {
   assert (solver->level > 0);
   stats.blocked.clauses++;
@@ -519,6 +528,7 @@ static void block (Primal * solver, int lit) {
   solver->next = COUNT (solver->trail);
   assign (solver, -lit, c);
   if (!solver->level) solver->iterating = 1;
+  if (options.subsume) subsume (solver, c);
 }
 
 static void flip (Primal * solver, int lit) {
