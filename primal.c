@@ -47,6 +47,7 @@ struct Limit {
     double slow, fast;
   } restart;
   struct { long conflicts; } rephase;
+  long subsumed;
 };
 
 struct Primal {
@@ -173,10 +174,16 @@ static void init_rephase_limit (Primal * solver) {
     solver->limit.rephase.conflicts);
 }
 
+static void set_subsumed_limit (Primal * solver) {
+  solver->limit.subsumed += COUNT (solver->cnf->clauses)/10 + 1000;
+  LOG ("subsumed limit %ld", solver->limit.subsumed);
+}
+
 static void init_limits (Primal * solver) {
   init_reduce_limit (solver);
   init_restart_limit (solver);
   init_rephase_limit (solver);
+  set_subsumed_limit (solver);
 }
 
 Primal * new_primal (CNF * cnf, IntStack * inputs) {
@@ -351,7 +358,7 @@ static void report (Primal * solver, int verbosity, const char type) {
     remaining_variables (solver));
 }
 
-static Clause * bcp (Primal * solver) {
+static Clause * propagate (Primal * solver) {
   Clause * res = 0;
   while (!res && solver->next < COUNT (solver->trail)) {
     int lit = solver->trail.start[solver->next++];
@@ -362,6 +369,7 @@ static Clause * bcp (Primal * solver) {
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
       Clause * c = *q++ = *p++;
+      if (c->garbage) { q--; continue; }
       POGCLS (c, "visiting while propagating %d", lit);
       assert (c->size > 1);
       if (c->literals[0] != -lit)
@@ -512,6 +520,7 @@ static int marked_literal (Primal * solver, int lit) {
 }
 
 static int subsumed (Primal * solver, Clause * c, int expected) {
+  if (c->garbage) return 0;
   if (c->size < expected) return 0;
   int slack = c->size - expected;
   for (int i = 0; i < c->size; i++) {
@@ -524,6 +533,24 @@ static int subsumed (Primal * solver, Clause * c, int expected) {
   return 0;
 }
 
+static void flush_garbage_occurrences (Primal * solver) {
+  long flushed = 0;
+  for (int idx = 1; idx <= solver->max_var; idx++)
+    for (int sign = -1; sign <= 1; sign += 2) {
+      int lit = sign * idx;
+      Clauses * o = occs (solver, lit);
+      Clause ** q = o->start, ** p = q;
+      while (p < o->top) {
+	Clause * c = *p++;
+	if (c->garbage) flushed++;
+	else *q++ = c;
+      }
+      o->top = q;
+      if (EMPTY (*o)) RELEASE (*o);
+    }
+  POG ("flushed %ld garbage occurrences", flushed);
+}
+
 static void subsume (Primal * solver, Clause * c) {
   assert (!c->redundant);
   mark_clause (solver, c);
@@ -534,9 +561,14 @@ static void subsume (Primal * solver, Clause * c) {
     if (d == c) continue;
     if (subsumed (solver, d, c->size)) {
       POGCLS (d, "subsumed");
+      d->garbage = 1;
+      stats.subsumed++;
     } else if (!limit--) break;
   }
   unmark_clause (solver, c);
+  if (stats.subsumed <= solver->limit.subsumed) return;
+  flush_garbage_occurrences (solver);
+  collect_garbage_clauses (solver->cnf);
 }
 
 static void block (Primal * solver, int lit) {
@@ -573,7 +605,6 @@ static void block (Primal * solver, int lit) {
   POGCLS (c, "blocking");
   add_clause_to_cnf (c, solver->cnf);
   if (size > 1) connect_clause (solver, c);
-  // TODO check for subsumption for last learned clause(s)
   CLEAR (solver->clause);
   solver->next = COUNT (solver->trail);
   assign (solver, -lit, c);
@@ -928,21 +959,7 @@ static void reduce (Primal * solver) {
   }
   RELEASE (candidates);
   POG ("marked %ld clauses as garbage", marked);
-  long flushed = 0;
-  for (int idx = 1; idx <= solver->max_var; idx++)
-    for (int sign = -1; sign <= 1; sign += 2) {
-      int lit = sign * idx;
-      Clauses * o = occs (solver, lit);
-      Clause ** q = o->start, ** p = q;
-      while (p < o->top) {
-	Clause * c = *p++;
-	if (c->garbage) flushed++;
-	else *q++ = c;
-      }
-      o->top = q;
-      if (EMPTY (*o)) RELEASE (*o);
-    }
-  POG ("flushed %ld occurrences to %ld garbage clauses", flushed, marked);
+  flush_garbage_occurrences (solver);
   collect_garbage_clauses (cnf);
   inc_reduce_limit (solver);
   report (solver, 1, '-');
@@ -1022,11 +1039,11 @@ static void rephase (Primal * solver) {
 
 int primal_sat (Primal * solver) {
   if (!connect_cnf (solver)) return 20;
-  if (bcp (solver)) return 20;
+  if (propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
   int res = 0;
   while (!res) {
-    Clause * conflict = bcp (solver);
+    Clause * conflict = propagate (solver);
     if (conflict) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
@@ -1040,14 +1057,14 @@ int primal_sat (Primal * solver) {
 
 void primal_count (Number res, Primal * solver) {
   if (!connect_cnf (solver)) return;
-  if (bcp (solver)) return;
+  if (propagate (solver)) return;
   if (satisfied (solver)) {
     POG ("single root level model");
     inc_number (res);
     return;
   }
   for (;;) {
-    Clause * conflict = bcp (solver);
+    Clause * conflict = propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
@@ -1076,10 +1093,10 @@ static void print_model (Primal * solver, Name name) {
 
 void primal_enumerate (Primal * solver, Name name) {
   if (!connect_cnf (solver)) return;
-  if (bcp (solver)) return;
+  if (propagate (solver)) return;
   if (satisfied (solver)) { print_model (solver, name); return; }
   for (;;) {
-    Clause * conflict = bcp (solver);
+    Clause * conflict = propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
