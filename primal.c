@@ -552,7 +552,7 @@ static int eager_blocking (Primal * solver) {
   assert (solver->level >= solver->num_flipped_levels);
   const int size = solver->level - solver->num_flipped_levels;
   POG ("expected blocking clause size %d", size);
-  return size <= options.blklim;
+  return size <= options.eagerlimit;
 }
 
 static int backtrack (Primal * solver) {
