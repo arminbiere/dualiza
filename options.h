@@ -23,6 +23,8 @@ OPTION (rephaseint, 1e4, "reinitializing phase conflict interval") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
 OPTION (reuse,        1, "reuse trail during restart") \
+OPTION (subsume,      1, "eager blocking clause subsumption") \
+OPTION (subsumelimit, 1, "limit on number of non-subsumed clauses")  \
 OPTION (verbosity,    0, "verbose level") \
 
 /*------------------------------------------------------------------------*/
