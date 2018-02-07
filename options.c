@@ -35,7 +35,6 @@ void print_options () {
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
   print_option (#NAME, options.NAME, DEFAULT);
-  // if (NAME != DEFAULT) msg (1, "--%s=%d", #NAME, NAME);
   OPTIONS
 }
 
