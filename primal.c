@@ -573,12 +573,13 @@ static void subsume (Primal * solver, Clause * c) {
   report (solver, 1, '/');
 }
 
-static void block (Primal * solver, int lit) {
+static void eager_block_clause (Primal * solver, int lit) {
   assert (solver->level > 0);
-  stats.blocked.clauses++;
-  POG ("adding blocking clause for decision %d", lit);
+  stats.blocked.eager.clauses++;
+  POG ("adding eagerly blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
   assert (var (solver, lit)->decision == 1);
+  assert (EMPTY (solver->clause));
   for (int level = solver->level; level > 0; level--) {
     Frame * f = solver->frames.start + level;
     if (f->flipped) continue;
@@ -588,8 +589,8 @@ static void block (Primal * solver, int lit) {
       type (var (solver, decision)), -decision);
   }
   const int size = COUNT (solver->clause);
-  stats.blocked.literals += size;
-  POG ("found blocking clause of length %d", size);
+  stats.blocked.eager.literals += size;
+  POG ("found eager blocking clause of length %d", size);
   assert (solver->clause.start[0] == -lit);
   int other;
   for (;;) {
@@ -603,7 +604,7 @@ static void block (Primal * solver, int lit) {
   }
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
-  POGCLS (c, "blocking");
+  POGCLS (c, "eager blocking");
   add_clause_to_cnf (c, solver->cnf);
   if (size > 1) connect_clause (solver, c);
   CLEAR (solver->clause);
@@ -643,7 +644,7 @@ static int eager_blocking (Primal * solver) {
   if (!options.eager) return 0;
   assert (solver->level >= solver->num_flipped_levels);
   const int size = solver->level - solver->num_flipped_levels;
-  POG ("expected blocking clause size %d", size);
+  POG ("expected eager blocking clause size %d", size);
   return size <= options.eagerlimit;
 }
 
@@ -661,7 +662,7 @@ static int backtrack (Primal * solver) {
     Var * v = var (solver, lit);
     const int decision = v->decision;
     if (decision == 1) {
-      if (eager_blocking (solver)) block (solver, lit);
+      if (eager_blocking (solver)) eager_block_clause (solver, lit);
       else flip (solver, lit);
       return 1;
     }
@@ -797,6 +798,60 @@ static int jump_level (Primal * solver, int * lits, int size) {
   return var (solver, lits[1])->level;
 }
 
+static int lazy_blocking (Primal * solver, int level) {
+  if (!options.block) return 0;
+  if (!options.lazy) return 0;
+  assert (level < solver->level);
+  int count = 0;
+  for (int l = level + 1; l <= solver->last_flipped_level; l++) {
+    Frame * f = solver->frames.start + l;
+    if (f->flipped) count++;
+  }
+  if (count > options.lazynlim) {
+    POG ("would need %d > %d lazy blocking clauses", count, options.lazynlim);
+    return 0;
+  }
+  assert (solver->last_flipped_level >= solver->num_flipped_levels);
+  const int size = solver->last_flipped_level - solver->num_flipped_levels;
+  POG ("expected %d lazy blocking clauses of at most size %d", count, size);
+  return size <= options.lazyslim;
+}
+
+static void lazy_block_clause (Primal * solver, int lit) {
+  assert (solver->level > 0);
+  stats.blocked.lazy.clauses++;
+  POG ("adding lazy blocking clause for decision %d", lit);
+  assert (val (solver, lit) > 0);
+  assert (var (solver, lit)->decision == 2);
+  assert (EMPTY (solver->clause));
+  for (int level = var (solver, lit)->level; level > 0; level--) {
+    Frame * f = solver->frames.start + level;
+    if (f->flipped) continue;
+    int decision = f->decision;
+    PUSH (solver->clause, -decision);
+    POG ("%s adding literal %d",
+      type (var (solver, decision)), -decision);
+  }
+  const int size = COUNT (solver->clause);
+  stats.blocked.lazy.literals += size;
+  POG ("found lazy blocking clause of length %d", size);
+  assert (solver->clause.start[0] == -lit);
+  Clause * c = new_clause (solver->clause.start, size);
+  assert (!c->glue), assert (!c->redundant);
+  POGCLS (c, "lazy blocking");
+  add_clause_to_cnf (c, solver->cnf);
+  if (size > 1) connect_clause (solver, c);
+  CLEAR (solver->clause);
+}
+
+static void lazy_block_clauses (Primal * solver, int level) {
+  assert (level < solver->level);
+  for (int l = solver->last_flipped_level; l > level; l--) {
+    Frame * f = solver->frames.start + l;
+    if (f->flipped) lazy_block_clause (solver, f->decision);
+  }
+}
+
 static Clause * learn_clause (Primal * solver, int glue) {
   if (!options.learn) return 0;
   sort_clause (solver);
@@ -805,9 +860,12 @@ static Clause * learn_clause (Primal * solver, int glue) {
   POG ("jump level %d of size %d clause", level, size);
   assert (solver->last_flipped_level <= solver->level);
   if (solver->last_flipped_level > level) {
-    POG ("flipped frame %d forces backtracking",
-      solver->last_flipped_level);
-    return 0;
+    if (!lazy_blocking (solver, level)) {
+      POG ("flipped frame %d forces backtracking",
+	solver->last_flipped_level);
+      return 0;
+    }
+    lazy_block_clauses (solver, level);
   }
   stats.learned++;
   POG ("learning clause number %ld of size %d", stats.learned, size);
@@ -821,12 +879,12 @@ static Clause * learn_clause (Primal * solver, int glue) {
   return res;
 }
 
-static int backjump (Primal * solver, Clause * c) {
+static int back_jump (Primal * solver, Clause * c) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   const int level = jump_level (solver, c->literals, c->size);
   stats.back.jumped++;
-  POG ("backjump %ld, to level %d", stats.back.jumped, level);
+  POG ("back jump %ld to level %d", stats.back.jumped, level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -872,7 +930,7 @@ static int analyze (Primal * solver, Clause * conflict) {
   int glue = resolve_conflict (solver, conflict);
   Clause * c = learn_clause (solver, glue);
   CLEAR (solver->clause);
-  if (c) return backjump (solver, c);
+  if (c) return back_jump (solver, c);
   stats.back.forced++;
   POG ("forced backtrack %ld", stats.back.forced);
   return backtrack (solver);

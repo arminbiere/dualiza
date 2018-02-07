@@ -12,6 +12,8 @@ OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \
 OPTION (learn,        1, "learn clauses") \
 OPTION (lazy,         0, "lazy blocking clauses (not '--eager')") \
+OPTION (lazynlim,     1, "number lazy blocking clauses limit") \
+OPTION (lazyslim,    20, "lazy blocking clause size limit") \
 OPTION (phaseinit,    1, "initial default phase") \
 OPTION (primal,       1, "use primal SAT engine only") \
 OPTION (print,        1, "print model or number of all assignments") \

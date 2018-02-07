@@ -25,13 +25,20 @@ void print_statistics () {
     if (stats.back.forced)
       msg (1, "%ld forced backtracks (%.0f%% per conflict)",
       stats.back.forced, percent (stats.back.forced, stats.conflicts));
-    if (stats.blocked.clauses)
-      msg (1, "%ld blocking clauses (%.1f average length)",
-        stats.blocked.clauses,
-	average (stats.blocked.literals, stats.blocked.clauses));
+    long blocked = stats.blocked.eager.clauses + stats.blocked.lazy.clauses;
+    if (stats.blocked.eager.clauses)
+      msg (1, "%ld eager blocking clauses (%.1f%% of %.1f average length)",
+        stats.blocked.eager.clauses,
+	percent (stats.blocked.eager.clauses, blocked),
+	average (stats.blocked.eager.literals, stats.blocked.eager.clauses));
+    if (stats.blocked.lazy.clauses)
+      msg (1, "%ld lazy blocking clauses (%.1f%% of %.1f average length)",
+        stats.blocked.lazy.clauses,
+	percent (stats.blocked.lazy.clauses, blocked),
+	average (stats.blocked.lazy.literals, stats.blocked.lazy.clauses));
     if (stats.subsumed)
       msg (1, "%ld subsumed clauses (%.1f%% of blocked clauses)",
-        stats.subsumed, percent (stats.subsumed, stats.blocked.clauses));
+        stats.subsumed, percent (stats.subsumed, blocked));
     if (stats.rephased)
       msg (1, "%ld rephased (%.0f conflicts per rephase)",
       stats.rephased, average (stats.conflicts, stats.rephased));
