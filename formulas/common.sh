@@ -134,5 +134,9 @@ run () {
 configurations="\
 --block=0 \
 --block=1_--eager=1 \
---block=1_--eager=0 \
+--block=1_--eager=1 --blklim=1 \
+--block=1_--eager=1 --blklim=2 \
+--block=1_--eager=1 --blklim=3 \
 "
+
+#--block=1_--eager=0 \
