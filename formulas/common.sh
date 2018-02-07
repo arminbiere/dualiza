@@ -134,9 +134,16 @@ run () {
 configurations="\
 --block=0 \
 --block=1_--eager=1 \
---block=1_--eager=1 --eagerlimit=1 \
---block=1_--eager=1 --eagerlimit=2 \
---block=1_--eager=1 --eagerlimit=3 \
+--block=1_--eager=1_--eagerlimit=1 \
+--block=1_--eager=1_--eagerlimit=2 \
+--block=1_--eager=1_--eagerlimit=3 \
+--block=1_--lazy=1 \
+--block=1_--lazy=1_--lazynlim=1_--lazyslim=1 \
+--block=1_--lazy=1_--lazynlim=1_--lazyslim=2 \
+--block=1_--lazy=1_--lazynlim=1_--lazyslim=3 \
+--block=1_--lazy=1_--lazynlim=2_--lazyslim=1 \
+--block=1_--lazy=1_--lazynlim=2_--lazyslim=2 \
+--block=1_--lazy=1_--lazynlim=2_--lazyslim=3 \
 "
 
 #--block=1_--eager=0 \
