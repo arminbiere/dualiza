@@ -569,6 +569,8 @@ static void subsume (Primal * solver, Clause * c) {
   if (stats.subsumed <= solver->limit.subsumed) return;
   flush_garbage_occurrences (solver);
   collect_garbage_clauses (solver->cnf);
+  set_subsumed_limit (solver);
+  report (solver, 1, '/');
 }
 
 static void block (Primal * solver, int lit) {
@@ -576,8 +578,7 @@ static void block (Primal * solver, int lit) {
   stats.blocked.clauses++;
   POG ("adding blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
-  Var * v = var (solver, lit);
-  assert (v->decision == 1);
+  assert (var (solver, lit)->decision == 1);
   for (int level = solver->level; level > 0; level--) {
     Frame * f = solver->frames.start + level;
     if (f->flipped) continue;
@@ -595,7 +596,7 @@ static void block (Primal * solver, int lit) {
     other = TOP (solver->trail);
     Var * v = var (solver, other);
     const int decision = v->decision;
-    POP (solver->trail);
+    (void) POP (solver->trail);
     unassign (solver, other);
     if (decision) dec_level (solver);
     if (other == lit) break;
