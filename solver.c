@@ -54,7 +54,6 @@ struct Limit {
     long conflicts;
     double slow, fast;
   } restart;
-  struct { long conflicts; } rephase;
   long subsumed;
 };
 
@@ -176,12 +175,6 @@ static void init_restart_limit (Solver * solver) {
     solver->limit.restart.conflicts);
 }
 
-static void init_rephase_limit (Solver * solver) {
-  solver->limit.rephase.conflicts = MAX (options.rephaseint, 1);
-  LOG ("initial rephase conflict limit %ld",
-    solver->limit.rephase.conflicts);
-}
-
 static void set_subsumed_limit (Solver * solver) {
   solver->limit.subsumed += COUNT (solver->primal->clauses)/10 + 1000;
   LOG ("subsumed limit %ld", solver->limit.subsumed);
@@ -190,7 +183,6 @@ static void set_subsumed_limit (Solver * solver) {
 static void init_limits (Solver * solver) {
   init_reduce_limit (solver);
   init_restart_limit (solver);
-  init_rephase_limit (solver);
   set_subsumed_limit (solver);
 }
 
@@ -1026,26 +1018,6 @@ static void restart (Solver * solver) {
   report (solver, 2, 'r');
 }
 
-static int rephasing (Solver * solver) {
-  if (!options.rephase) return 0;
-  return stats.conflicts >= solver->limit.rephase.conflicts;
-}
-
-static void inc_rephase_limit (Solver * solver) {
-  solver->limit.rephase.conflicts *= 2;
-  SOG ("new rephase conflict limit %ld", solver->limit.rephase.conflicts);
-}
-
-static void rephase (Solver * solver) {
-  stats.rephased++;
-  solver->phase *= -1;
-  LOG ("rephase %ld new phase %d", stats.rephased, solver->phase);
-  for (int idx = 1; idx <= solver->max_var; idx++)
-    var (solver, idx)->phase = solver->phase;
-  inc_rephase_limit (solver);
-  report (solver, 1, '~');
-}
-
 int primal_sat (Solver * solver) {
   if (!connect_cnf (solver)) return 20;
   if (propagate (solver)) return 20;
@@ -1057,7 +1029,6 @@ int primal_sat (Solver * solver) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
-    else if (rephasing (solver)) rephase (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
@@ -1082,7 +1053,6 @@ void primal_count (Number res, Solver * solver) {
       stats.models++;
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
-    else if (rephasing (solver)) rephase (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
@@ -1115,7 +1085,6 @@ void primal_enumerate (Solver * solver, Name name) {
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
-    else if (rephasing (solver)) rephase (solver);
     else decide (solver);
   }
 }

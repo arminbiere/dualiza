@@ -35,9 +35,6 @@ void print_statistics () {
     if (stats.subsumed)
       msg (1, "%ld subsumed clauses (%.1f%% of blocking clauses)",
         stats.subsumed, percent (stats.subsumed, stats.blocked.clauses));
-    if (stats.rephased)
-      msg (1, "%ld rephased (%.0f conflicts per rephase)",
-      stats.rephased, average (stats.conflicts, stats.rephased));
     if (stats.restarts)
       msg (1, "%ld restarts (%.0f conflicts per restart)",
       stats.restarts, average (stats.conflicts, stats.restarts));
