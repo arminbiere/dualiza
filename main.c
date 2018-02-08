@@ -150,7 +150,6 @@ static long parse_non_negative_number (const char * s) {
 static Reader * input;
 static Symbols * symbols;
 static Circuit * primal_circuit, * dual_circuit;
-static CNF * cnf;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -318,7 +317,7 @@ static int check () {
     reset_bdds ();
   } else if (options.primal) {
     msg (1, "checking with primal SAT engine");
-    cnf = new_cnf ();
+    CNF * cnf = new_cnf ();
     Circuit * circuit = tautology ? dual_circuit : primal_circuit;
     encode_circuit (circuit, cnf, 0);
     IntStack inputs;
@@ -374,7 +373,7 @@ static void print (const char * output_name) {
     msg (1, "printing formula to '%s'", output->name);
     println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
-    cnf = new_cnf ();
+    CNF * cnf = new_cnf ();
     encode_circuit (primal_circuit, cnf, 0);
     print_dimacs_encoding_to_file (primal_circuit, output->file);
     print_cnf_to_file (cnf, output->file);
@@ -402,7 +401,7 @@ static void all () {
     reset_bdds ();
   } else if (options.primal) {
     msg (1, "enumerating with primal SAT engine");
-    cnf = new_cnf ();
+    CNF * cnf = new_cnf ();
     encode_circuit (primal_circuit, cnf, 0);
     IntStack inputs;
     INIT (inputs);
@@ -443,7 +442,7 @@ static void count () {
     reset_bdds ();
   } else if (options.primal) {
     msg (1, "counting with primal SAT engine");
-    cnf = new_cnf ();
+    CNF * cnf = new_cnf ();
     encode_circuit (primal_circuit, cnf, 0);
     IntStack inputs;
     INIT (inputs);

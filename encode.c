@@ -24,7 +24,7 @@ Gate * decode_literal (Circuit * circuit, int lit) {
 int encode_input (Circuit * circuit, Gate * g) {
   int sign = SIGN (g);
   if (sign) g = STRIP (g);
-  assert (g->op == INPUT);
+  assert (g->op == INPUT_OPERATOR);
   assert (g->circuit == circuit);
   assert (PEEK (circuit->inputs, g->input) == g);
   assert (g->input < INT_MAX);
@@ -276,7 +276,7 @@ static int encode_gates (Encoder * encoder, Gate * g, int idx) {
     const int n = COUNT (g->inputs);
     if (n > 2) {
       LOG ("reserving additional %d variables for %d-ary %s",
-	n-2, n, (g->op == XOR ? "XOR" : "XNOR"));
+	n-2, n, (g->op == XOR_OPERATOR ? "XOR" : "XNOR"));
       idx += n-2;
     }
   }

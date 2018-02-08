@@ -114,7 +114,10 @@ static void update_queue (Solver * solver, Queue * q, Var * v) {
 
 static const char * type (Var * v) {
   assert (v);
-  return v->input ? "input" : "gate";
+  if (v->type == PRIMAL_VARIABLE) return "primal";
+  if (v->type == INPUT_VARIABLE) return "input";
+  assert (v->type == DUAL_VARIABLE);
+  return "dual";
 }
 
 #endif
