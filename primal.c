@@ -557,6 +557,7 @@ static void subsume (Primal * solver, Clause * c) {
   while (p != solver->cnf->clauses.start) {
     Clause * d = *--p;
     if (d == c) continue;
+    if (d->garbage) break;
     if (subsumed (solver, d, c->size)) {
       POGCLS (d, "subsumed");
       d->garbage = 1;
@@ -964,22 +965,23 @@ static void reduce (Primal * solver) {
   report (solver, 1, '-');
 }
 
-static int restarting (Primal * solver) {
-  if (!options.restart) return 0;
-  if (solver->last_flipped_level) return 0;
-  if (!solver->level) return 0;
-  if (stats.conflicts < solver->limit.restart.conflicts) return 0;
-  double limit = solver->limit.restart.slow * 1.1;
-  int res = solver->limit.restart.fast > limit;
-  if (!res) report (solver, 3, 'n');
-  return res;
-}
-
 static void inc_restart_limit (Primal * solver) {
   const int inc = MAX (options.restartint, 1);
   solver->limit.restart.conflicts = stats.conflicts + inc;
   POG ("new restart conflicts limit %ld",
     solver->limit.restart.conflicts);
+}
+
+static int restarting (Primal * solver) {
+  if (!options.restart) return 0;
+  if (solver->last_flipped_level) return 0;
+  if (!solver->level) return 0;
+  if (stats.conflicts <= solver->limit.restart.conflicts) return 0;
+  inc_restart_limit (solver);
+  double limit = solver->limit.restart.slow * 1.1;
+  int res = solver->limit.restart.fast > limit;
+  if (!res) report (solver, 3, 'n');
+  return res;
 }
 
 static int reuse_trail (Primal * solver) {
@@ -1012,7 +1014,6 @@ static void restart (Primal * solver) {
     (void) POP (solver->trail);
   }
   solver->next = COUNT (solver->trail);
-  inc_restart_limit (solver);
   report (solver, 2, 'r');
 }
 
