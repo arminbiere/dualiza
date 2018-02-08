@@ -2,7 +2,6 @@
 debug=no
 check=undefined
 log=undefined
-testing=no
 gmp=no
 die () {
   echo "*** configure.sh: $*" 1>&2
@@ -18,7 +17,6 @@ where '<option>' is one of the following
 -g | --debug  compile with debugging information
 -c | --check  include assertion checking code (default for '-g')
 -l | --log    include logging code (default for '-g')
--t | --test   include testing code
 --gmp         use GMP code
 EOF
 exit 0
@@ -30,7 +28,6 @@ do
     -g | --debug) debug=yes;;
     -l | --log | --logging) log=yes;;
     -c | --chk | --check | --checking) check=yes;;
-    -t | --test | --testing) testing=yes;;
     --gmp) gmp=yes;;
     *) die "invalid option '$1' (try '-h')";;
   esac
@@ -72,7 +69,6 @@ else
 fi
 [ $check = no ] && CFLAGS="$CFLAGS -DNDEBUG"
 [ $log = no ] && CFLAGS="$CFLAGS -DNLOG"
-[ $testing = yes ] && CFLAGS="$CFLAGS -DTEST"
 [ $gmp = yes ] && CFLAGS="$CFLAGS -DGMP"
 echo "$CC $CFLAGS $LIBS"
 rm -f makefile

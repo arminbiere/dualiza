@@ -1,9 +1,5 @@
 #include "headers.h"
 
-#ifdef TEST
-#define static /**/
-#endif
-
 static void usage () {
 fputs (
 "usage: dualiza [ <option> ... ] [ <file> ] [ <limit> ]\n"
@@ -542,9 +538,6 @@ int main (int argc, char ** argv) {
   init_mode ();
   set_signal_handlers ();
   print_options ();
-#ifdef TEST
-  test ();
-#else
   parse (input_name);
   delete_reader (input);
   init ();

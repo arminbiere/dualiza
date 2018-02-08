@@ -34,7 +34,6 @@
 #include "solver.h"
 #include "statistics.h"
 #include "symbols.h"
-#include "test.h"
 #include "utils.h"
 #include "version.h"
 #include "writer.h"
