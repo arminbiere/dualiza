@@ -525,8 +525,9 @@ static int subsumed (Primal * solver, Clause * c, int expected) {
   int slack = c->size - expected;
   for (int i = 0; i < c->size; i++) {
     int lit = c->literals[i];
-    if (!marked_literal (solver, lit) && !slack--) return 0;
-    else if (!--expected) return 1;
+    if (!marked_literal (solver, lit)) {
+      if (!slack--) return 0;
+    } else if (!--expected) return 1;
   }
   return 0;
 }
