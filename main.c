@@ -328,7 +328,7 @@ static int check () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs);
+    Solver * solver = new_solver (cnf, &inputs, 0);
     res = primal_sat (solver);
     if (sat) {
       if (sat_competition_mode) fputs ("s ", stdout);
@@ -411,7 +411,7 @@ static void all () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs);
+    Solver * solver = new_solver (cnf, &inputs, 0);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
     primal_enumerate (solver, n);
@@ -452,7 +452,7 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs);
+    Solver * solver = new_solver (cnf, &inputs, 0);
     Number n;
     init_number (n);
     primal_count (n, solver);

@@ -68,6 +68,7 @@ struct Solver {
   Queue inputs, gates;
   Limit limit;
   CNF * primal;
+  CNF * dual;
 };
 
 static Var * var (Solver * solver, int lit) {
@@ -186,7 +187,7 @@ static void init_limits (Solver * solver) {
   set_subsumed_limit (solver);
 }
 
-Solver * new_solver (CNF * primal, IntStack * inputs) {
+Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   assert (primal);
   Solver * solver;
   NEW (solver);
