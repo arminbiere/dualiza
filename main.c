@@ -328,7 +328,7 @@ static int check () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
-    Primal * solver = new_primal (cnf, &inputs);
+    Solver * solver = new_solver (cnf, &inputs);
     res = primal_sat (solver);
     if (sat) {
       if (sat_competition_mode) fputs ("s ", stdout);
@@ -345,7 +345,7 @@ static int check () {
     if (res == 10 && options.print) {
       int printed = 0;
       for (int * p = inputs.start; p < inputs.top; p++) {
-	const int idx = *p, val = primal_deref (solver, idx);
+	const int idx = *p, val = deref (solver, idx);
 	if (!val) continue;
 	if (printed++) fputc (' ', stdout);
 	else if (sat_competition_mode) fputs ("v ", stdout);
@@ -358,7 +358,7 @@ static int check () {
       }
       fputc ('\n', stdout);
     }
-    delete_primal (solver);
+    delete_solver (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("checking with dual SAT engine not implement yet");
@@ -411,11 +411,11 @@ static void all () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Primal * solver = new_primal (cnf, &inputs);
+    Solver * solver = new_solver (cnf, &inputs);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
     primal_enumerate (solver, n);
-    delete_primal (solver);
+    delete_solver (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("enumerating with dual SAT engine not implement yet (use '-b')");
@@ -452,7 +452,7 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Primal * solver = new_primal (cnf, &inputs);
+    Solver * solver = new_solver (cnf, &inputs);
     Number n;
     init_number (n);
     primal_count (n, solver);
@@ -461,7 +461,7 @@ static void count () {
     fflush (stdout);
     if (options.print) println_number (n), fflush (stdout);
     clear_number (n);
-    delete_primal (solver);
+    delete_solver (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
   } else die ("counting with dual SAT engine not implement yet (use '-b')");
