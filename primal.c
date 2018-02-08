@@ -575,7 +575,7 @@ static void subsume (Primal * solver, Clause * c) {
 
 static void eager_block_clause (Primal * solver, int lit) {
   assert (solver->level > 0);
-  stats.blocked.eager.clauses++;
+  stats.blocked.clauses++;
   POG ("adding eagerly blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
   assert (var (solver, lit)->decision == 1);
@@ -589,7 +589,7 @@ static void eager_block_clause (Primal * solver, int lit) {
       type (var (solver, decision)), -decision);
   }
   const int size = COUNT (solver->clause);
-  stats.blocked.eager.literals += size;
+  stats.blocked.literals += size;
   POG ("found eager blocking clause of length %d", size);
   assert (solver->clause.start[0] == -lit);
   int other;
@@ -641,11 +641,10 @@ static void flip (Primal * solver, int lit) {
 
 static int eager_blocking (Primal * solver) {
   if (!options.block) return 0;
-  if (!options.eager) return 0;
   assert (solver->level >= solver->num_flipped_levels);
   const int size = solver->level - solver->num_flipped_levels;
   POG ("expected eager blocking clause size %d", size);
-  return size <= options.eagerlimit;
+  return size <= options.blocklimit;
 }
 
 static int backtrack (Primal * solver) {
@@ -798,60 +797,6 @@ static int jump_level (Primal * solver, int * lits, int size) {
   return var (solver, lits[1])->level;
 }
 
-static int lazy_blocking (Primal * solver, int level) {
-  if (!options.block) return 0;
-  if (!options.lazy) return 0;
-  assert (level < solver->level);
-  int count = 0;
-  for (int l = level + 1; l <= solver->last_flipped_level; l++) {
-    Frame * f = solver->frames.start + l;
-    if (f->flipped) count++;
-  }
-  if (count > options.lazynlim) {
-    POG ("would need %d > %d lazy blocking clauses", count, options.lazynlim);
-    return 0;
-  }
-  assert (solver->last_flipped_level >= solver->num_flipped_levels);
-  const int size = solver->last_flipped_level - solver->num_flipped_levels;
-  POG ("expected %d lazy blocking clauses of at most size %d", count, size);
-  return size <= options.lazyslim;
-}
-
-static void lazy_block_clause (Primal * solver, int lit) {
-  assert (solver->level > 0);
-  stats.blocked.lazy.clauses++;
-  POG ("adding lazy blocking clause for decision %d", lit);
-  assert (val (solver, lit) > 0);
-  assert (var (solver, lit)->decision == 2);
-  assert (EMPTY (solver->clause));
-  for (int level = var (solver, lit)->level; level > 0; level--) {
-    Frame * f = solver->frames.start + level;
-    if (f->flipped) continue;
-    int decision = f->decision;
-    PUSH (solver->clause, -decision);
-    POG ("%s adding literal %d",
-      type (var (solver, decision)), -decision);
-  }
-  const int size = COUNT (solver->clause);
-  stats.blocked.lazy.literals += size;
-  POG ("found lazy blocking clause of length %d", size);
-  assert (solver->clause.start[0] == -lit);
-  Clause * c = new_clause (solver->clause.start, size);
-  assert (!c->glue), assert (!c->redundant);
-  POGCLS (c, "lazy blocking");
-  add_clause_to_cnf (c, solver->cnf);
-  if (size > 1) connect_clause (solver, c);
-  CLEAR (solver->clause);
-}
-
-static void lazy_block_clauses (Primal * solver, int level) {
-  assert (level < solver->level);
-  for (int l = solver->last_flipped_level; l > level; l--) {
-    Frame * f = solver->frames.start + l;
-    if (f->flipped) lazy_block_clause (solver, f->decision);
-  }
-}
-
 static Clause * learn_clause (Primal * solver, int glue) {
   if (!options.learn) return 0;
   sort_clause (solver);
@@ -860,12 +805,9 @@ static Clause * learn_clause (Primal * solver, int glue) {
   POG ("jump level %d of size %d clause", level, size);
   assert (solver->last_flipped_level <= solver->level);
   if (solver->last_flipped_level > level) {
-    if (!lazy_blocking (solver, level)) {
-      POG ("flipped frame %d forces backtracking",
-	solver->last_flipped_level);
-      return 0;
-    }
-    lazy_block_clauses (solver, level);
+    POG ("flipped frame %d forces backtracking",
+      solver->last_flipped_level);
+    return 0;
   }
   stats.learned++;
   POG ("learning clause number %ld of size %d", stats.learned, size);

@@ -5,15 +5,11 @@
  \
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
-OPTION (eager,        1, "eager blocking clauses (not '--lazy')") \
-OPTION (eagerlimit,   2, "eager blocking clause size limit") \
+OPTION (blocklimit,   2, "eager blocking clause size limit") \
 OPTION (inputs,       0, "split on inputs first (in primal solver)") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \
 OPTION (learn,        1, "learn clauses") \
-OPTION (lazy,         0, "lazy blocking clauses (not '--eager')") \
-OPTION (lazynlim,     1, "number lazy blocking clauses limit") \
-OPTION (lazyslim,    20, "lazy blocking clause size limit") \
 OPTION (phaseinit,    1, "initial default phase") \
 OPTION (primal,       1, "use primal SAT engine only") \
 OPTION (print,        1, "print model or number of all assignments") \

@@ -52,8 +52,6 @@ static int parse_option_aux (char * arg) {
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
   if (!strcmp (arg, #NAME)) options.NAME = atoi (q), res = 1;
   OPTIONS
-  if (!strcmp (arg, "eager") && options.eager) options.lazy = 0;
-  if (!strcmp (arg, "lazy") && options.lazy) options.eager = 0;
   return res;
 }
 
