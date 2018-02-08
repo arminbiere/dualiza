@@ -16,7 +16,7 @@ OPTION (print,        1, "print model or number of all assignments") \
 OPTION (reduce,       1, "garbage collect useless learned clauses") \
 OPTION (reduceinc,  300, "reduce interval increment") \
 OPTION (reduceinit, 2e3, "initial reduce interval") \
-OPTION (rephase,      1, "enable reinitializing default phase") \
+OPTION (rephase,      0, "enable reinitializing default phase") \
 OPTION (rephaseint, 1e4, "reinitializing phase conflict interval") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
