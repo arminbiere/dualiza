@@ -1070,6 +1070,7 @@ void primal_count (Number res, Primal * solver) {
     } else if (satisfied (solver)) {
       POG ("new model");
       inc_number (res);
+      stats.models++;
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (rephasing (solver)) rephase (solver);
@@ -1101,6 +1102,7 @@ void primal_enumerate (Primal * solver, Name name) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
       print_model (solver, name);
+      stats.models++;
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);

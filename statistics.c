@@ -10,6 +10,9 @@ void print_statistics () {
   long resident = maximum_resident_set_size ();
   double seconds = process_time ();
   if (stats.conflicts || stats.decisions || stats.propagated) {
+    if (stats.models)
+      msg (1, "%ld partial models (%.1f decisions per model)",
+        stats.models, average (stats.decisions, stats.models));
     msg (1, "%ld conflicts (%.0f per second)",
       stats.conflicts, average (stats.conflicts, seconds));
     msg (1, "%ld decisions (%.0f per second)",
