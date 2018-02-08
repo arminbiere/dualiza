@@ -5,13 +5,13 @@ typedef struct Circuit Circuit;
 // using C operator precedence priorities as encoding
 
 enum Operator { 
-  FALSE = 0,
-  INPUT = 1,
-  AND = 8,
-  XOR = 9,
-  OR = 10,
-  ITE = 13,
-  XNOR = 14,
+  FALSE_OPERATOR = 0,
+  INPUT_OPERATOR = 1,
+  AND_OPERATOR   = 8,
+  XOR_OPERATOR   = 9,
+  OR_OPERATOR    = 10,
+  ITE_OPERATOR   = 13,
+  XNOR_OPERATOR  = 14,
 };
 
 typedef STACK (Gate*) Gates;

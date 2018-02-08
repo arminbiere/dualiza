@@ -17,28 +17,28 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
   if (!res) {
     Gate ** inputs = g->inputs.start;
     switch (g->op) {
-      case FALSE:
+      case FALSE_OPERATOR:
         res = NOT (new_false_gate (c));
 	break;
-      case INPUT:
+      case INPUT_OPERATOR:
         res = NOT (copy_input_gate (g, c));
 	break;
-      case AND:
+      case AND_OPERATOR:
         res = new_or_gate (c);
 	goto CONNECT;
-      case XOR:
+      case XOR_OPERATOR:
         res = new_xnor_gate (c);
 	goto CONNECT;
-      case OR:
+      case OR_OPERATOR:
         res = new_and_gate (c);
 	goto CONNECT;
-      case XNOR:
+      case XNOR_OPERATOR:
         res = new_xor_gate (c);
       CONNECT:
 	for (Gate ** p = inputs; p < g->inputs.top; p++)
 	  connect_gates (negate_gate (*p, map, c), res);
 	break;
-      case ITE:
+      case ITE_OPERATOR:
         res = new_ite_gate (c);
         connect_gates (negate_gate (inputs[0], map, c), res);
         connect_gates (negate_gate (inputs[2], map, c), res); /* yes 2 !! */

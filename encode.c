@@ -238,13 +238,13 @@ static void encode_xnor (Gate * g, Encoder * e) {
 
 static void encode_gate (Gate * g, Encoder *e) {
   switch (g->op) {
-    case FALSE: encode_false (g, e); break;
-    case AND: encode_and (g, e); break;
-    case XOR: encode_xor (g, e); break;
-    case OR: encode_or (g, e); break;
-    case ITE: encode_ite (g, e); break;
-    case XNOR: encode_xnor (g, e); break;
-    case INPUT: /* UNREACHABLE */ break;
+    case FALSE_OPERATOR: encode_false (g, e); break;
+    case AND_OPERATOR: encode_and (g, e); break;
+    case XOR_OPERATOR: encode_xor (g, e); break;
+    case OR_OPERATOR: encode_or (g, e); break;
+    case ITE_OPERATOR: encode_ite (g, e); break;
+    case XNOR_OPERATOR: encode_xnor (g, e); break;
+    case INPUT_OPERATOR: /* UNREACHABLE */ break;
   }
 }
 
@@ -256,7 +256,7 @@ static int encode_inputs (Encoder * e) {
     Gate * g = *p++;
     assert (g);
     assert (!SIGN (g));
-    assert (g->op == INPUT);
+    assert (g->op == INPUT_OPERATOR);
     assert (!g->code);
     const int idx = encode_input (c, g);
     if (idx > res) res = idx;
@@ -272,7 +272,7 @@ static int encode_gates (Encoder * encoder, Gate * g, int idx) {
   if (g->code) return idx;
   for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
     idx = encode_gates (encoder, *p, idx);
-  if (g->op == XOR || g->op == XNOR) {
+  if (g->op == XOR_OPERATOR || g->op == XNOR_OPERATOR) {
     const int n = COUNT (g->inputs);
     if (n > 2) {
       LOG ("reserving additional %d variables for %d-ary %s",
@@ -299,12 +299,12 @@ static int encode_root (Encoder * encoder, Gate * g, int idx) {
 
 static int encode_roots (Encoder * encoder, Gate * g, int idx) {
   const int sign = SIGN (g);
-  if (!sign && g->op == AND) {
+  if (!sign && g->op == AND_OPERATOR) {
     if (g->root & 1) return idx;
     for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
       idx = encode_roots (encoder, *p, idx);
     g->root |= 1;
-  } else if (!sign && g->op == OR) {
+  } else if (!sign && g->op == OR_OPERATOR) {
     if (g->root & 1) return idx;
     assert (EMPTY (encoder->clause));
     for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)

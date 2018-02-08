@@ -12,12 +12,20 @@ typedef struct Var Var;
 typedef struct Queue Queue;
 typedef struct Frame Frame;
 typedef struct Limit Limit;
+typedef enum VarType VarType;
 
 typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
 
+enum VarType {
+  INPUT_VARIABLE = 0,
+  PRIMAL_VARIABLE = 1,
+  DUAL_VARIABLE = 2,
+};
+
 struct Var {
-  char input, decision, seen;
+  VarType type;
+  char decision, seen;
   signed char val, phase;
   int level;
   Clause * reason;
@@ -60,7 +68,7 @@ struct Solver {
   VarStack seen;
   Queue inputs, gates;
   Limit limit;
-  CNF * cnf;
+  CNF * primal;
 };
 
 static Var * var (Solver * solver, int lit) {
@@ -89,7 +97,7 @@ static int val (Solver * solver, int lit) {
 
 static Queue * queue (Solver * solver, Var * v) {
   if (!options.inputs) return &solver->inputs;
-  return v->input ? &solver->inputs : &solver->gates;
+  return v->type == INPUT_VARIABLE ? &solver->inputs : &solver->gates;
 }
 
 static void update_queue (Solver * solver, Queue * q, Var * v) {
@@ -175,7 +183,7 @@ static void init_rephase_limit (Solver * solver) {
 }
 
 static void set_subsumed_limit (Solver * solver) {
-  solver->limit.subsumed += COUNT (solver->cnf->clauses)/10 + 1000;
+  solver->limit.subsumed += COUNT (solver->primal->clauses)/10 + 1000;
   LOG ("subsumed limit %ld", solver->limit.subsumed);
 }
 
@@ -186,15 +194,15 @@ static void init_limits (Solver * solver) {
   set_subsumed_limit (solver);
 }
 
-Solver * new_solver (CNF * cnf, IntStack * inputs) {
-  assert (cnf);
+Solver * new_solver (CNF * primal, IntStack * inputs) {
+  assert (primal);
   Solver * solver;
   NEW (solver);
   LOG ("new solver over %ld clauses and %ld inputs",
-    (long) COUNT (cnf->clauses), (long) COUNT (*inputs));
-  solver->cnf = cnf;
+    (long) COUNT (primal->clauses), (long) COUNT (*inputs));
+  solver->primal = primal;
   solver->sorted = inputs;
-  int max_var_in_cnf = maximum_variable_index (cnf);
+  int max_var_in_cnf = maximum_variable_index (primal);
   LOG ("maximum variable index %d in CNF", max_var_in_cnf);
   int max_var_in_inputs = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
@@ -215,10 +223,10 @@ Solver * new_solver (CNF * cnf, IntStack * inputs) {
     int input = abs (*p);
     assert (input <= solver->max_var);
     Var * v = var (solver, input);
-    if (v->input) continue;
+    if (v->type == INPUT_VARIABLE) continue;
     LOG ("input variable %d", input);
     num_inputs++;
-    v->input = 1;
+    v->type = INPUT_VARIABLE;
   }
 #if !defined(NLOG) || !defined(NDEBUG)
   const int num_gates = solver->max_var - num_inputs;
@@ -267,7 +275,7 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   v->level = solver->level;
   if (v->level) {
     v->reason = reason;
-    if (reason) mark_clause_active (reason, solver->cnf);
+    if (reason) mark_clause_active (reason, solver->primal);
   } else {
     solver->fixed++;
     v->reason = 0;
@@ -293,7 +301,7 @@ static void connect_clause (Solver * solver, Clause * c) {
 
 static int connect_cnf (Solver * solver) {
   assert (!solver->level);
-  Clauses * clauses = &solver->cnf->clauses;
+  Clauses * clauses = &solver->primal->clauses;
   LOG ("connecting %ld clauses to Solver solver", (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
@@ -353,8 +361,8 @@ static void report (Solver * solver, int verbosity, const char type) {
     process_time (),
     current_resident_set_size ()/(double)(1<<20),
     stats.conflicts,
-    solver->cnf->redundant,
-    solver->cnf->irredundant,
+    solver->primal->redundant,
+    solver->primal->irredundant,
     remaining_variables (solver));
 }
 
@@ -482,7 +490,7 @@ static void unassign (Solver * solver, int lit) {
   SOG ("%s unassign %d", type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
-  if (v->reason) mark_clause_inactive (v->reason, solver->cnf);
+  if (v->reason) mark_clause_inactive (v->reason, solver->primal);
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);
@@ -554,8 +562,8 @@ static void subsume (Solver * solver, Clause * c) {
   assert (!c->redundant);
   mark_clause (solver, c);
   int limit = MAX (options.subsumelimit, 0);
-  Clause ** p = solver->cnf->clauses.top;
-  while (p != solver->cnf->clauses.start) {
+  Clause ** p = solver->primal->clauses.top;
+  while (p != solver->primal->clauses.start) {
     Clause * d = *--p;
     if (d == c) continue;
     if (d->garbage) break;
@@ -568,7 +576,7 @@ static void subsume (Solver * solver, Clause * c) {
   unmark_clause (solver, c);
   if (stats.subsumed <= solver->limit.subsumed) return;
   flush_garbage_occurrences (solver);
-  collect_garbage_clauses (solver->cnf);
+  collect_garbage_clauses (solver->primal);
   set_subsumed_limit (solver);
   report (solver, 1, '/');
 }
@@ -605,7 +613,7 @@ static void block_clause (Solver * solver, int lit) {
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
   SOGCLS (c, "blocking");
-  add_clause_to_cnf (c, solver->cnf);
+  add_clause_to_cnf (c, solver->primal);
   if (size > 1) connect_clause (solver, c);
   CLEAR (solver->clause);
   solver->next = COUNT (solver->trail);
@@ -816,7 +824,7 @@ static Clause * learn_clause (Solver * solver, int glue) {
   res->redundant = 1;
   res->recent = 1;
   SOGCLS (res, "learned new");
-  add_clause_to_cnf (res, solver->cnf);
+  add_clause_to_cnf (res, solver->primal);
   if (size > 1) connect_clause (solver, res);
   return res;
 }
@@ -930,9 +938,9 @@ static void reduce (Solver * solver) {
   SOG ("reduction %ld", stats.reductions);
   Clauses candidates;
   INIT (candidates);
-  CNF * cnf = solver->cnf;
+  CNF * primal = solver->primal;
   const int simplify = solver->fixed > solver->limit.reduce.fixed;
-  for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++) {
+  for (Clause ** p = primal->clauses.start; p < primal->clauses.top; p++) {
     Clause * c = *p;
     if (c->garbage) continue;
     if (simplify && mark_satisfied_as_garbage (solver, c)) continue;
@@ -947,7 +955,7 @@ static void reduce (Solver * solver) {
   }
   solver->limit.reduce.fixed = solver->fixed;
   long n = COUNT (candidates);
-  SOG ("found %ld reduce candidates out of %ld", n, cnf->redundant);
+  SOG ("found %ld reduce candidates out of %ld", n, primal->redundant);
   qsort (candidates.start, n, sizeof (Clause*), cmp_reduce);
   long target = n/2, marked = 0;
   SOG ("target is to remove %ld clauses", target);
@@ -961,7 +969,7 @@ static void reduce (Solver * solver) {
   RELEASE (candidates);
   SOG ("marked %ld clauses as garbage", marked);
   flush_garbage_occurrences (solver);
-  collect_garbage_clauses (cnf);
+  collect_garbage_clauses (primal);
   inc_reduce_limit (solver);
   report (solver, 1, '-');
 }

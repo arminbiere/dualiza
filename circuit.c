@@ -26,21 +26,21 @@ Gate * get_gate_input (Gate * g, int input) {
 
 Gate * new_false_gate (Circuit * c) {
   if (c->zero) return c->zero;
-  return c->zero = new_gate (c, FALSE);
+  return c->zero = new_gate (c, FALSE_OPERATOR);
 }
 
 Gate * new_input_gate (Circuit * c) {
-  Gate * res = new_gate (c, INPUT);
+  Gate * res = new_gate (c, INPUT_OPERATOR);
   res->input = COUNT (c->inputs);
   PUSH (c->inputs, res);
   return res;
 }
 
-Gate * new_and_gate (Circuit * c) { return new_gate (c, AND); }
-Gate * new_xor_gate (Circuit * c) { return new_gate (c, XOR); }
-Gate * new_or_gate (Circuit * c) { return new_gate (c, OR); }
-Gate * new_ite_gate (Circuit * c) { return new_gate (c, ITE); }
-Gate * new_xnor_gate (Circuit * c) { return new_gate (c, XNOR); }
+Gate * new_and_gate (Circuit * c) { return new_gate (c, AND_OPERATOR); }
+Gate * new_xor_gate (Circuit * c) { return new_gate (c, XOR_OPERATOR); }
+Gate * new_or_gate (Circuit * c) { return new_gate (c, OR_OPERATOR); }
+Gate * new_ite_gate (Circuit * c) { return new_gate (c, ITE_OPERATOR); }
+Gate * new_xnor_gate (Circuit * c) { return new_gate (c, XNOR_OPERATOR); }
 
 Circuit * new_circuit () {
   Circuit * res;
@@ -92,13 +92,13 @@ void connect_output (Circuit * c, Gate * output) {
 const char * gate_name (Gate * g) {
   if (SIGN (g)) return "NOT";
   switch (g->op) {
-    case FALSE: return "FALSE";
-    case INPUT: return "INPUT";
-    case AND: return "AND";
-    case XOR: return "XOR";
-    case OR: return "OR";
-    case ITE: return "ITE";
-    case XNOR: return "XNOR";
+    case FALSE_OPERATOR: return "FALSE";
+    case INPUT_OPERATOR: return "INPUT";
+    case AND_OPERATOR: return "AND";
+    case XOR_OPERATOR: return "XOR";
+    case OR_OPERATOR: return "OR";
+    case ITE_OPERATOR: return "ITE";
+    case XNOR_OPERATOR: return "XNOR";
     default: return "UNKNOWN";
   }
 }
@@ -111,9 +111,9 @@ void check_circuit_connected (Circuit * c) {
     Gate * g = *p;
     assert (!SIGN (g));
     const int num_inputs = COUNT (g->inputs);
-    if (g->op == FALSE) assert (num_inputs == 0);
-    else if (g->op == INPUT) assert (num_inputs == 0);
-    else if (g->op == ITE) assert (num_inputs == 3);
+    if (g->op == FALSE_OPERATOR) assert (num_inputs == 0);
+    else if (g->op == INPUT_OPERATOR) assert (num_inputs == 0);
+    else if (g->op == ITE_OPERATOR) assert (num_inputs == 3);
     else assert (num_inputs > 1);
   }
 #endif

@@ -9,24 +9,24 @@ static void coi (Circuit * c, Gate * g, int sign) {
   g->mark |= mark;
   if (sign) g->neg = 1; else g->pos = 1;
   switch (g->op) {
-    case OR:
-    case AND:
+    case OR_OPERATOR:
+    case AND_OPERATOR:
       for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
 	coi (c, *p, sign);
       break;
-    case ITE:
+    case ITE_OPERATOR:
       for (Gate ** p = g->inputs.start; p < g->inputs.top; p++) {
 	coi (c, *p, sign);
 	if (p == g->inputs.start) coi (c, *p, !sign);
       }
       break;
-    case XOR:
-    case XNOR:
+    case XOR_OPERATOR:
+    case XNOR_OPERATOR:
       for (Gate ** p = g->inputs.start; p < g->inputs.top; p++)
 	coi (c, *p, sign), coi (c, *p, !sign);
       break;
-    case FALSE:
-    case INPUT:
+    case FALSE_OPERATOR:
+    case INPUT_OPERATOR:
       break;
   }
 }
