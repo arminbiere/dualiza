@@ -573,10 +573,10 @@ static void subsume (Primal * solver, Clause * c) {
   report (solver, 1, '/');
 }
 
-static void eager_block_clause (Primal * solver, int lit) {
+static void block_clause (Primal * solver, int lit) {
   assert (solver->level > 0);
   stats.blocked.clauses++;
-  POG ("adding eagerly blocking clause for decision %d", lit);
+  POG ("adding blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
   assert (var (solver, lit)->decision == 1);
   assert (EMPTY (solver->clause));
@@ -590,7 +590,7 @@ static void eager_block_clause (Primal * solver, int lit) {
   }
   const int size = COUNT (solver->clause);
   stats.blocked.literals += size;
-  POG ("found eager blocking clause of length %d", size);
+  POG ("found blocking clause of length %d", size);
   assert (solver->clause.start[0] == -lit);
   int other;
   for (;;) {
@@ -604,7 +604,7 @@ static void eager_block_clause (Primal * solver, int lit) {
   }
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
-  POGCLS (c, "eager blocking");
+  POGCLS (c, "blocking");
   add_clause_to_cnf (c, solver->cnf);
   if (size > 1) connect_clause (solver, c);
   CLEAR (solver->clause);
@@ -639,11 +639,11 @@ static void flip (Primal * solver, int lit) {
     solver->iterating = 1;
 }
 
-static int eager_blocking (Primal * solver) {
+static int blocking (Primal * solver) {
   if (!options.block) return 0;
   assert (solver->level >= solver->num_flipped_levels);
   const int size = solver->level - solver->num_flipped_levels;
-  POG ("expected eager blocking clause size %d", size);
+  POG ("expected blocking clause size %d", size);
   return size <= options.blocklimit;
 }
 
@@ -661,7 +661,7 @@ static int backtrack (Primal * solver) {
     Var * v = var (solver, lit);
     const int decision = v->decision;
     if (decision == 1) {
-      if (eager_blocking (solver)) eager_block_clause (solver, lit);
+      if (blocking (solver)) block_clause (solver, lit);
       else flip (solver, lit);
       return 1;
     }
