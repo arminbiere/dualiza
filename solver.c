@@ -197,9 +197,12 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   LOG ("new solver over %ld clauses and %ld inputs",
     (long) COUNT (primal->clauses), (long) COUNT (*inputs));
   solver->primal = primal;
+  solver->dual = dual;
   solver->sorted = inputs;
-  int max_var_in_cnf = maximum_variable_index (primal);
-  LOG ("maximum variable index %d in CNF", max_var_in_cnf);
+  int max_var_in_primal = maximum_variable_index (primal);
+  LOG ("maximum variable index %d in primal CNF", max_var_in_primal);
+  int max_var_in_dual = dual ? maximum_variable_index (dual) : 0;
+  LOG ("maximum variable index %d in dual CNF", max_var_in_dual);
   int max_var_in_inputs = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
     int input = abs (*p);
@@ -207,7 +210,10 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     if (input > max_var_in_inputs) max_var_in_inputs = input;
   }
   LOG ("maximum variable index %d in inputs", max_var_in_inputs);
-  solver->max_var = MAX (max_var_in_cnf, max_var_in_inputs);
+  int max_var = max_var_in_primal;
+  if (max_var <  max_var_in_inputs) max_var = max_var_in_inputs;
+  if (max_var <  max_var_in_dual) max_var = max_var_in_dual;
+  solver->max_var = max_var;
   LOG ("maximum variable index %d", solver->max_var);
   ALLOC (solver->vars, solver->max_var + 1);
   solver->phase = options.phaseinit ? 1 : -1;
@@ -1060,6 +1066,11 @@ void primal_count (Number res, Solver * solver) {
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
+}
+
+void dual_count (Number res, Solver * solver) {
+  assert (solver->dual);
+  return primal_count (res, solver);
 }
 
 static void print_model (Solver * solver, Name name) {

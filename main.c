@@ -459,7 +459,29 @@ static void count () {
     delete_solver (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
-  } else die ("counting with dual SAT engine not implement yet (use '-b')");
+  } else {
+    msg (1, "counting with dual SAT engine");
+    CNF * primal_cnf = new_cnf ();
+    encode_circuit (primal_circuit, primal_cnf, 0);
+    CNF * dual_cnf = new_cnf ();
+    encode_circuit (dual_circuit, dual_cnf, 1);
+    IntStack inputs;
+    INIT (inputs);
+    get_encoded_inputs (primal_circuit, &inputs);
+    Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    Number n;
+    init_number (n);
+    dual_count (n, solver);
+    if (negate) printf ("NUMBER FALSIFYING ASSIGNMENTS\n");
+    else printf ("NUMBER SATISFYING ASSIGNMENTS\n");
+    fflush (stdout);
+    if (options.print) println_number (n), fflush (stdout);
+    clear_number (n);
+    delete_solver (solver);
+    RELEASE (inputs);
+    delete_cnf (primal_cnf);
+    delete_cnf (dual_cnf);
+  }
 }
 
 static void init () {

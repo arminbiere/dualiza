@@ -6,12 +6,13 @@
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
 OPTION (blocklimit,   2, "eager blocking clause size limit") \
+OPTION (dual,         0, "dual SAT engine too (opposite of '--primal')") \
 OPTION (inputs,       0, "split on inputs first (in primal solver)") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \
 OPTION (learn,        1, "learn clauses") \
 OPTION (phaseinit,    1, "initial default phase") \
-OPTION (primal,       1, "use primal SAT engine only") \
+OPTION (primal,       1, "primal SAT engine only (opposite of '--dual')") \
 OPTION (print,        1, "print model or number of all assignments") \
 OPTION (reduce,       1, "garbage collect useless learned clauses") \
 OPTION (reduceinc,  300, "reduce interval increment") \

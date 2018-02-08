@@ -38,21 +38,38 @@ void print_options () {
   OPTIONS
 }
 
+static void set_option (int * p, int v) {
+  *p = v;
+  if (p == &options.dual) options.primal = !v;
+  if (p == &options.primal) options.dual = !v;
+}
+
 static int parse_option_aux (char * arg) {
   char * p = strchr (arg, '=');
-  if (!p) return 0;
-  *p++ = 0;
-  char * q = p;
-  if (!*p) return 0;
-  while (*p)
-    if (!isdigit (*p++))
-      return 0;
-  int res = 0;
+  if (p) {
+    *p++ = 0;
+    char * q = p;
+    if (!*p) return 0;
+    while (*p)
+      if (!isdigit (*p++))
+	return 0;
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-  if (!strcmp (arg, #NAME)) options.NAME = atoi (q), res = 1;
-  OPTIONS
-  return res;
+    if (!strcmp (arg, #NAME)) { \
+      set_option (&options.NAME, atoi (q)); \
+      return 1;  \
+    }
+    OPTIONS
+  } else {
+#undef OPTION
+#define OPTION(NAME,DEFAULT,DESCRIPTION) \
+    if (!strcmp (arg, #NAME)) { \
+      set_option (&options.NAME, 1); \
+      return 1;  \
+    }
+    OPTIONS
+  }
+  return 0;
 }
 
 int parse_option (const char * arg) {
@@ -61,7 +78,10 @@ int parse_option (const char * arg) {
   if (arg[2] == 'n' && arg[3] == 'o' && arg[4] == '-') {
 #undef OPTION
 #define OPTION(NAME,DEFAULT,DESCRIPTION) \
-    if (!strcmp (arg + 5, #NAME)) { options.NAME = 0; return 1; }
+    if (!strcmp (arg + 5, #NAME)) { \
+      set_option (&options.NAME, 0); \
+      return 1; \
+    }
     OPTIONS
     return 0;
   }
