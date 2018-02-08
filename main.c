@@ -547,7 +547,6 @@ int main (int argc, char ** argv) {
   else if (enumerate) all ();
   else                count ();
   reset ();
-#endif
   reset_signal_handlers ();
   print_statistics ();
   assert (!stats.bytes.current);
