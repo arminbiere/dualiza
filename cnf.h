@@ -11,6 +11,8 @@ CNF * new_cnf ();
 void delete_cnf (CNF *);
 
 int maximum_variable_index (CNF *);
+int minimum_variable_index_above (CNF *, int idx);
+
 void print_cnf_to_file (CNF *, FILE *);
 void print_cnf (CNF *);
 

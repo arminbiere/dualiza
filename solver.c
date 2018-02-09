@@ -203,15 +203,24 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   assert (primal);
   Solver * solver;
   NEW (solver);
-  LOG ("new solver over %ld clauses and %ld inputs",
-    (long) COUNT (primal->clauses), (long) COUNT (*inputs));
   solver->cnf.primal = primal;
-  solver->cnf.dual = dual;
+  if (dual) {
+    LOG (
+      "new solver over %ld primal and %ld dual clauses and %ld inputs",
+      (long) COUNT (primal->clauses),
+      (long) COUNT (dual->clauses),
+      (long) COUNT (*inputs));
+    solver->cnf.dual = dual;
+    solver->dual = 1;
+  } else {
+    LOG (
+      "new solver over %ld clauses and %ld inputs",
+      (long) COUNT (primal->clauses),
+      (long) COUNT (*inputs));
+    solver->cnf.dual = 0;
+    solver->dual = 0;
+  }
   solver->sorted = inputs;
-  int max_var_in_primal = maximum_variable_index (primal);
-  LOG ("maximum variable index %d in primal CNF", max_var_in_primal);
-  int max_var_in_dual = dual ? maximum_variable_index (dual) : 0;
-  LOG ("maximum variable index %d in dual CNF", max_var_in_dual);
   int max_var_in_inputs = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
     int input = abs (*p);
@@ -220,42 +229,69 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   }
   LOG ("maximum variable index %d in inputs", max_var_in_inputs);
   assert (COUNT (*inputs) == max_var_in_inputs);
-  int max_var = max_var_in_primal;
-  if (max_var <  max_var_in_inputs) max_var = max_var_in_inputs;
-  if (max_var <  max_var_in_dual) max_var = max_var_in_dual;
+  int max_var = max_var_in_inputs;
+  int max_var_in_primal = maximum_variable_index (primal);
+  LOG ("maximum variable index %d in primal CNF", max_var_in_primal);
+  if (max_var <  max_var_in_primal) {
+    LOG ("%d primal gate variables %d ... %d",
+      max_var_in_primal - max_var, max_var + 1, max_var_in_primal);
+    max_var = max_var_in_primal;
+  } else LOG ("no primal gate variables");
+  if (dual) {
+    int max_var_in_dual = dual ? maximum_variable_index (dual) : 0;
+    LOG ("maximum variable index %d in dual CNF", max_var_in_dual);
+    if (max_var <  max_var_in_dual) {
+      LOG ("%d dual gate variables %d ... %d",
+        max_var_in_dual - max_var, max_var + 1, max_var_in_dual);
+      max_var = max_var_in_dual;
+    } else LOG ("no dual gate variables");
+    int min_non_input_var_in_dual =
+      minimum_variable_index_above (dual, max_var_in_inputs);
+    LOG ("minimum variable index %d above %d in dual CNF",
+      min_non_input_var_in_dual, max_var_in_inputs);
+#ifndef NDEBUG
+    assert (min_non_input_var_in_dual > max_var_in_primal);
+    if (min_non_input_var_in_dual < INT_MAX)
+      assert (min_non_input_var_in_dual <= max_var_in_dual);
+#else
+    (void) min_non_input_var_in_dual;
+#endif
+  }
   solver->max_var = max_var;
   LOG ("maximum variable index %d", solver->max_var);
   ALLOC (solver->vars, solver->max_var + 1);
-  solver->phase = options.phaseinit ? 1 : -1;
-  LOG ("default initial phase %d", solver->phase);
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
-  int num_inputs = 0;
-  for (const int * p = inputs->start; p < inputs->top; p++) {
-    int input = abs (*p);
-    assert (input <= solver->max_var);
-    Var * v = var (solver, input);
-    if (v->type == INPUT_VARIABLE) continue;
-    LOG ("input variable %d", input);
-    num_inputs++;
+  assert (max_var_in_inputs <= max_var_in_primal);
+  assert (max_var_in_primal <= max_var);
+  for (int idx = 1; idx <= max_var_in_inputs; idx++) {
+    Var * v = var (solver, idx);
+    assert (!v->type);
+    LOG ("input variable %d", idx);
     v->type = INPUT_VARIABLE;
   }
-#if !defined(NLOG) || !defined(NDEBUG)
-  const int num_gates = solver->max_var - num_inputs;
-  LOG ("using %d inputs and %d gate variables", num_inputs, num_gates);
+  for (int idx = max_var_in_inputs + 1; idx <= max_var_in_primal; idx++) {
+    Var * v = var (solver, idx);
+    assert (!v->type);
+    LOG ("primal variable %d", idx);
+    v->type = PRIMAL_VARIABLE;
+  }
+  if (dual) {
+    for (int idx = max_var_in_primal + 1; idx <= max_var; idx++) {
+      Var * v = var (solver, idx);
+      assert (!v->type);
+      LOG ("dual variable %d", idx);
+      v->type = DUAL_VARIABLE;
+    }
+  }
   LOG ("connecting variables");
-#endif
   for (int idx = 1; idx <= solver->max_var; idx++)
     enqueue (solver, var (solver, idx));
-#ifndef NDEBUG
-  if (options.inputs) {
-    assert (solver->queue.input.stamp == num_inputs);
-    assert (solver->queue.primal.stamp == num_gates);
-  }
-#endif
+  solver->phase = options.phaseinit ? 1 : -1;
+  LOG ("default initial phase %d", solver->phase);
+  init_limits (solver);
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
-  init_limits (solver);
   return solver;
 }
 

@@ -98,6 +98,18 @@ int maximum_variable_index (CNF * cnf) {
   return res;
 }
 
+int minimum_variable_index_above (CNF * cnf, int lower_limit) {
+  int res = INT_MAX;
+  for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++) {
+    Clause * c = *p;
+    for (int i = 0; i < c->size; i++) {
+      int idx = abs (c->literals[i]);
+      if (idx > lower_limit && idx < res) res = idx;
+    }
+  }
+  return res;
+}
+
 void print_cnf_to_file (CNF * cnf, FILE * file) {
   int m = maximum_variable_index (cnf);
   long n = COUNT (cnf->clauses);
