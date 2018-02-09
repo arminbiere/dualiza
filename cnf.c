@@ -9,11 +9,10 @@ CNF * new_cnf () {
 
 static void check_cnf (CNF * cnf) {
 #ifndef NDEBUG
-  long positive, negative, irredundant, redundant, active, clauses;
-  positive = negative = irredundant = redundant = active = clauses = 0;
+  long irredundant, redundant, active, clauses;
+  irredundant = redundant = active = clauses = 0;
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++) {
     Clause * c = *p;
-    if (c->negative) negative++; else positive++;
     if (c->redundant) redundant++; else irredundant++;
     if (c->active) active++;
     clauses++;
@@ -22,9 +21,7 @@ static void check_cnf (CNF * cnf) {
   assert (cnf->irredundant == irredundant);
   assert (cnf->redundant == redundant);
   assert (cnf->active == active);
-  assert (positive + negative == clauses);
   assert (irredundant + redundant == clauses);
-  assert (redundant <= positive);
   assert (active <= clauses);
 #endif
 }

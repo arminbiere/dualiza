@@ -2,8 +2,9 @@ typedef struct Clause Clause;
 
 struct Clause {
   long id;
-  char negative, redundant, garbage, recent, active;
-  int glue, size, literals[];
+  char dual, redundant, garbage, recent, active; // flags
+  int glue, size;
+  int literals[];	// embedded literals
 };
 
 Clause * new_clause (const int *, const int size);
