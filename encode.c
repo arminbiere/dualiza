@@ -3,9 +3,8 @@
 typedef struct Encoder Encoder;
 
 struct Encoder {
-  Circuit * circuit;
   CNF * cnf;
-  int negative;
+  Circuit * circuit;
   STACK (int) clause, marks;
 };
 
@@ -52,13 +51,11 @@ void print_dimacs_encoding (Circuit * circuit) {
   print_dimacs_encoding_to_file (circuit, stdout);
 }
 
-static Encoder * new_encoder (Circuit * circuit, CNF * cnf, int negative)
-{
+static Encoder * new_encoder (Circuit * circuit, CNF * cnf) {
   Encoder * res;
   NEW (res);
   res->circuit = circuit;
   res->cnf = cnf;
-  res->negative = negative;
   return res;
 }
 
@@ -121,7 +118,6 @@ static void encode_clause (Encoder * e) {
   if (!clause_is_trivial (e)) {
     const int size = COUNT (e->clause);
     Clause * c = new_clause (e->clause.start, size);
-    c->negative = e->negative;
     LOGCLS (c, "encoded new");
     add_clause_to_cnf (c, e->cnf);
   }
@@ -327,11 +323,9 @@ static void reset_code_root_fields_of_circuit (Circuit * c) {
   }
 }
 
-void encode_circuit (Circuit * circuit, CNF * cnf, int negative)
-{
-  assert (negative || !maximum_variable_index (cnf));
+void encode_circuit (Circuit * circuit, CNF * cnf) {
   cone_of_influence (circuit);
-  Encoder * encoder = new_encoder (circuit, cnf, negative);
+  Encoder * encoder = new_encoder (circuit, cnf);
   reset_code_root_fields_of_circuit (circuit);
   int idx = encode_inputs (encoder);
   LOG ("starting to encode roots");

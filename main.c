@@ -319,7 +319,7 @@ static int check () {
     msg (1, "checking with primal SAT engine");
     CNF * cnf = new_cnf ();
     Circuit * circuit = tautology ? dual_circuit : primal_circuit;
-    encode_circuit (circuit, cnf, 0);
+    encode_circuit (circuit, cnf);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
@@ -374,7 +374,7 @@ static void print (const char * output_name) {
     println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
     CNF * cnf = new_cnf ();
-    encode_circuit (primal_circuit, cnf, 0);
+    encode_circuit (primal_circuit, cnf);
     print_dimacs_encoding_to_file (primal_circuit, output->file);
     print_cnf_to_file (cnf, output->file);
     delete_cnf (cnf);
@@ -402,7 +402,7 @@ static void all () {
   } else if (options.primal) {
     msg (1, "enumerating with primal SAT engine");
     CNF * cnf = new_cnf ();
-    encode_circuit (primal_circuit, cnf, 0);
+    encode_circuit (primal_circuit, cnf);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
@@ -443,7 +443,7 @@ static void count () {
   } else if (options.primal) {
     msg (1, "counting with primal SAT engine");
     CNF * cnf = new_cnf ();
-    encode_circuit (primal_circuit, cnf, 0);
+    encode_circuit (primal_circuit, cnf);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
@@ -462,9 +462,9 @@ static void count () {
   } else {
     msg (1, "counting with dual SAT engine");
     CNF * primal_cnf = new_cnf ();
-    encode_circuit (primal_circuit, primal_cnf, 0);
+    encode_circuit (primal_circuit, primal_cnf);
     CNF * dual_cnf = new_cnf ();
-    encode_circuit (dual_circuit, dual_cnf, 1);
+    encode_circuit (dual_circuit, dual_cnf);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);

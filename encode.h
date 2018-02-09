@@ -4,5 +4,5 @@ Gate * decode_literal (Circuit *, int);
 void print_dimacs_encoding_to_file (Circuit *, FILE *);
 void print_dimacs_encoding (Circuit *);
 
-void encode_circuit (Circuit *, CNF *, int negative);
+void encode_circuit (Circuit *, CNF *);
 void get_encoded_inputs (Circuit *, IntStack *);

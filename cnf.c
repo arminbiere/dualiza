@@ -19,8 +19,6 @@ static void check_cnf (CNF * cnf) {
     clauses++;
   }
   assert (COUNT (cnf->clauses) == clauses);
-  assert (cnf->positive == positive);
-  assert (cnf->negative == negative);
   assert (cnf->irredundant == irredundant);
   assert (cnf->redundant == redundant);
   assert (cnf->active == active);
@@ -42,7 +40,6 @@ void delete_cnf (CNF * cnf) {
 
 void add_clause_to_cnf (Clause * c, CNF * cnf) {
   assert (c), assert (cnf);
-  if (c->negative) cnf->negative++; else cnf->positive++;
   if (c->redundant) cnf->redundant++; else cnf->irredundant++;
   assert (!c->active);
   c->id = cnf->added++;
@@ -53,8 +50,6 @@ void add_clause_to_cnf (Clause * c, CNF * cnf) {
 static void collect_garbage_clause (Clause * c, CNF * cnf) {
   assert (!c->active);
   assert (c->garbage);
-  if (c->negative) assert (cnf->negative > 0), cnf->negative--;
-  else assert (cnf->positive > 0), cnf->positive--;
   if (c->redundant) assert (cnf->redundant > 0), cnf->redundant--;
   else assert (cnf->irredundant > 0), cnf->irredundant--;
   delete_clause (c);
