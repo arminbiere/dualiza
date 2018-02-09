@@ -13,6 +13,7 @@ typedef struct Queue Queue;
 typedef struct Frame Frame;
 typedef struct Limit Limit;
 typedef enum VarType VarType;
+typedef enum Mode Mode;
 
 typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
@@ -394,6 +395,27 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   }
 }
 
+static void unassign (Solver * solver, int lit) {
+  Var * v = var (solver, lit);
+  assert (solver->level == v->level);
+  SOG ("%s unassign %d", var_type (v), lit);
+  assert (v->val);
+  v->val = v->decision = 0;
+  if (v->reason)
+    mark_clause_inactive (v->reason, cnf (solver, v->reason));
+  Queue * q = queue (solver, v);
+  if (!q->search || q->search->stamp < v->stamp)
+    update_queue (solver, q, v);
+  if (is_primal_or_input_var (v)) {
+    solver->unassigned_primal_and_input_variables++;
+    assert (solver->unassigned_primal_and_input_variables > 0);
+  }
+  if (is_input_var (v)) {
+    solver->unassigned_input_variables++;
+    assert (solver->unassigned_input_variables > 0);
+  }
+}
+
 static void connect_primal_literal (Solver * solver, Clause * c, int lit) {
   assert (!c->dual);
   SOGCLS (c, "connecting literal %d to", lit);
@@ -455,27 +477,19 @@ static int connect_primal_cnf (Solver * solver) {
   return 1;
 }
 
-static void new_model (Solver * solver, int assign, Number res) {
-#ifndef NDEBUG
-  if (assign) {
-    assert (!val (solver, assign));
-    assert (is_input_var (var (solver, assign)));
-    assert (solver->unassigned_input_variables > 0);
-  }
-#endif
+static void count_new_model (Solver * solver, Number res) {
   int unassigned = solver->unassigned_input_variables;
-  if (assign) assert (unassigned), unassigned--;
   SOG ("new model with %d unassigned inputs", unassigned);
   add_power_of_two_to_number (res, unassigned);
   stats.models++;
 }
 
 static int
-connect_dual_cnf (Solver * solver, int counting, Number num) {
+connect_dual_cnf_sat (Solver * solver) {
   assert (!solver->level);
   CNF * cnf = solver->cnf.dual;
   Clauses * clauses = &cnf->clauses;
-  LOG ("connecting %ld dual clauses to solver",
+  LOG ("connecting %ld dual clauses to solver for SAT solving",
     (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
@@ -493,17 +507,102 @@ connect_dual_cnf (Solver * solver, int counting, Number num) {
       }
       if (tmp < 0) {
 	LOG ("found already falsified unit %d in dual CNF", unit);
-        if (counting) new_model (solver, 0, num);
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {
-        if (counting) {
-	  new_model (solver, -unit, num);
-	  assign (solver, unit, c);
-	} else {
-	  assign (solver, -unit, 0);
-	  return 0;
-	}
+	assign (solver, -unit, 0);
+	return 0;
+      } else assign (solver, unit, c);
+    } else {
+      assert (c->size > 1);
+      connect_dual_clause (solver, c);
+    }
+  }
+  return 1;
+}
+
+static void print_model (Solver * solver, Name name) {
+  const int n = COUNT (*solver->sorted);
+  for (int i = 0; i < n; i++) {
+    if (i) fputc (' ', stdout);
+    const int lit = PEEK (*solver->sorted, i);
+    const int tmp = val (solver, lit);
+    assert (tmp);
+    if (tmp < 0) fputc ('!', stdout);
+    fputs (name.get (name.state, lit), stdout);
+  }
+  fputc ('\n', stdout);
+}
+
+static int
+connect_dual_cnf_enumerate (Solver * solver, Name name) {
+  assert (!solver->level);
+  CNF * cnf = solver->cnf.dual;
+  Clauses * clauses = &cnf->clauses;
+  LOG ("connecting %ld dual clauses to solver for enumerating",
+    (long) COUNT (*clauses));
+  for (Clause ** p = clauses->start; p < clauses->top; p++) {
+    Clause * c = *p;
+    assert (c->dual == cnf->dual);
+    if (c->size == 0) {
+      LOG ("found empty clause in dual CNF");
+      return 0;
+    } else if (c->size == 1) {
+      int unit = c->literals[0];
+      LOG ("found unit clause %d in dual CNF", unit);
+      int tmp = val (solver, unit);
+      if (tmp > 0) {
+	LOG ("ignoring already satisfied unit %d", unit);
+	continue;
+      }
+      if (tmp < 0) {
+	LOG ("found already falsified unit %d in dual CNF", unit);
+	print_model (solver, name);
+	return 0;
+      }
+      if (is_input_var (var (solver, unit))) {
+	assign (solver, -unit, c);
+	print_model (solver, name);
+	unassign (solver, -unit);
+	assign (solver, unit, c);
+      } else assign (solver, unit, c);
+    } else {
+      assert (c->size > 1);
+      connect_dual_clause (solver, c);
+    }
+  }
+  return 1;
+}
+
+static int
+connect_dual_cnf_count (Solver * solver, Number num) {
+  assert (!solver->level);
+  CNF * cnf = solver->cnf.dual;
+  Clauses * clauses = &cnf->clauses;
+  LOG ("connecting %ld dual clauses to solver for counting",
+    (long) COUNT (*clauses));
+  for (Clause ** p = clauses->start; p < clauses->top; p++) {
+    Clause * c = *p;
+    assert (c->dual == cnf->dual);
+    if (c->size == 0) {
+      LOG ("found empty clause in dual CNF");
+      return 0;
+    } else if (c->size == 1) {
+      int unit = c->literals[0];
+      LOG ("found unit clause %d in dual CNF", unit);
+      int tmp = val (solver, unit);
+      if (tmp > 0) {
+	LOG ("ignoring already satisfied unit %d", unit);
+	continue;
+      }
+      if (tmp < 0) {
+	LOG ("found already falsified unit %d in dual CNF", unit);
+        count_new_model (solver, num);
+	return 0;
+      }
+      if (is_input_var (var (solver, unit))) {
+	assign (solver, unit, c);
+	count_new_model (solver, num);
       } else assign (solver, unit, c);
     } else {
       assert (c->size > 1);
@@ -709,27 +808,6 @@ static void decide (Solver * solver) {
   stats.decisions++;
   PUSH (solver->frames, new_frame (solver, lit));
   assert (COUNT (solver->frames) == solver->level + 1);
-}
-
-static void unassign (Solver * solver, int lit) {
-  Var * v = var (solver, lit);
-  assert (solver->level == v->level);
-  SOG ("%s unassign %d", var_type (v), lit);
-  assert (v->val);
-  v->val = v->decision = 0;
-  if (v->reason)
-    mark_clause_inactive (v->reason, cnf (solver, v->reason));
-  Queue * q = queue (solver, v);
-  if (!q->search || q->search->stamp < v->stamp)
-    update_queue (solver, q, v);
-  if (is_primal_or_input_var (v)) {
-    solver->unassigned_primal_and_input_variables++;
-    assert (solver->unassigned_primal_and_input_variables > 0);
-  }
-  if (is_input_var (v)) {
-    solver->unassigned_input_variables++;
-    assert (solver->unassigned_input_variables > 0);
-  }
 }
 
 static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
@@ -1297,15 +1375,15 @@ int dual_sat (Solver * solver) {
   if (!connect_primal_cnf (solver)) return 20;
   if (primal_propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
-  if (!connect_dual_cnf (solver, 0, 0)) return 10;
-  // if (dual_propagate (solver, 0)) return 10;
+  if (!connect_dual_cnf_sat (solver)) return 10;
+  // if (dual_propagate_sat (solver)) return 10;
   int res = 0;
   while (!res) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
-    // else if (dual_propagate (solver, 0)) res = 10;
+    // else if (dual_propagate_sat (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
@@ -1316,13 +1394,13 @@ int dual_sat (Solver * solver) {
 void primal_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { new_model (solver, 0, res); return; }
+  if (satisfied (solver)) { count_new_model (solver, res); return; }
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      new_model (solver, 0, res);
+      count_new_model (solver, res);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
@@ -1333,34 +1411,21 @@ void primal_count (Number res, Solver * solver) {
 void dual_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { new_model (solver, 0, res); return; }
-  if (!connect_dual_cnf (solver, 1, res)) return;
-  // if (dual_propagate (solver, 1, res)) return;
+  if (satisfied (solver)) { count_new_model (solver, res); return; }
+  if (!connect_dual_cnf_count (solver, res)) return;
+  // if (dual_propagate_count (solver, res)) return;
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      new_model (solver, 0, res);
+      count_new_model (solver, res);
       if (!backtrack (solver)) return;
-    // else if (dual_propagate (solver, 1, res)) return;
+    // else if (dual_propagate_count (solver, res)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
-}
-
-static void print_model (Solver * solver, Name name) {
-  const int n = COUNT (*solver->sorted);
-  for (int i = 0; i < n; i++) {
-    if (i) fputc (' ', stdout);
-    const int lit = PEEK (*solver->sorted, i);
-    const int tmp = val (solver, lit);
-    assert (tmp);
-    if (tmp < 0) fputc ('!', stdout);
-    fputs (name.get (name.state, lit), stdout);
-  }
-  fputc ('\n', stdout);
 }
 
 void primal_enumerate (Solver * solver, Name name) {
@@ -1375,6 +1440,27 @@ void primal_enumerate (Solver * solver, Name name) {
       print_model (solver, name);
       stats.models++;
       if (!backtrack (solver)) return;
+    } else if (reducing (solver)) reduce (solver);
+    else if (restarting (solver)) restart (solver);
+    else decide (solver);
+  }
+}
+
+void dual_enumerate (Solver * solver, Name name) {
+  if (!connect_primal_cnf (solver)) return;
+  if (primal_propagate (solver)) return;
+  if (satisfied (solver)) { print_model (solver, name); return; }
+  if (!connect_dual_cnf_enumerate (solver, name)) return;
+  // if (dual_propagate_enumerate (solver, name)) return;
+  for (;;) {
+    Clause * conflict = primal_propagate (solver);
+    if (conflict) {
+      if (!analyze (solver, conflict)) return;
+    } else if (satisfied (solver)) {
+      print_model (solver, name);
+      stats.models++;
+      if (!backtrack (solver)) return;
+    // else if (dual_propagate_enumerate (solver, name)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
