@@ -29,6 +29,12 @@ sat () {
       error "failed to generate primal CNF"
     fi
   fi
+  execute $dualiza -s --dual $1
+  if [ ! "$last" = "$firstline" ]
+  then
+    error \
+"counting mismatch with '--dual' configuration: '$last' and '$firstline'"
+  fi
 }
 
 tautology () {

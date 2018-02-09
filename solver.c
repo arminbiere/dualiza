@@ -421,49 +421,85 @@ static void connect_dual_clause (Solver * solver, Clause * c) {
   connect_dual_literal (solver, c, c->literals[1]);
 }
 
-static void connect_clause (Solver * solver, Clause * c) {
-  if (c->dual) connect_dual_clause (solver, c);
-  else connect_primal_clause (solver, c);
-}
-
-static int connect_cnf (Solver * solver, CNF * cnf) {
+static int connect_primal_cnf (Solver * solver) {
   assert (!solver->level);
+  CNF * cnf = solver->cnf.primal;
   Clauses * clauses = &cnf->clauses;
-  LOG ("connecting %s %ld clauses to solver",
-    cnf->dual ? "dual" : "primal", (long) COUNT (*clauses));
+  LOG ("connecting %ld primal clauses to solver",
+    (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
     assert (c->dual == cnf->dual);
     if (c->size == 0) {
-      LOG ("found empty clause in CNF");
+      LOG ("found empty clause in primal CNF");
       return 0;
     } else if (c->size == 1) {
       int unit = c->literals[0];
-      LOG ("found unit clause %d", unit);
+      LOG ("found unit clause %d in primal CNF", unit);
       int tmp = val (solver, unit);
       if (tmp > 0) {
 	LOG ("ignoring already satisfied unit %d", unit);
 	continue;
       }
       if (tmp < 0) {
-	LOG ("found already falsified unit %d", unit);
+	LOG ("found already falsified unit %d in primal CNF", unit);
 	return 0;
       }
       assign (solver, unit, c);
     } else {
       assert (c->size > 1);
-      connect_clause (solver, c);
+      connect_primal_clause (solver, c);
     }
   }
   return 1;
 }
 
-static int connect_primal_cnf (Solver * solver) {
-  return connect_cnf (solver, solver->cnf.primal);
+static void new_model (Solver * solver, Number res) {
+  SOG ("new model with %d unassigned inputs",
+    solver->unassigned_input_variables);
+  add_power_of_two_to_number (res, solver->unassigned_input_variables);
+  stats.models++;
 }
 
-static int connect_dual_cnf (Solver * solver) {
-  return connect_cnf (solver, solver->cnf.dual);
+static int connect_dual_cnf (Solver * solver, Number * numptr) {
+  assert (!solver->level);
+  CNF * cnf = solver->cnf.dual;
+  Clauses * clauses = &cnf->clauses;
+  LOG ("connecting %ld dual clauses to solver",
+    (long) COUNT (*clauses));
+  for (Clause ** p = clauses->start; p < clauses->top; p++) {
+    Clause * c = *p;
+    assert (c->dual == cnf->dual);
+    if (c->size == 0) {
+      LOG ("found empty clause in dual CNF");
+      return 0;
+    } else if (c->size == 1) {
+      int unit = c->literals[0];
+      LOG ("found unit clause %d dual CNF", unit);
+      int tmp = val (solver, unit);
+      if (tmp > 0) {
+	LOG ("ignoring already satisfied unit %d", unit);
+	continue;
+      }
+      if (tmp < 0) {
+	LOG ("found already falsified unit %d in primal CNF", unit);
+	return 0;
+      }
+      if (is_input_var (var (solver, unit))) {
+        if (numptr) {
+	  assign (solver, unit, c);
+	  new_model (solver, *numptr);
+	} else {
+	  assign (solver, -unit, 0);
+	  return 0;
+	}
+      }
+    } else {
+      assert (c->size > 1);
+      connect_dual_clause (solver, c);
+    }
+  }
+  return 1;
 }
 
 static int remaining_variables (Solver * solver) {
@@ -1240,7 +1276,7 @@ int dual_sat (Solver * solver) {
   if (!connect_primal_cnf (solver)) return 20;
   if (primal_propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
-  if (!connect_dual_cnf (solver)) return 10;
+  if (!connect_dual_cnf (solver, 0)) return 10;
   // if (dual_propagate (solver)) return 10;
   int res = 0;
   while (!res) {
@@ -1259,19 +1295,13 @@ int dual_sat (Solver * solver) {
 void primal_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) {
-    SOG ("single root level model");
-    inc_number (res);
-    return;
-  }
+  if (satisfied (solver)) { new_model (solver, res); return; }
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      SOG ("new model");
-      inc_number (res);
-      stats.models++;
+      new_model (solver, res);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
@@ -1315,9 +1345,7 @@ void primal_enumerate (Solver * solver, Name name) {
   }
 }
 
-int deref (Solver * solver, int lit) {
-  return val (solver, lit);
-}
+int deref (Solver * solver, int lit) { return val (solver, lit); }
 
 #ifndef NDEBUG
 void print_trail (Solver * solver) {
