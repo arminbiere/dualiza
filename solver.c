@@ -262,7 +262,6 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   ALLOC (solver->vars, solver->max_var + 1);
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
-  assert (max_var_in_inputs <= max_var_in_primal);
   assert (max_var_in_primal <= max_var);
   for (int idx = 1; idx <= max_var_in_inputs; idx++) {
     Var * v = var (solver, idx);
@@ -547,34 +546,18 @@ static void dec_level (Solver * solver) {
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
-static Var * next_input (Solver * solver) {
-  Var * res = solver->queue.input.search;
+static Var * next_queue (Solver * solver, Queue * queue) {
+  Var * res = queue->search;
   while (res && res->val) 
     res = res->prev, stats.searched++;
-  update_queue (solver, &solver->queue.input, res);
-  return res;
-}
-
-static Var * next_primal (Solver * solver) {
-  Var * res = solver->queue.primal.search;
-  while (res && res->val) 
-    res = res->prev, stats.searched++;
-  update_queue (solver, &solver->queue.primal, res);
-  return res;
-}
-
-static Var * next_dual (Solver * solver) {
-  Var * res = solver->queue.dual.search;
-  while (res && res->val)
-    res = res->prev, stats.searched++;
-  update_queue (solver, &solver->queue.dual, res);
+  update_queue (solver, queue, res);
   return res;
 }
 
 static Var * next_decision (Solver * solver) {
-  Var * v = next_input (solver);
-  if (!v) v = next_primal (solver);
-  if (!v) v = next_dual (solver);
+  Var * v = next_queue (solver, &solver->queue.input);
+  if (!v) v = next_queue (solver, &solver->queue.primal);
+  if (!v) v = next_queue (solver, &solver->queue.dual);
   assert (v);
   SOG ("next %s decision %d stamped %ld",
     var_type (v), var2idx (solver, v), v->stamp);
