@@ -18,9 +18,9 @@ typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
 
 enum VarType {
-  INPUT_VARIABLE = 1,
-  PRIMAL_VARIABLE = 2,
-  DUAL_VARIABLE = 4,
+  INPUT_VARIABLE = 0,
+  PRIMAL_VARIABLE = 1,
+  DUAL_VARIABLE = 2,
 };
 
 struct Var {
@@ -59,10 +59,11 @@ struct Limit {
 struct Solver {
   Var * vars;
   char iterating, dual;
-  int max_var, next, level, phase;
+  int max_var, max_primal_or_input_var;
+  int next, level, phase;
   int last_flipped_level, num_flipped_levels;
   int unassigned_primal_and_input_variables;
-  int primal_and_input_variables;
+  int unassigned_input_variables;
   int primal_or_input_fixed;
   int dual_non_input_fixed;
   IntStack trail, clause, levels, * sorted;
@@ -263,11 +264,12 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   }
   solver->max_var = max_var;
   LOG ("maximum variable index %d", solver->max_var);
-  solver->primal_and_input_variables = MAX (max_primal_var, max_input_var);
+  solver->max_primal_or_input_var = MAX (max_primal_var, max_input_var);
   LOG ("%d primal gate or input variables %d",
-    solver->primal_and_input_variables);
+    solver->max_primal_or_input_var);
   solver->unassigned_primal_and_input_variables =
-    solver->primal_and_input_variables;
+    solver->max_primal_or_input_var;
+  solver->unassigned_input_variables = max_input_var;
   ALLOC (solver->vars, solver->max_var + 1);
   ALLOC (solver->occs.primal, 2*(solver->max_var + 1));
   if (dual)
@@ -288,7 +290,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     v->type = PRIMAL_VARIABLE;
   }
   if (dual) {
-    for (int idx = MAX (max_primal_var, max_input_var) + 1;
+    for (int idx = solver->max_primal_or_input_var + 1;
          idx <= max_var;
 	 idx++) {
       Var * v = var (solver, idx);
@@ -308,55 +310,46 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   return solver;
 }
 
-#if 0
-static int is_primal_var (Solver * solver, int lit) {
-  return var (solver, lit)->type == PRIMAL_VARIABLE;
-}
-#endif
+// static int is_primal_var (Var * v) { return v->type == PRIMAL_VARIABLE; }
+static int is_input_var (Var * v) { return v->type == INPUT_VARIABLE; }
+static int is_dual_var (Var * v) { return v->type == DUAL_VARIABLE; }
 
-#if 0
-static int is_input_var (Solver * solver, int lit) {
-  return var (solver, lit)->type == INPUT_VARIABLE;
-}
-#endif
-
-#if 0
-static int is_dual_var (Solver * solver, int lit) {
-  return var (solver, lit)->type == INPUT_VARIABLE;
-}
-#endif
-
-static int is_primal_or_input_var (Solver * solver, int lit) {
-  return var (solver, lit)->type & (PRIMAL_VARIABLE | INPUT_VARIABLE);
+static int is_primal_or_input_var (Var * v) {
+  return v->type != DUAL_VARIABLE;
 }
 
-static int is_dual_or_input_var (Solver * solver, int lit) {
-  return var (solver, lit)->type & (DUAL_VARIABLE | INPUT_VARIABLE);
+static int is_dual_or_input_var (Var * v) {
+  return v->type != PRIMAL_VARIABLE;
 }
 
 static Clauses * primal_occs (Solver * solver, int lit) {
-  assert (is_primal_or_input_var (solver, lit));
+  assert (is_primal_or_input_var (var (solver, lit)));
   return solver->occs.primal + 2*abs (lit) + (lit > 0);
 }
 
 static Clauses * dual_occs (Solver * solver, int lit) {
-  assert (is_dual_or_input_var (solver, lit));
+  assert (is_dual_or_input_var (var (solver, lit)));
   return solver->occs.dual + 2*abs (lit) + (lit > 0);
 }
 
 void delete_solver (Solver * solver) {
   LOG ("deleting solver");
   for (int idx = 1; idx <= solver->max_var; idx++) {
-    for (int sign = -1; sign <= 1; sign++) {
+    Var * v = var (solver, idx);
+    for (int sign = -1; sign <= 1; sign +=2) {
       const int lit = sign * idx;
-      Clauses * p = primal_occs (solver, lit);
-      RELEASE (*p);
-      if (solver->dual) {
+      if (is_primal_or_input_var (v)) {
+	Clauses * p = primal_occs (solver, lit);
+	RELEASE (*p);
+      }
+      if (solver->dual && is_dual_var (v)) {
 	Clauses * d = dual_occs (solver, lit);
 	RELEASE (*d);
       }
     }
   }
+  DEALLOC (solver->occs.primal, 2*(solver->max_var + 1));
+  if (solver->dual) DEALLOC (solver->occs.dual, 2*(solver->max_var + 1));
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
@@ -385,14 +378,18 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     if (reason)
       mark_clause_active (v->reason, cnf (solver, v->reason));
   } else {
-    if (v->type == DUAL_VARIABLE) solver->dual_non_input_fixed++;
+    if (is_dual_var (v)) solver->dual_non_input_fixed++;
     else solver->primal_or_input_fixed++;
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
-  if (v->type != DUAL_VARIABLE) {
+  if (is_primal_or_input_var (v)) {
     assert (solver->unassigned_primal_and_input_variables > 0);
     solver->unassigned_primal_and_input_variables--;
+  }
+  if (is_input_var (v)) {
+    assert (solver->unassigned_input_variables > 0);
+    solver->unassigned_input_variables--;
   }
 }
 
@@ -470,7 +467,7 @@ static int connect_dual_cnf (Solver * solver) {
 }
 
 static int remaining_variables (Solver * solver) {
-  return solver->primal_and_input_variables - solver->primal_or_input_fixed;
+  return solver->max_primal_or_input_var - solver->primal_or_input_fixed;
 }
 
 static void primal_header (Solver * solver) {
@@ -677,9 +674,13 @@ static void unassign (Solver * solver, int lit) {
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);
-  if (v->type != DUAL_VARIABLE) {
+  if (is_primal_or_input_var (v)) {
     solver->unassigned_primal_and_input_variables++;
     assert (solver->unassigned_primal_and_input_variables > 0);
+  }
+  if (is_input_var (v)) {
+    solver->unassigned_input_variables++;
+    assert (solver->unassigned_input_variables > 0);
   }
 }
 
@@ -729,7 +730,7 @@ static int subsumed (Solver * solver, Clause * c, int expected) {
 
 static void flush_primal_garbage_occurrences (Solver * solver) {
   long flushed = 0;
-  for (int idx = 1; idx <= solver->max_var; idx++)
+  for (int idx = 1; idx <= solver->max_primal_or_input_var; idx++)
     for (int sign = -1; sign <= 1; sign += 2) {
       int lit = sign * idx;
       Clauses * o = primal_occs (solver, lit);

@@ -320,8 +320,8 @@ static int check () {
     CNF * primal_cnf, * dual_cnf = 0;
     if (options.primal) {
       msg (1, "checking with primal SAT engine");
-      CNF * primal_cnf = new_cnf ();
-      Circuit * circuit = tautology ? dual_circuit : primal_circuit;
+      primal_cnf = new_cnf ();
+      circuit = tautology ? dual_circuit : primal_circuit;
       encode_circuit (circuit, primal_cnf);
     } else {
       msg (1, "checking with dual SAT engine");
