@@ -856,7 +856,11 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
 	c->literals[i] = -lit;
 	connect_dual_literal (solver, c, replacement);
 	q--;
-      } else if (!other_val) {
+      } else if (other_val) {
+	SOGCLS (c, "conflict");
+	count_new_model (solver, num);
+	res = c;
+      } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing %d", -other);
 	assign_temporarily (solver, -other);
 	count_new_model (solver, num);
@@ -864,9 +868,8 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
 	assign (solver, other, c);
 	res = c;
       } else {
-	SOGCLS (c, "conflict");
-	count_new_model (solver, num);
-	res = c;
+	SOGCLS (c, "forcing %d", other);
+	assign (solver, other, c);
       }
     }
     while (p < o->top) *q++ = *p++;
