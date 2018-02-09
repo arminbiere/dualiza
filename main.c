@@ -331,17 +331,18 @@ static int check () {
 	circuit = dual_circuit;
 	msg (2,
 	  "swapping role of primal and dual circuit for tautology checking");
-	encode_circuits (dual_circuit, primal_circuit, dual_cnf, primal_cnf);
+	encode_circuits (circuit, primal_circuit, primal_cnf, dual_cnf);
       } else {
 	circuit = primal_circuit;
-	encode_circuits (primal_circuit, dual_circuit, primal_cnf, dual_cnf);
+	encode_circuits (circuit, dual_circuit, primal_cnf, dual_cnf);
       }
     }
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
     Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
-    res = options.primal ? primal_sat (solver) : dual_sat (solver);
+    if (options.primal) res = primal_sat (solver);
+    else res = dual_sat (solver);
     if (sat) {
       if (sat_competition_mode) fputs ("s ", stdout);
       if (res == 20) printf ("UNSATISFIABLE\n");
