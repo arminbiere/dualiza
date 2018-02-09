@@ -62,6 +62,7 @@ struct Solver {
   char iterating, dual;
   int max_var, next, level, fixed, phase;
   int last_flipped_level, num_flipped_levels;
+  int unassigned_primal_and_input_variables;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
@@ -221,62 +222,66 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     solver->dual = 0;
   }
   solver->sorted = inputs;
-  int max_var_in_inputs = 0;
+  int max_input_var = 0;
   for (const int * p = inputs->start; p < inputs->top; p++) {
     int input = abs (*p);
     assert (0 < input);
-    if (input > max_var_in_inputs) max_var_in_inputs = input;
+    if (input > max_input_var) max_input_var = input;
   }
-  LOG ("maximum variable index %d in inputs", max_var_in_inputs);
-  assert (COUNT (*inputs) == max_var_in_inputs);
-  int max_var = max_var_in_inputs;
-  int max_var_in_primal = maximum_variable_index (primal);
-  LOG ("maximum variable index %d in primal CNF", max_var_in_primal);
-  if (max_var <  max_var_in_primal) {
+  LOG ("maximum variable index %d in inputs", max_input_var);
+  assert (COUNT (*inputs) == max_input_var);
+  int max_var = max_input_var;
+  int max_primal_var = maximum_variable_index (primal);
+  LOG ("maximum variable index %d in primal CNF", max_primal_var);
+  if (max_var <  max_primal_var) {
     LOG ("%d primal gate variables %d ... %d",
-      max_var_in_primal - max_var, max_var + 1, max_var_in_primal);
-    max_var = max_var_in_primal;
+      max_primal_var - max_var, max_var + 1, max_primal_var);
+    max_var = max_primal_var;
   } else LOG ("no primal gate variables");
   if (dual) {
-    int max_var_in_dual = dual ? maximum_variable_index (dual) : 0;
-    LOG ("maximum variable index %d in dual CNF", max_var_in_dual);
-    if (max_var <  max_var_in_dual) {
+    int max_dual_var = dual ? maximum_variable_index (dual) : 0;
+    LOG ("maximum variable index %d in dual CNF", max_dual_var);
+    if (max_var <  max_dual_var) {
       LOG ("%d dual gate variables %d ... %d",
-        max_var_in_dual - max_var, max_var + 1, max_var_in_dual);
-      max_var = max_var_in_dual;
+        max_dual_var - max_var, max_var + 1, max_dual_var);
+      max_var = max_dual_var;
     } else LOG ("no dual gate variables");
     int min_non_input_var_in_dual =
-      minimum_variable_index_above (dual, max_var_in_inputs);
+      minimum_variable_index_above (dual, max_input_var);
     LOG ("minimum variable index %d above %d in dual CNF",
-      min_non_input_var_in_dual, max_var_in_inputs);
+      min_non_input_var_in_dual, max_input_var);
 #ifndef NDEBUG
-    assert (min_non_input_var_in_dual > max_var_in_primal);
+    assert (min_non_input_var_in_dual > max_primal_var);
     if (min_non_input_var_in_dual < INT_MAX)
-      assert (min_non_input_var_in_dual <= max_var_in_dual);
+      assert (min_non_input_var_in_dual <= max_dual_var);
 #else
     (void) min_non_input_var_in_dual;
 #endif
   }
   solver->max_var = max_var;
   LOG ("maximum variable index %d", solver->max_var);
+  solver->unassigned_primal_and_input_variables =
+    MAX (max_primal_var, max_input_var);
+  LOG ("%d unassigned primal gate or input variables %d",
+    solver->unassigned_primal_and_input_variables);
   ALLOC (solver->vars, solver->max_var + 1);
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
-  assert (max_var_in_primal <= max_var);
-  for (int idx = 1; idx <= max_var_in_inputs; idx++) {
+  assert (max_primal_var <= max_var);
+  for (int idx = 1; idx <= max_input_var; idx++) {
     Var * v = var (solver, idx);
     assert (!v->type);
     LOG ("input variable %d", idx);
     v->type = INPUT_VARIABLE;
   }
-  for (int idx = max_var_in_inputs + 1; idx <= max_var_in_primal; idx++) {
+  for (int idx = max_input_var + 1; idx <= max_primal_var; idx++) {
     Var * v = var (solver, idx);
     assert (!v->type);
     LOG ("primal variable %d", idx);
     v->type = PRIMAL_VARIABLE;
   }
   if (dual) {
-    for (int idx = max_var_in_primal + 1; idx <= max_var; idx++) {
+    for (int idx = max_primal_var + 1; idx <= max_var; idx++) {
       Var * v = var (solver, idx);
       assert (!v->type);
       LOG ("dual variable %d", idx);
@@ -333,6 +338,10 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
+  if (v->type != DUAL_VARIABLE) {
+    assert (solver->unassigned_primal_and_input_variables > 0);
+    solver->unassigned_primal_and_input_variables--;
+  }
 }
 
 static Clauses * occs (Solver * solver, int lit) {
@@ -467,19 +476,19 @@ static void report (Solver * solver, int verbosity, const char type) {
   else primal_report (solver, verbosity, type);
 }
 
-static Clause * propagate (Solver * solver) {
+static Clause * primal_propagate (Solver * solver) {
   Clause * res = 0;
   while (!res && solver->next < COUNT (solver->trail)) {
     int lit = solver->trail.start[solver->next++];
     assert (val (solver, lit) > 0);
-    SOG ("propagating %d", lit);
+    SOG ("primal propagating %d", lit);
     stats.propagated++;
     Clauses * o = occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
       Clause * c = *q++ = *p++;
       if (c->garbage) { q--; continue; }
-      SOGCLS (c, "visiting while propagating %d", lit);
+      SOGCLS (c, "visiting while primal propagating %d", lit);
       assert (c->size > 1);
       if (c->literals[0] != -lit)
 	SWAP (int, c->literals[0], c->literals[1]);
@@ -589,6 +598,10 @@ static void unassign (Solver * solver, int lit) {
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);
+  if (v->type != DUAL_VARIABLE) {
+    solver->unassigned_primal_and_input_variables++;
+    assert (solver->unassigned_primal_and_input_variables > 0);
+  }
 }
 
 static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
@@ -1124,11 +1137,11 @@ static void restart (Solver * solver) {
 
 int primal_sat (Solver * solver) {
   if (!connect_cnf (solver)) return 20;
-  if (propagate (solver)) return 20;
+  if (primal_propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
   int res = 0;
   while (!res) {
-    Clause * conflict = propagate (solver);
+    Clause * conflict = primal_propagate (solver);
     if (conflict) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
@@ -1141,14 +1154,14 @@ int primal_sat (Solver * solver) {
 
 void primal_count (Number res, Solver * solver) {
   if (!connect_cnf (solver)) return;
-  if (propagate (solver)) return;
+  if (primal_propagate (solver)) return;
   if (satisfied (solver)) {
     SOG ("single root level model");
     inc_number (res);
     return;
   }
   for (;;) {
-    Clause * conflict = propagate (solver);
+    Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
@@ -1182,10 +1195,10 @@ static void print_model (Solver * solver, Name name) {
 
 void primal_enumerate (Solver * solver, Name name) {
   if (!connect_cnf (solver)) return;
-  if (propagate (solver)) return;
+  if (primal_propagate (solver)) return;
   if (satisfied (solver)) { print_model (solver, name); return; }
   for (;;) {
-    Clause * conflict = propagate (solver);
+    Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
