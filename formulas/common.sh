@@ -132,10 +132,10 @@ run () {
   count $1
 }
 configurations="\
---no-block \
---block_--blocklimit=1 \
---block_--blocklimit=2 \
---block_--blocklimit=3 \
+--no-dual_--no-block \
+--no-dual_--block_--blocklimit=1 \
+--no-dual_--block_--blocklimit=2 \
+--no-dual_--block_--blocklimit=3 \
 --dual_--no-block \
 --dual_--block_--blocklimit=1 \
 --dual_--block_--blocklimit=2 \
