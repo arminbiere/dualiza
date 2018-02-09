@@ -455,14 +455,23 @@ static int connect_primal_cnf (Solver * solver) {
   return 1;
 }
 
-static void new_model (Solver * solver, Number res) {
-  SOG ("new model with %d unassigned inputs",
-    solver->unassigned_input_variables);
-  add_power_of_two_to_number (res, solver->unassigned_input_variables);
+static void new_model (Solver * solver, int assign, Number res) {
+#ifndef NDEBUG
+  if (assign) {
+    assert (!val (solver, assign));
+    assert (is_input_var (var (solver, assign)));
+    assert (solver->unassigned_input_variables > 0);
+  }
+#endif
+  int unassigned = solver->unassigned_input_variables;
+  if (assign) assert (unassigned), unassigned--;
+  SOG ("new model with %d unassigned inputs", unassigned);
+  add_power_of_two_to_number (res, unassigned);
   stats.models++;
 }
 
-static int connect_dual_cnf (Solver * solver, int counting, Number numptr) {
+static int
+connect_dual_cnf (Solver * solver, int counting, Number num) {
   assert (!solver->level);
   CNF * cnf = solver->cnf.dual;
   Clauses * clauses = &cnf->clauses;
@@ -484,12 +493,13 @@ static int connect_dual_cnf (Solver * solver, int counting, Number numptr) {
       }
       if (tmp < 0) {
 	LOG ("found already falsified unit %d in dual CNF", unit);
+        if (counting) new_model (solver, 0, num);
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {
         if (counting) {
+	  new_model (solver, -unit, num);
 	  assign (solver, unit, c);
-	  new_model (solver, numptr);
 	} else {
 	  assign (solver, -unit, 0);
 	  return 0;
@@ -1306,13 +1316,13 @@ int dual_sat (Solver * solver) {
 void primal_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { new_model (solver, res); return; }
+  if (satisfied (solver)) { new_model (solver, 0, res); return; }
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      new_model (solver, res);
+      new_model (solver, 0, res);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
@@ -1323,7 +1333,7 @@ void primal_count (Number res, Solver * solver) {
 void dual_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { new_model (solver, res); return; }
+  if (satisfied (solver)) { new_model (solver, 0, res); return; }
   if (!connect_dual_cnf (solver, 1, res)) return;
   // if (dual_propagate (solver, 1, res)) return;
   for (;;) {
@@ -1331,7 +1341,7 @@ void dual_count (Number res, Solver * solver) {
     if (conflict) {
       if (!analyze (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      new_model (solver, res);
+      new_model (solver, 0, res);
       if (!backtrack (solver)) return;
     // else if (dual_propagate (solver, 1, res)) return;
     } else if (reducing (solver)) reduce (solver);
