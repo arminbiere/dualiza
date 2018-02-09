@@ -118,6 +118,7 @@ static void encode_clause (Encoder * e) {
   if (!clause_is_trivial (e)) {
     const int size = COUNT (e->clause);
     Clause * c = new_clause (e->clause.start, size);
+    c->dual = e->cnf->dual;
     LOGCLS (c, "encoded new");
     add_clause_to_cnf (c, e->cnf);
   }
@@ -331,7 +332,7 @@ void encode_circuit (Circuit * circuit, CNF * cnf) {
   LOG ("starting to encode roots");
   int idx = encode_roots (encoder, circuit->output, inputs);
   delete_encoder (encoder);
-  msg (2, "encoded %d gates in total", idx);
+  msg (2, "encoded %d inputs and gates in total", idx);
 }
 
 void encode_circuits (Circuit * c, Circuit * d, CNF * f, CNF * g) {
@@ -343,8 +344,9 @@ void encode_circuits (Circuit * c, Circuit * d, CNF * f, CNF * g) {
   int inputs1 = encode_inputs (encoder);
   LOG ("starting to encode roots of first circuit");
   int first = encode_roots (encoder, c->output, inputs1);
+  assert (first >= inputs1);
   delete_encoder (encoder);
-  msg (2, "encoded %d gates of first circuit", first);
+  msg (2, "encoded %d gates of first circuit", first - inputs1);
   LOG ("starting to encode second circuit");
   encoder = new_encoder (d, g);
   reset_code_root_fields_of_circuit (d);
@@ -354,8 +356,8 @@ void encode_circuits (Circuit * c, Circuit * d, CNF * f, CNF * g) {
   int second = encode_roots (encoder, d->output, first);
   assert (second >= first);
   delete_encoder (encoder);
-  msg (2, "encoded %d gates of first circuit", second - first);
-  msg (2, "encoded %d gates in total", second);
+  msg (2, "encoded %d gates of second circuit", second - first);
+  msg (2, "encoded %d inputs and gates in total", second);
 }
 
 void get_encoded_inputs (Circuit * c, IntStack * s) {

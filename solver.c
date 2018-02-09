@@ -59,16 +59,15 @@ struct Limit {
 
 struct Solver {
   Var * vars;
-  char iterating;
+  char iterating, dual;
   int max_var, next, level, fixed, phase;
   int last_flipped_level, num_flipped_levels;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
-  Queue inputs, gates;
   Limit limit;
-  CNF * primal;
-  CNF * dual;
+  struct { CNF * primal, * dual; } cnf;
+  struct { Queue primal, input, dual; } queue;
 };
 
 static Var * var (Solver * solver, int lit) {
@@ -96,23 +95,15 @@ static int val (Solver * solver, int lit) {
 }
 
 static Queue * queue (Solver * solver, Var * v) {
-  if (!options.inputs) return &solver->inputs;
-  return v->type == INPUT_VARIABLE ? &solver->inputs : &solver->gates;
-}
-
-static void update_queue (Solver * solver, Queue * q, Var * v) {
-  assert (!v || q == queue (solver, v));
-  q->search = v;
-#ifndef NLOG
-  const int idx = (v ? (long)(v - solver->vars) : 0l);
-  const char * t = (q == &solver->inputs ? "input" : "gate");
-  SOG ("%s update %d", t, idx);
-#endif
+  if (v->type == DUAL_VARIABLE) return &solver->queue.dual;
+  if (!options.inputs) return &solver->queue.input;
+  if (v->type == PRIMAL_VARIABLE) return &solver->queue.primal;
+  return &solver->queue.input;
 }
 
 #ifndef NLOG
 
-static const char * type (Var * v) {
+static const char * var_type (Var * v) {
   assert (v);
   if (v->type == PRIMAL_VARIABLE) return "primal";
   if (v->type == INPUT_VARIABLE) return "input";
@@ -120,7 +111,25 @@ static const char * type (Var * v) {
   return "dual";
 }
 
+static const char * queue_type (Solver * s, Queue * q) {
+  if (q == &s->queue.primal) return "primal";
+  if (q == &s->queue.input) return "input";
+  assert (q == &s->queue.dual);
+  return "dual";
+}
+
 #endif
+
+static void update_queue (Solver * solver, Queue * q, Var * v) {
+  assert (!v || q == queue (solver, v));
+  q->search = v;
+#ifndef NLOG
+  if (v) {
+    SOG ("updating %s variable %d in %s queue",
+      var_type (v), (int)(long)(v - solver->vars), queue_type (solver, q));
+  } else SOG ("flushed %s queue", queue_type (solver, q));
+#endif
+}
 
 static void enqueue (Solver * solver, Var * v) {
   Queue * q = queue (solver, v);
@@ -128,7 +137,7 @@ static void enqueue (Solver * solver, Var * v) {
   assert (!v->prev);
   v->stamp = ++q->stamp;
   SOG ("%s enqueue variable %d stamp %ld",
-    type (v), var2idx (solver, v), v->stamp);
+    var_type (v), var2idx (solver, v), v->stamp);
   if (!q->first) q->first = v;
   if (q->last) q->last->next = v;
   v->prev = q->last;
@@ -139,7 +148,7 @@ static void enqueue (Solver * solver, Var * v) {
 static void dequeue (Solver * solver, Var * v) {
   Queue * q = queue (solver, v);
   SOG ("%s dequeue variable %d stamp %ld",
-    type (v), var2idx (solver, v), v->stamp);
+    var_type (v), var2idx (solver, v), v->stamp);
   if (v->prev) assert (v->prev->next == v), v->prev->next = v->next;
   else assert (q->first == v), q->first = v->next;
   if (v->next) assert (v->next->prev == v), v->next->prev = v->prev;
@@ -180,7 +189,7 @@ static void init_restart_limit (Solver * solver) {
 }
 
 static void set_subsumed_limit (Solver * solver) {
-  solver->limit.subsumed += COUNT (solver->primal->clauses)/10 + 1000;
+  solver->limit.subsumed += COUNT (solver->cnf.primal->clauses)/10 + 1000;
   LOG ("subsumed limit %ld", solver->limit.subsumed);
 }
 
@@ -196,8 +205,8 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   NEW (solver);
   LOG ("new solver over %ld clauses and %ld inputs",
     (long) COUNT (primal->clauses), (long) COUNT (*inputs));
-  solver->primal = primal;
-  solver->dual = dual;
+  solver->cnf.primal = primal;
+  solver->cnf.dual = dual;
   solver->sorted = inputs;
   int max_var_in_primal = maximum_variable_index (primal);
   LOG ("maximum variable index %d in primal CNF", max_var_in_primal);
@@ -210,6 +219,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     if (input > max_var_in_inputs) max_var_in_inputs = input;
   }
   LOG ("maximum variable index %d in inputs", max_var_in_inputs);
+  assert (COUNT (*inputs) == max_var_in_inputs);
   int max_var = max_var_in_primal;
   if (max_var <  max_var_in_inputs) max_var = max_var_in_inputs;
   if (max_var <  max_var_in_dual) max_var = max_var_in_dual;
@@ -239,8 +249,8 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     enqueue (solver, var (solver, idx));
 #ifndef NDEBUG
   if (options.inputs) {
-    assert (solver->inputs.stamp == num_inputs);
-    assert (solver->gates.stamp == num_gates);
+    assert (solver->queue.input.stamp == num_inputs);
+    assert (solver->queue.primal.stamp == num_gates);
   }
 #endif
   PUSH (solver->frames, new_frame (solver, 0));
@@ -265,19 +275,24 @@ void delete_solver (Solver * solver) {
   DELETE (solver);
 }
 
+static CNF * cnf (Solver * solver, Clause * c) {
+  return c->dual ? solver->cnf.dual : solver->cnf.primal;
+}
+
 static void assign (Solver * solver, int lit, Clause * reason) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
   Var * v = solver->vars + idx;
-  if (!reason) SOG ("%s assign %d decision", type (v), lit); 
-  else SOGCLS (reason, "%s assign %d reason", type (v), lit);
+  if (!reason) SOG ("%s assign %d decision", var_type (v), lit); 
+  else SOGCLS (reason, "%s assign %d reason", var_type (v), lit);
   assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
   v->level = solver->level;
   if (v->level) {
     v->reason = reason;
-    if (reason) mark_clause_active (reason, solver->primal);
+    if (reason)
+      mark_clause_active (v->reason, cnf (solver, v->reason));
   } else {
     solver->fixed++;
     v->reason = 0;
@@ -303,7 +318,7 @@ static void connect_clause (Solver * solver, Clause * c) {
 
 static int connect_cnf (Solver * solver) {
   assert (!solver->level);
-  Clauses * clauses = &solver->primal->clauses;
+  Clauses * clauses = &solver->cnf.primal->clauses;
   LOG ("connecting %ld clauses to Solver solver", (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
@@ -335,7 +350,8 @@ static int remaining_variables (Solver * solver) {
   return solver->max_var - solver->fixed;
 }
 
-static void header (Solver * solver) {
+static void primal_header (Solver * solver) {
+  assert (!solver->dual);
   msg (1, "");
   msg (1,
     "  "
@@ -348,9 +364,11 @@ static void header (Solver * solver) {
   msg (1, "");
 }
 
-static void report (Solver * solver, int verbosity, const char type) {
+static void
+primal_report (Solver * solver, int verbosity, const char type) {
+  assert (!solver->dual);
   if (options.verbosity < verbosity) return;
-  if (!(stats.reports++ % 20)) header (solver);
+  if (!(stats.reports++ % 20)) primal_header (solver);
   msg (1,
     "%c"
     " %8.2f"
@@ -363,9 +381,55 @@ static void report (Solver * solver, int verbosity, const char type) {
     process_time (),
     current_resident_set_size ()/(double)(1<<20),
     stats.conflicts,
-    solver->primal->redundant,
-    solver->primal->irredundant,
+    solver->cnf.primal->redundant,
+    solver->cnf.primal->irredundant,
     remaining_variables (solver));
+}
+
+static void dual_header (Solver * solver) {
+  assert (solver->dual);
+  msg (1, "");
+  msg (1,
+    "  "
+    "    time"
+    "  memory"
+    " conflicts"
+    "  learned"
+    "    primal"
+    "      dual"
+    " variables");
+  msg (1, "");
+}
+
+static void
+dual_report (Solver * solver, int verbosity, const char type) {
+  assert (solver->dual);
+  if (options.verbosity < verbosity) return;
+  if (!(stats.reports++ % 20)) dual_header (solver);
+  assert (solver->cnf.dual);
+  assert (!solver->cnf.dual->redundant);
+  msg (1,
+    "%c"
+    " %8.2f"
+    " %7.1f"
+    " %9ld"
+    " %8ld"
+    " %9ld"
+    " %9ld"
+    " %8ld",
+    type,
+    process_time (),
+    current_resident_set_size ()/(double)(1<<20),
+    stats.conflicts,
+    solver->cnf.primal->redundant,
+    solver->cnf.primal->irredundant,
+    solver->cnf.dual->irredundant,
+    remaining_variables (solver));
+}
+
+static void report (Solver * solver, int verbosity, const char type) {
+  if (solver->dual) dual_report (solver, verbosity, type);
+  else primal_report (solver, verbosity, type);
 }
 
 static Clause * propagate (Solver * solver) {
@@ -448,27 +512,36 @@ static void dec_level (Solver * solver) {
 }
 
 static Var * next_input (Solver * solver) {
-  Var * res = solver->inputs.search;
+  Var * res = solver->queue.input.search;
   while (res && res->val) 
     res = res->prev, stats.searched++;
-  update_queue (solver, &solver->inputs, res);
+  update_queue (solver, &solver->queue.input, res);
   return res;
 }
 
-static Var * next_gate (Solver * solver) {
-  Var * res = solver->gates.search;
+static Var * next_primal (Solver * solver) {
+  Var * res = solver->queue.primal.search;
+  while (res && res->val) 
+    res = res->prev, stats.searched++;
+  update_queue (solver, &solver->queue.primal, res);
+  return res;
+}
+
+static Var * next_dual (Solver * solver) {
+  Var * res = solver->queue.dual.search;
   while (res && res->val)
     res = res->prev, stats.searched++;
-  update_queue (solver, &solver->gates, res);
+  update_queue (solver, &solver->queue.dual, res);
   return res;
 }
 
 static Var * next_decision (Solver * solver) {
   Var * v = next_input (solver);
-  if (!v) v = next_gate (solver);
+  if (!v) v = next_primal (solver);
+  if (!v) v = next_dual (solver);
   assert (v);
   SOG ("next %s decision %d stamped %ld",
-    type (v), var2idx (solver, v), v->stamp);
+    var_type (v), var2idx (solver, v), v->stamp);
   return v;
 }
 
@@ -477,7 +550,7 @@ static void decide (Solver * solver) {
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   inc_level (solver);
-  SOG ("%s decide %d", type (v), lit);
+  SOG ("%s decide %d", var_type (v), lit);
   assign (solver, lit, 0);
   assert (!v->decision);
   v->decision = 1;
@@ -489,10 +562,11 @@ static void decide (Solver * solver) {
 static void unassign (Solver * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
-  SOG ("%s unassign %d", type (v), lit);
+  SOG ("%s unassign %d", var_type (v), lit);
   assert (v->val);
   v->val = v->decision = 0;
-  if (v->reason) mark_clause_inactive (v->reason, solver->primal);
+  if (v->reason)
+    mark_clause_inactive (v->reason, cnf (solver, v->reason));
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);
@@ -564,8 +638,9 @@ static void subsume (Solver * solver, Clause * c) {
   assert (!c->redundant);
   mark_clause (solver, c);
   int limit = MAX (options.subsumelimit, 0);
-  Clause ** p = solver->primal->clauses.top;
-  while (p != solver->primal->clauses.start) {
+  assert (!c->dual);
+  Clause ** p = solver->cnf.primal->clauses.top;
+  while (p != solver->cnf.primal->clauses.start) {
     Clause * d = *--p;
     if (d == c) continue;
     if (d->garbage) break;
@@ -578,7 +653,7 @@ static void subsume (Solver * solver, Clause * c) {
   unmark_clause (solver, c);
   if (stats.subsumed <= solver->limit.subsumed) return;
   flush_garbage_occurrences (solver);
-  collect_garbage_clauses (solver->primal);
+  collect_garbage_clauses (solver->cnf.primal);
   set_subsumed_limit (solver);
   report (solver, 1, '/');
 }
@@ -596,7 +671,7 @@ static void block_clause (Solver * solver, int lit) {
     int decision = f->decision;
     PUSH (solver->clause, -decision);
     SOG ("%s adding literal %d",
-      type (var (solver, decision)), -decision);
+      var_type (var (solver, decision)), -decision);
   }
   const int size = COUNT (solver->clause);
   stats.blocked.literals += size;
@@ -615,7 +690,7 @@ static void block_clause (Solver * solver, int lit) {
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
   SOGCLS (c, "blocking");
-  add_clause_to_cnf (c, solver->primal);
+  add_clause_to_cnf (c, solver->cnf.primal);
   if (size > 1) connect_clause (solver, c);
   CLEAR (solver->clause);
   solver->next = COUNT (solver->trail);
@@ -629,8 +704,8 @@ static void flip (Solver * solver, int lit) {
   Var * v = var (solver, lit);
   assert (v->decision == 1);
   v->decision = 2;
-  SOG ("%s flip %d", type (v), lit);
-  SOG ("%s assign %d", type (v), -lit);
+  SOG ("%s flip %d", var_type (v), lit);
+  SOG ("%s assign %d", var_type (v), -lit);
   int n = COUNT (solver->trail) - 1;
   assert (PEEK (solver->trail, n) == lit);
   POKE (solver->trail, n, -lit);
@@ -689,7 +764,7 @@ static int resolve_literal (Solver * solver, int lit) {
   if (v->seen) return 0;
   v->seen = 1;
   PUSH (solver->seen, v);
-  SOG ("%s seen literal %d", type (v), lit);
+  SOG ("%s seen literal %d", var_type (v), lit);
   assert (val (solver, lit) < 0);
   Frame * f = frame (solver, lit);
   if (!f->seen) {
@@ -698,7 +773,7 @@ static int resolve_literal (Solver * solver, int lit) {
     f->seen = 1;
   }
   if (v->level == solver->level) return 1;
-  SOG ("%s adding literal %d", type (v), lit);
+  SOG ("%s adding literal %d", var_type (v), lit);
   PUSH (solver->clause, lit);
   return 0;
 }
@@ -727,7 +802,7 @@ static void sort_seen (Solver * solver) {
 
 static void bump_variable (Solver * solver, Var * v) {
   stats.bumped++;
-  SOG ("%s bump variable %d", type (v), var2idx (solver, v));
+  SOG ("%s bump variable %d", var_type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
 }
@@ -739,7 +814,7 @@ static void bump_reason_clause_literals (Solver * solver, Clause * c) {
     Var * v = var (solver, idx);
     if (v->seen) continue;
     if (!v->level) continue;
-    SOG ("also marking %s reason variable %d as seen", type (v), idx);
+    SOG ("also marking %s reason variable %d as seen", var_type (v), idx);
     PUSH (solver->seen, v);
     v->seen = 1;
   }
@@ -826,7 +901,7 @@ static Clause * learn_clause (Solver * solver, int glue) {
   res->redundant = 1;
   res->recent = 1;
   SOGCLS (res, "learned new");
-  add_clause_to_cnf (res, solver->primal);
+  add_clause_to_cnf (res, solver->cnf.primal);
   if (size > 1) connect_clause (solver, res);
   return res;
 }
@@ -867,10 +942,10 @@ static int resolve_conflict (Solver * solver, Clause * conflict) {
     while (!var (solver, (uip = *--p))->seen)
       ;
     if (!--unresolved) break;
-    SOG ("%s resolving literal %d", type (var (solver, uip)), uip);
+    SOG ("%s resolving literal %d", var_type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
   }
-  SOG ("%s first UIP literal %d", type (var (solver, uip)), uip);
+  SOG ("%s first UIP literal %d", var_type (var (solver, uip)), uip);
   PUSH (solver->clause, -uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
@@ -940,7 +1015,7 @@ static void reduce (Solver * solver) {
   SOG ("reduction %ld", stats.reductions);
   Clauses candidates;
   INIT (candidates);
-  CNF * primal = solver->primal;
+  CNF * primal = solver->cnf.primal;
   const int simplify = solver->fixed > solver->limit.reduce.fixed;
   for (Clause ** p = primal->clauses.start; p < primal->clauses.top; p++) {
     Clause * c = *p;

@@ -37,6 +37,7 @@ void delete_cnf (CNF * cnf) {
 
 void add_clause_to_cnf (Clause * c, CNF * cnf) {
   assert (c), assert (cnf);
+  assert (c->dual == cnf->dual);
   if (c->redundant) cnf->redundant++; else cnf->irredundant++;
   assert (!c->active);
   c->id = cnf->added++;
@@ -53,12 +54,16 @@ static void collect_garbage_clause (Clause * c, CNF * cnf) {
 }
 
 void mark_clause_active (Clause * c, CNF * cnf) {
+  assert (c), assert (cnf);
+  assert (c->dual == cnf->dual);
   assert (!c->active);
   c->active = 1;
   cnf->active++;
 }
 
 void mark_clause_inactive (Clause * c, CNF * cnf) {
+  assert (c), assert (cnf);
+  assert (c->dual == cnf->dual);
   assert (c->active);
   c->active = 0;
   assert (cnf->active > 0);
