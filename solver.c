@@ -365,6 +365,23 @@ static CNF * cnf (Solver * solver, Clause * c) {
   return c->dual ? solver->cnf.dual : solver->cnf.primal;
 }
 
+static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
+
+static void assign_temporarily (Solver * solver, int lit) {
+  int idx = abs (lit);
+  assert (0 < idx), assert (idx <= solver->max_var);
+  Var * v = solver->vars + idx;
+  assert (!v->val);
+  v->val = lit_sign (lit);
+  SOG ("assign %d temporarily", lit);
+}
+
+static void unassign_temporarily (Solver * solver, int lit) {
+  assert (val (solver, lit) > 0);
+  var (solver, lit)->val = 0;
+  SOG ("unassign %d temporarily", lit);
+}
+
 static void assign (Solver * solver, int lit, Clause * reason) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
@@ -477,13 +494,6 @@ static int connect_primal_cnf (Solver * solver) {
   return 1;
 }
 
-static void count_new_model (Solver * solver, Number res) {
-  int unassigned = solver->unassigned_input_variables;
-  SOG ("new model with %d unassigned inputs", unassigned);
-  add_power_of_two_to_number (res, unassigned);
-  stats.models++;
-}
-
 static int
 connect_dual_cnf_sat (Solver * solver) {
   assert (!solver->level);
@@ -521,15 +531,61 @@ connect_dual_cnf_sat (Solver * solver) {
   return 1;
 }
 
+static void count_new_model (Solver * solver, Number res) {
+  int unassigned = solver->unassigned_input_variables;
+  SOG ("new model with %d unassigned inputs", unassigned);
+  add_power_of_two_to_number (res, unassigned);
+  stats.models++;
+}
+
+static int
+connect_dual_cnf_count (Solver * solver, Number num) {
+  assert (!solver->level);
+  CNF * cnf = solver->cnf.dual;
+  Clauses * clauses = &cnf->clauses;
+  LOG ("connecting %ld dual clauses to solver for counting",
+    (long) COUNT (*clauses));
+  for (Clause ** p = clauses->start; p < clauses->top; p++) {
+    Clause * c = *p;
+    assert (c->dual == cnf->dual);
+    if (c->size == 0) {
+      LOG ("found empty clause in dual CNF");
+      return 0;
+    } else if (c->size == 1) {
+      int unit = c->literals[0];
+      LOG ("found unit clause %d in dual CNF", unit);
+      int tmp = val (solver, unit);
+      if (tmp > 0) {
+	LOG ("ignoring already satisfied unit %d", unit);
+	continue;
+      }
+      if (tmp < 0) {
+	LOG ("found already falsified unit %d in dual CNF", unit);
+        count_new_model (solver, num);
+	return 0;
+      }
+      assign (solver, unit, c);
+      if (is_input_var (var (solver, unit)))
+	count_new_model (solver, num);
+    } else {
+      assert (c->size > 1);
+      connect_dual_clause (solver, c);
+    }
+  }
+  return 1;
+}
+
 static void print_model (Solver * solver, Name name) {
   const int n = COUNT (*solver->sorted);
+  int first = 1;
   for (int i = 0; i < n; i++) {
-    if (i) fputc (' ', stdout);
+    if (!first) fputc (' ', stdout);
     const int lit = PEEK (*solver->sorted, i);
     const int tmp = val (solver, lit);
-    assert (tmp);
+    if (!tmp) continue;
     if (tmp < 0) fputc ('!', stdout);
     fputs (name.get (name.state, lit), stdout);
+    first = 0;
   }
   fputc ('\n', stdout);
 }
@@ -561,49 +617,11 @@ connect_dual_cnf_enumerate (Solver * solver, Name name) {
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {
-	assign (solver, -unit, c);
+	assign_temporarily (solver, -unit);
 	print_model (solver, name);
-	unassign (solver, -unit);
-	assign (solver, unit, c);
-      } else assign (solver, unit, c);
-    } else {
-      assert (c->size > 1);
-      connect_dual_clause (solver, c);
-    }
-  }
-  return 1;
-}
-
-static int
-connect_dual_cnf_count (Solver * solver, Number num) {
-  assert (!solver->level);
-  CNF * cnf = solver->cnf.dual;
-  Clauses * clauses = &cnf->clauses;
-  LOG ("connecting %ld dual clauses to solver for counting",
-    (long) COUNT (*clauses));
-  for (Clause ** p = clauses->start; p < clauses->top; p++) {
-    Clause * c = *p;
-    assert (c->dual == cnf->dual);
-    if (c->size == 0) {
-      LOG ("found empty clause in dual CNF");
-      return 0;
-    } else if (c->size == 1) {
-      int unit = c->literals[0];
-      LOG ("found unit clause %d in dual CNF", unit);
-      int tmp = val (solver, unit);
-      if (tmp > 0) {
-	LOG ("ignoring already satisfied unit %d", unit);
-	continue;
+	unassign_temporarily (solver, -unit);
       }
-      if (tmp < 0) {
-	LOG ("found already falsified unit %d in dual CNF", unit);
-        count_new_model (solver, num);
-	return 0;
-      }
-      if (is_input_var (var (solver, unit))) {
-	assign (solver, unit, c);
-	count_new_model (solver, num);
-      } else assign (solver, unit, c);
+      assign (solver, unit, c);
     } else {
       assert (c->size > 1);
       connect_dual_clause (solver, c);
@@ -809,8 +827,6 @@ static void decide (Solver * solver) {
   PUSH (solver->frames, new_frame (solver, lit));
   assert (COUNT (solver->frames) == solver->level + 1);
 }
-
-static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
 
 static void mark_literal (Solver * solver, int lit) {
   SOG ("marking literal %d", lit);

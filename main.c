@@ -432,7 +432,23 @@ static void all () {
     delete_solver (solver);
     RELEASE (inputs);
     delete_cnf (cnf);
-  } else die ("enumerating with dual SAT engine not implement yet (use '-b')");
+  } else {
+    msg (1, "enumerating with dual SAT engine");
+    CNF * primal_cnf = new_cnf (0);
+    CNF * dual_cnf = new_cnf (1);
+    encode_circuits (primal_circuit, dual_circuit, primal_cnf, dual_cnf);
+    IntStack inputs;
+    INIT (inputs);
+    get_encoded_inputs (primal_circuit, &inputs);
+    Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
+    else printf ("ALL SATISFYING ASSIGNMENTS\n");
+    dual_enumerate (solver, n);
+    delete_solver (solver);
+    RELEASE (inputs);
+    delete_cnf (primal_cnf);
+    delete_cnf (dual_cnf);
+  }
 }
 
 static void count () {
