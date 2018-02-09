@@ -386,7 +386,9 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
   Var * v = solver->vars + idx;
-  if (!reason) SOG ("%s assign %d decision", var_type (v), lit); 
+  if (!reason)
+    SOG ("%s assign %d decision%s",
+      var_type (v), lit, v->decision == 2 ? " flipped" : ""); 
   else SOGCLS (reason, "%s assign %d reason", var_type (v), lit);
   assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
@@ -410,6 +412,23 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     assert (solver->unassigned_input_variables > 0);
     solver->unassigned_input_variables--;
   }
+}
+
+static void inc_level (Solver * solver) {
+  solver->level++;
+  SOG ("incremented decision level");
+}
+
+static void assume_decision (Solver * solver, int lit, int flipped) {
+  assert (flipped == 0 || flipped == 1);
+  inc_level (solver);
+  Var * v = var (solver, lit);
+  assert (!v->decision);
+  v->decision = flipped ? 2 : 1;
+  assign (solver, lit, 0);
+  stats.decisions++;
+  PUSH (solver->frames, new_frame (solver, lit));
+  assert (COUNT (solver->frames) == solver->level + 1);
 }
 
 static void unassign (Solver * solver, int lit) {
@@ -861,14 +880,17 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
 	count_new_model (solver, num);
 	res = c;
       } else if (is_input_var (var (solver, other))) {
-	SOGCLS (c, "forcing %d", -other);
+	SOGCLS (c, "forcing input %d", other);
+#if 0
+	// TODO does not work ...
 	assign_temporarily (solver, -other);
 	count_new_model (solver, num);
 	unassign_temporarily (solver, -other);
-	assign (solver, other, c);
-	res = c;
+	assume_decision (solver, other, 0);
+#endif
       } else {
-	SOGCLS (c, "forcing %d", other);
+	assert (is_dual_var (var (solver, other)));
+	SOGCLS (c, "forcing dual %d", other);
 	assign (solver, other, c);
       }
     }
@@ -881,11 +903,6 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
 
 static int satisfied (Solver * solver) {
   return !solver->unassigned_primal_and_input_variables;
-}
-
-static void inc_level (Solver * solver) {
-  solver->level++;
-  SOG ("incremented decision level");
 }
 
 static void dec_level (Solver * solver) {
@@ -928,14 +945,8 @@ static void decide (Solver * solver) {
   Var * v = next_decision (solver);
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
-  inc_level (solver);
   SOG ("%s decide %d", var_type (v), lit);
-  assign (solver, lit, 0);
-  assert (!v->decision);
-  v->decision = 1;
-  stats.decisions++;
-  PUSH (solver->frames, new_frame (solver, lit));
-  assert (COUNT (solver->frames) == solver->level + 1);
+  assume_decision (solver, lit, 0);
 }
 
 static void mark_literal (Solver * solver, int lit) {
