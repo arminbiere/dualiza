@@ -48,7 +48,7 @@ count () {
 "counting mismatch between SAT and BDD engine: '$last' and '$lastline'"
   fi
   case `basename $1|sed -e 's,.a[ai]g$,,'` in
-    false|true1|true2)
+    false)
       ;; # sharpSAT gives wrong answer
     *)
       if [ "$sharpsat" -a "$aigtocnf" ]
