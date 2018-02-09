@@ -18,9 +18,9 @@ typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
 
 enum VarType {
-  INPUT_VARIABLE = 0,
-  PRIMAL_VARIABLE = 1,
-  DUAL_VARIABLE = 2,
+  INPUT_VARIABLE = 1,
+  PRIMAL_VARIABLE = 2,
+  DUAL_VARIABLE = 4,
 };
 
 struct Var {
@@ -31,7 +31,6 @@ struct Var {
   Clause * reason;
   long stamp;
   Var * prev, * next;
-  Clauses occs[2];
 };
 
 struct Queue {
@@ -48,7 +47,7 @@ struct Frame {
 struct Limit {
   struct {
     long learned, interval, increment;
-    int fixed;
+    int primal_or_input_fixed;
   } reduce;
   struct {
     long conflicts;
@@ -60,15 +59,19 @@ struct Limit {
 struct Solver {
   Var * vars;
   char iterating, dual;
-  int max_var, next, level, fixed, phase;
+  int max_var, next, level, phase;
   int last_flipped_level, num_flipped_levels;
   int unassigned_primal_and_input_variables;
+  int primal_and_input_variables;
+  int primal_or_input_fixed;
+  int dual_non_input_fixed;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
   Limit limit;
   struct { CNF * primal, * dual; } cnf;
   struct { Queue primal, input, dual; } queue;
+  struct { Clauses * primal, * dual; } occs;
 };
 
 static Var * var (Solver * solver, int lit) {
@@ -260,11 +263,15 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   }
   solver->max_var = max_var;
   LOG ("maximum variable index %d", solver->max_var);
+  solver->primal_and_input_variables = MAX (max_primal_var, max_input_var);
+  LOG ("%d primal gate or input variables %d",
+    solver->primal_and_input_variables);
   solver->unassigned_primal_and_input_variables =
-    MAX (max_primal_var, max_input_var);
-  LOG ("%d unassigned primal gate or input variables %d",
-    solver->unassigned_primal_and_input_variables);
+    solver->primal_and_input_variables;
   ALLOC (solver->vars, solver->max_var + 1);
+  ALLOC (solver->occs.primal, 2*(solver->max_var + 1));
+  if (dual)
+    ALLOC (solver->occs.dual, 2*(solver->max_var + 1));
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
   assert (max_primal_var <= max_var);
@@ -301,18 +308,60 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   return solver;
 }
 
+#if 0
+static int is_primal_var (Solver * solver, int lit) {
+  return var (solver, lit)->type == PRIMAL_VARIABLE;
+}
+#endif
+
+#if 0
+static int is_input_var (Solver * solver, int lit) {
+  return var (solver, lit)->type == INPUT_VARIABLE;
+}
+#endif
+
+#if 0
+static int is_dual_var (Solver * solver, int lit) {
+  return var (solver, lit)->type == INPUT_VARIABLE;
+}
+#endif
+
+static int is_primal_or_input_var (Solver * solver, int lit) {
+  return var (solver, lit)->type & (PRIMAL_VARIABLE | INPUT_VARIABLE);
+}
+
+static int is_dual_or_input_var (Solver * solver, int lit) {
+  return var (solver, lit)->type & (DUAL_VARIABLE | INPUT_VARIABLE);
+}
+
+static Clauses * primal_occs (Solver * solver, int lit) {
+  assert (is_primal_or_input_var (solver, lit));
+  return solver->occs.primal + 2*abs (lit) + (lit > 0);
+}
+
+static Clauses * dual_occs (Solver * solver, int lit) {
+  assert (is_dual_or_input_var (solver, lit));
+  return solver->occs.dual + 2*abs (lit) + (lit > 0);
+}
+
 void delete_solver (Solver * solver) {
   LOG ("deleting solver");
+  for (int idx = 1; idx <= solver->max_var; idx++) {
+    for (int sign = -1; sign <= 1; sign++) {
+      const int lit = sign * idx;
+      Clauses * p = primal_occs (solver, lit);
+      RELEASE (*p);
+      if (solver->dual) {
+	Clauses * d = dual_occs (solver, lit);
+	RELEASE (*d);
+      }
+    }
+  }
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
   RELEASE (solver->clause);
   RELEASE (solver->levels);
-  for (int idx = 1; idx <= solver->max_var; idx++) {
-    Var * v = solver->vars + idx;
-    RELEASE (v->occs[0]);
-    RELEASE (v->occs[1]);
-  }
   DEALLOC (solver->vars, solver->max_var+1);
   DELETE (solver);
 }
@@ -336,7 +385,8 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     if (reason)
       mark_clause_active (v->reason, cnf (solver, v->reason));
   } else {
-    solver->fixed++;
+    if (v->type == DUAL_VARIABLE) solver->dual_non_input_fixed++;
+    else solver->primal_or_input_fixed++;
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
@@ -346,28 +396,47 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   }
 }
 
-static Clauses * occs (Solver * solver, int lit) {
-  return &var (solver, lit)->occs[lit < 0];
-}
-
-static void connect_literal (Solver * solver, Clause * c, int lit) {
+static void connect_primal_literal (Solver * solver, Clause * c, int lit) {
+  assert (!c->dual);
   SOGCLS (c, "connecting literal %d to", lit);
-  Clauses * cs = occs (solver, lit);
+  Clauses * cs = primal_occs (solver, lit);
   PUSH (*cs, c);
 }
 
-static void connect_clause (Solver * solver, Clause * c) {
-  assert (c->size > 1);
-  connect_literal (solver, c, c->literals[0]);
-  connect_literal (solver, c, c->literals[1]);
+static void connect_dual_literal (Solver * solver, Clause * c, int lit) {
+  assert (c->dual);
+  SOGCLS (c, "connecting literal %d to", lit);
+  Clauses * cs = dual_occs (solver, lit);
+  PUSH (*cs, c);
 }
 
-static int connect_cnf (Solver * solver) {
+static void connect_primal_clause (Solver * solver, Clause * c) {
+  assert (!c->dual);
+  assert (c->size > 1);
+  connect_primal_literal (solver, c, c->literals[0]);
+  connect_primal_literal (solver, c, c->literals[1]);
+}
+
+static void connect_dual_clause (Solver * solver, Clause * c) {
+  assert (c->dual);
+  assert (c->size > 1);
+  connect_dual_literal (solver, c, c->literals[0]);
+  connect_dual_literal (solver, c, c->literals[1]);
+}
+
+static void connect_clause (Solver * solver, Clause * c) {
+  if (c->dual) connect_dual_clause (solver, c);
+  else connect_primal_clause (solver, c);
+}
+
+static int connect_cnf (Solver * solver, CNF * cnf) {
   assert (!solver->level);
-  Clauses * clauses = &solver->cnf.primal->clauses;
-  LOG ("connecting %ld clauses to Solver solver", (long) COUNT (*clauses));
+  Clauses * clauses = &cnf->clauses;
+  LOG ("connecting %s %ld clauses to solver",
+    cnf->dual ? "dual" : "primal", (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
+    assert (c->dual == cnf->dual);
     if (c->size == 0) {
       LOG ("found empty clause in CNF");
       return 0;
@@ -392,8 +461,16 @@ static int connect_cnf (Solver * solver) {
   return 1;
 }
 
+static int connect_primal_cnf (Solver * solver) {
+  return connect_cnf (solver, solver->cnf.primal);
+}
+
+static int connect_dual_cnf (Solver * solver) {
+  return connect_cnf (solver, solver->cnf.dual);
+}
+
 static int remaining_variables (Solver * solver) {
-  return solver->max_var - solver->fixed;
+  return solver->primal_and_input_variables - solver->primal_or_input_fixed;
 }
 
 static void primal_header (Solver * solver) {
@@ -485,12 +562,12 @@ static Clause * primal_propagate (Solver * solver) {
     assert (val (solver, lit) > 0);
     SOG ("primal propagating %d", lit);
     stats.propagated++;
-    Clauses * o = occs (solver, -lit);
+    Clauses * o = primal_occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
       Clause * c = *q++ = *p++;
       if (c->garbage) { q--; continue; }
-      SOGCLS (c, "visiting while primal propagating %d", lit);
+      SOGCLS (c, "visiting while propagating %d", lit);
       assert (c->size > 1);
       if (c->literals[0] != -lit)
 	SWAP (int, c->literals[0], c->literals[1]);
@@ -508,7 +585,7 @@ static Clause * primal_propagate (Solver * solver) {
 	SOGCLS (c, "disconnecting literal %d from", -lit);
 	c->literals[0] = replacement;
 	c->literals[i] = -lit;
-	connect_literal (solver, c, replacement);
+	connect_primal_literal (solver, c, replacement);
 	q--;
       } else if (!other_val) {
 	SOGCLS (c, "forcing %d", other);
@@ -650,12 +727,12 @@ static int subsumed (Solver * solver, Clause * c, int expected) {
   return 0;
 }
 
-static void flush_garbage_occurrences (Solver * solver) {
+static void flush_primal_garbage_occurrences (Solver * solver) {
   long flushed = 0;
   for (int idx = 1; idx <= solver->max_var; idx++)
     for (int sign = -1; sign <= 1; sign += 2) {
       int lit = sign * idx;
-      Clauses * o = occs (solver, lit);
+      Clauses * o = primal_occs (solver, lit);
       Clause ** q = o->start, ** p = q;
       while (p < o->top) {
 	Clause * c = *p++;
@@ -665,7 +742,7 @@ static void flush_garbage_occurrences (Solver * solver) {
       o->top = q;
       if (EMPTY (*o)) RELEASE (*o);
     }
-  SOG ("flushed %ld garbage occurrences", flushed);
+  SOG ("flushed %ld primal garbage occurrences", flushed);
 }
 
 static void subsume (Solver * solver, Clause * c) {
@@ -686,7 +763,7 @@ static void subsume (Solver * solver, Clause * c) {
   }
   unmark_clause (solver, c);
   if (stats.subsumed <= solver->limit.subsumed) return;
-  flush_garbage_occurrences (solver);
+  flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (solver->cnf.primal);
   set_subsumed_limit (solver);
   report (solver, 1, '/');
@@ -725,7 +802,7 @@ static void block_clause (Solver * solver, int lit) {
   assert (!c->glue), assert (!c->redundant);
   SOGCLS (c, "blocking");
   add_clause_to_cnf (c, solver->cnf.primal);
-  if (size > 1) connect_clause (solver, c);
+  if (size > 1) connect_primal_clause (solver, c);
   CLEAR (solver->clause);
   solver->next = COUNT (solver->trail);
   assign (solver, -lit, c);
@@ -936,7 +1013,7 @@ static Clause * learn_clause (Solver * solver, int glue) {
   res->recent = 1;
   SOGCLS (res, "learned new");
   add_clause_to_cnf (res, solver->cnf.primal);
-  if (size > 1) connect_clause (solver, res);
+  if (size > 1) connect_primal_clause (solver, res);
   return res;
 }
 
@@ -1000,7 +1077,8 @@ static int analyze (Solver * solver, Clause * conflict) {
 static int reducing (Solver * solver) {
   if (!options.reduce) return 0;
   if (!stats.conflicts &&
-      solver->fixed > solver->limit.reduce.fixed) return 1;
+      solver->primal_or_input_fixed >
+        solver->limit.reduce.primal_or_input_fixed) return 1;
   return stats.learned > solver->limit.reduce.learned;
 }
 
@@ -1050,7 +1128,9 @@ static void reduce (Solver * solver) {
   Clauses candidates;
   INIT (candidates);
   CNF * primal = solver->cnf.primal;
-  const int simplify = solver->fixed > solver->limit.reduce.fixed;
+  const int simplify =
+    solver->primal_or_input_fixed >
+      solver->limit.reduce.primal_or_input_fixed;
   for (Clause ** p = primal->clauses.start; p < primal->clauses.top; p++) {
     Clause * c = *p;
     if (c->garbage) continue;
@@ -1064,7 +1144,8 @@ static void reduce (Solver * solver) {
     if (recent) continue;
     PUSH (candidates, c);
   }
-  solver->limit.reduce.fixed = solver->fixed;
+  solver->limit.reduce.primal_or_input_fixed =
+    solver->primal_or_input_fixed;
   long n = COUNT (candidates);
   SOG ("found %ld reduce candidates out of %ld", n, primal->redundant);
   qsort (candidates.start, n, sizeof (Clause*), cmp_reduce);
@@ -1079,7 +1160,7 @@ static void reduce (Solver * solver) {
   }
   RELEASE (candidates);
   SOG ("marked %ld clauses as garbage", marked);
-  flush_garbage_occurrences (solver);
+  flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (primal);
   inc_reduce_limit (solver);
   report (solver, 1, '-');
@@ -1138,7 +1219,7 @@ static void restart (Solver * solver) {
 }
 
 int primal_sat (Solver * solver) {
-  if (!connect_cnf (solver)) return 20;
+  if (!connect_primal_cnf (solver)) return 20;
   if (primal_propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
   int res = 0;
@@ -1154,8 +1235,28 @@ int primal_sat (Solver * solver) {
   return res;
 }
 
+int dual_sat (Solver * solver) {
+  if (!connect_primal_cnf (solver)) return 20;
+  if (primal_propagate (solver)) return 20;
+  if (satisfied (solver)) return 10;
+  if (!connect_dual_cnf (solver)) return 10;
+  // if (dual_propagate (solver)) return 10;
+  int res = 0;
+  while (!res) {
+    Clause * conflict = primal_propagate (solver);
+    if (conflict) {
+       if (!analyze (solver, conflict)) res = 20;
+    } else if (satisfied (solver)) res = 10;
+    // else if (dual_propagate (solver)) res = 10;
+    else if (reducing (solver)) reduce (solver);
+    else if (restarting (solver)) restart (solver);
+    else decide (solver);
+  }
+  return res;
+}
+
 void primal_count (Number res, Solver * solver) {
-  if (!connect_cnf (solver)) return;
+  if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) {
     SOG ("single root level model");
@@ -1196,7 +1297,7 @@ static void print_model (Solver * solver, Name name) {
 }
 
 void primal_enumerate (Solver * solver, Name name) {
-  if (!connect_cnf (solver)) return;
+  if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) { print_model (solver, name); return; }
   for (;;) {

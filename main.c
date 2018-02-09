@@ -315,16 +315,33 @@ static int check () {
     }
     delete_bdd (b);
     reset_bdds ();
-  } else if (options.primal) {
-    msg (1, "checking with primal SAT engine");
-    CNF * cnf = new_cnf ();
-    Circuit * circuit = tautology ? dual_circuit : primal_circuit;
-    encode_circuit (circuit, cnf);
+  } else {
+    Circuit * circuit;
+    CNF * primal_cnf, * dual_cnf = 0;
+    if (options.primal) {
+      msg (1, "checking with primal SAT engine");
+      CNF * primal_cnf = new_cnf ();
+      Circuit * circuit = tautology ? dual_circuit : primal_circuit;
+      encode_circuit (circuit, primal_cnf);
+    } else {
+      msg (1, "checking with dual SAT engine");
+      primal_cnf = new_cnf ();
+      dual_cnf = new_cnf ();
+      if (tautology) {
+	circuit = dual_circuit;
+	msg (2,
+	  "swapping role of primal and dual circuit for tautology checking");
+	encode_circuits (dual_circuit, primal_circuit, dual_cnf, primal_cnf);
+      } else {
+	circuit = primal_circuit;
+	encode_circuits (primal_circuit, dual_circuit, primal_cnf, dual_cnf);
+      }
+    }
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs, 0);
-    res = primal_sat (solver);
+    Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    res = options.primal ? primal_sat (solver) : dual_sat (solver);
     if (sat) {
       if (sat_competition_mode) fputs ("s ", stdout);
       if (res == 20) printf ("UNSATISFIABLE\n");
@@ -355,8 +372,9 @@ static int check () {
     }
     delete_solver (solver);
     RELEASE (inputs);
-    delete_cnf (cnf);
-  } else die ("checking with dual SAT engine not implement yet");
+    delete_cnf (primal_cnf);
+    if (dual_cnf) delete_cnf (dual_cnf);
+  }
   return res;
 }
 
