@@ -25,6 +25,12 @@ sat () {
       fi
     fi
   fi
+  execute $dualiza -s --dual $1
+  if [ ! "$last" = "$firstline" ]
+  then
+    error \
+"counting mismatch with '--dual' configuration: '$last' and '$firstline'"
+  fi
 }
 
 tautology () {
@@ -35,6 +41,12 @@ tautology () {
   then
     error \
 "tautology checking mismatch between SAT and BDD engine: '$last' and '$firstline'"
+  fi
+  execute $dualiza -t --dual $1
+  if [ ! "$last" = "$firstline" ]
+  then
+    error \
+"counting mismatch with '--dual' configuration: '$last' and '$firstline'"
   fi
 }
 
