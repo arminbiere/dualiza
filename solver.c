@@ -312,7 +312,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   return solver;
 }
 
-// static int is_primal_var (Var * v) { return v->type == PRIMAL_VARIABLE; }
+static int is_primal_var (Var * v) { return v->type == PRIMAL_VARIABLE; }
 static int is_input_var (Var * v) { return v->type == INPUT_VARIABLE; }
 static int is_dual_var (Var * v) { return v->type == DUAL_VARIABLE; }
 
@@ -716,6 +716,12 @@ static void report (Solver * solver, int verbosity, const char type) {
   else primal_report (solver, verbosity, type);
 }
 
+static void report_iterating (Solver * solver) {
+  if (!solver->iterating) return;
+  solver->iterating = 0;
+  report (solver, 1, 'i');
+}
+
 static Clause * primal_propagate (Solver * solver) {
   Clause * res = 0;
   while (!res && solver->next.primal < COUNT (solver->trail)) {
@@ -762,10 +768,57 @@ static Clause * primal_propagate (Solver * solver) {
     while (p < o->top) *q++ = *p++;
     o->top = q;
   }
-  if (solver->iterating) {
-    solver->iterating = 0;
-    report (solver, 1, 'i');
+  report_iterating (solver);
+  return res;
+}
+
+static Clause * dual_propagate_sat (Solver * solver) {
+  Clause * res = 0;
+  while (!res && solver->next.dual < COUNT (solver->trail)) {
+    int lit = solver->trail.start[solver->next.dual++];
+    if (is_primal_var (var (solver, lit))) continue;
+    assert (val (solver, lit) > 0);
+    SOG ("dual propagating %d", lit);
+    stats.propagated++;
+    Clauses * o = dual_occs (solver, -lit);
+    Clause ** q = o->start, ** p = q;
+    while (!res && p < o->top) {
+      Clause * c = *q++ = *p++;
+      cover (c->garbage);
+      if (c->garbage) { q--; continue; }
+      SOGCLS (c, "visiting while propagating %d", lit);
+      assert (c->size > 1);
+      if (c->literals[0] != -lit)
+	SWAP (int, c->literals[0], c->literals[1]);
+      assert (c->literals[0] == -lit);
+      const int other = c->literals[1], other_val = val (solver, other);
+      if (other_val > 0) continue;
+      int i = 2, replacement_val = -1, replacement = 0;
+      while (i < c->size) {
+	replacement = c->literals[i];
+	replacement_val = val (solver, replacement);
+	if (replacement_val >= 0) break;
+	i++;
+      }
+      if (replacement_val >= 0) {
+	SOGCLS (c, "disconnecting literal %d from", -lit);
+	c->literals[0] = replacement;
+	c->literals[i] = -lit;
+	connect_dual_literal (solver, c, replacement);
+	q--;
+      } else if (!other_val) {
+	SOGCLS (c, "forcing %d", other);
+	assign (solver, -other, c);
+	res = c;
+      } else {
+	SOGCLS (c, "conflict");
+	res = c;
+      }
+    }
+    while (p < o->top) *q++ = *p++;
+    o->top = q;
   }
+  report_iterating (solver);
   return res;
 }
 
@@ -1392,14 +1445,14 @@ int dual_sat (Solver * solver) {
   if (primal_propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
   if (!connect_dual_cnf_sat (solver)) return 10;
-  // if (dual_propagate_sat (solver)) return 10;
+  if (dual_propagate_sat (solver)) return 10;
   int res = 0;
   while (!res) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
-    // else if (dual_propagate_sat (solver)) res = 10;
+    else if (dual_propagate_sat (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
