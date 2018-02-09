@@ -822,6 +822,60 @@ static Clause * dual_propagate_sat (Solver * solver) {
   return res;
 }
 
+static Clause * dual_propagate_count (Solver * solver, Number num) {
+  Clause * res = 0;
+  while (!res && solver->next.dual < COUNT (solver->trail)) {
+    int lit = solver->trail.start[solver->next.dual++];
+    if (is_primal_var (var (solver, lit))) continue;
+    assert (val (solver, lit) > 0);
+    SOG ("dual propagating %d", lit);
+    stats.propagated++;
+    Clauses * o = dual_occs (solver, -lit);
+    Clause ** q = o->start, ** p = q;
+    while (!res && p < o->top) {
+      Clause * c = *q++ = *p++;
+      cover (c->garbage);
+      if (c->garbage) { q--; continue; }
+      SOGCLS (c, "visiting while propagating %d", lit);
+      assert (c->size > 1);
+      if (c->literals[0] != -lit)
+	SWAP (int, c->literals[0], c->literals[1]);
+      assert (c->literals[0] == -lit);
+      const int other = c->literals[1], other_val = val (solver, other);
+      if (other_val > 0) continue;
+      int i = 2, replacement_val = -1, replacement = 0;
+      while (i < c->size) {
+	replacement = c->literals[i];
+	replacement_val = val (solver, replacement);
+	if (replacement_val >= 0) break;
+	i++;
+      }
+      if (replacement_val >= 0) {
+	SOGCLS (c, "disconnecting literal %d from", -lit);
+	c->literals[0] = replacement;
+	c->literals[i] = -lit;
+	connect_dual_literal (solver, c, replacement);
+	q--;
+      } else if (!other_val) {
+	SOGCLS (c, "forcing %d", -other);
+	assign_temporarily (solver, -other);
+	count_new_model (solver, num);
+	unassign_temporarily (solver, -other);
+	assign (solver, other, c);
+	res = c;
+      } else {
+	SOGCLS (c, "conflict");
+	count_new_model (solver, num);
+	res = c;
+      }
+    }
+    while (p < o->top) *q++ = *p++;
+    o->top = q;
+  }
+  report_iterating (solver);
+  return res;
+}
+
 static int satisfied (Solver * solver) {
   return !solver->unassigned_primal_and_input_variables;
 }
@@ -1268,7 +1322,8 @@ static int resolve_conflict (Solver * solver, Clause * conflict) {
   return reset_levels (solver);
 }
 
-static int analyze (Solver * solver, Clause * conflict) {
+static int analyze_primal (Solver * solver, Clause * conflict) {
+  assert (!conflict->dual);
   if (!solver->level) return 0;
   int glue = resolve_conflict (solver, conflict);
   Clause * c = learn_clause (solver, glue);
@@ -1431,7 +1486,7 @@ int primal_sat (Solver * solver) {
   while (!res) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-       if (!analyze (solver, conflict)) res = 20;
+       if (!analyze_primal (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
@@ -1450,7 +1505,7 @@ int dual_sat (Solver * solver) {
   while (!res) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-       if (!analyze (solver, conflict)) res = 20;
+       if (!analyze_primal (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
     else if (dual_propagate_sat (solver)) res = 10;
     else if (reducing (solver)) reduce (solver);
@@ -1467,7 +1522,7 @@ void primal_count (Number res, Solver * solver) {
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-      if (!analyze (solver, conflict)) return;
+      if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
       count_new_model (solver, res);
       if (!backtrack (solver)) return;
@@ -1482,16 +1537,16 @@ void dual_count (Number res, Solver * solver) {
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) { count_new_model (solver, res); return; }
   if (!connect_dual_cnf_count (solver, res)) return;
-  // if (dual_propagate_count (solver, res)) return;
+  if (dual_propagate_count (solver, res)) return;
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-      if (!analyze (solver, conflict)) return;
+      if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
       count_new_model (solver, res);
       if (!backtrack (solver)) return;
-    // else if (dual_propagate_count (solver, res)) return;
-    } else if (reducing (solver)) reduce (solver);
+    } else if (dual_propagate_count (solver, res)) backtrack (solver);
+    else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
@@ -1504,7 +1559,7 @@ void primal_enumerate (Solver * solver, Name name) {
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-      if (!analyze (solver, conflict)) return;
+      if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
       print_model (solver, name);
       stats.models++;
@@ -1524,7 +1579,7 @@ void dual_enumerate (Solver * solver, Name name) {
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-      if (!analyze (solver, conflict)) return;
+      if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
       print_model (solver, name);
       stats.models++;
