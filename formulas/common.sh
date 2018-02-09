@@ -141,5 +141,3 @@ configurations="\
 --dual_--block_--blocklimit=2 \
 --dual_--block_--blocklimit=3 \
 "
-
-#--block=1_--eager=0 \

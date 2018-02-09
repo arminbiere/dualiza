@@ -60,7 +60,8 @@ struct Solver {
   Var * vars;
   char iterating, dual;
   int max_var, max_primal_or_input_var;
-  int next, level, phase;
+  int level, phase;
+  struct { int primal, dual; } next;
   int last_flipped_level, num_flipped_levels;
   int unassigned_primal_and_input_variables;
   int unassigned_input_variables;
@@ -461,7 +462,7 @@ static void new_model (Solver * solver, Number res) {
   stats.models++;
 }
 
-static int connect_dual_cnf (Solver * solver, Number * numptr) {
+static int connect_dual_cnf (Solver * solver, int counting, Number numptr) {
   assert (!solver->level);
   CNF * cnf = solver->cnf.dual;
   Clauses * clauses = &cnf->clauses;
@@ -486,14 +487,14 @@ static int connect_dual_cnf (Solver * solver, Number * numptr) {
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {
-        if (numptr) {
+        if (counting) {
 	  assign (solver, unit, c);
-	  new_model (solver, *numptr);
+	  new_model (solver, numptr);
 	} else {
 	  assign (solver, -unit, 0);
 	  return 0;
 	}
-      }
+      } else assign (solver, unit, c);
     } else {
       assert (c->size > 1);
       connect_dual_clause (solver, c);
@@ -590,8 +591,9 @@ static void report (Solver * solver, int verbosity, const char type) {
 
 static Clause * primal_propagate (Solver * solver) {
   Clause * res = 0;
-  while (!res && solver->next < COUNT (solver->trail)) {
-    int lit = solver->trail.start[solver->next++];
+  while (!res && solver->next.primal < COUNT (solver->trail)) {
+    int lit = solver->trail.start[solver->next.primal++];
+    if (is_dual_var (var (solver, lit))) continue;
     assert (val (solver, lit) > 0);
     SOG ("primal propagating %d", lit);
     stats.propagated++;
@@ -806,6 +808,15 @@ static void subsume (Solver * solver, Clause * c) {
   report (solver, 1, '/');
 }
 
+static void adjust_next (Solver * solver, int next) {
+  assert (0 <= next), assert (next <= COUNT (solver->trail));
+  solver->next.primal = solver->next.dual = next;
+}
+
+static void adjust_next_to_trail (Solver * solver) {
+  adjust_next (solver, COUNT (solver->trail));
+}
+
 static void block_clause (Solver * solver, int lit) {
   assert (solver->level > 0);
   stats.blocked.clauses++;
@@ -841,7 +852,7 @@ static void block_clause (Solver * solver, int lit) {
   add_clause_to_cnf (c, solver->cnf.primal);
   if (size > 1) connect_primal_clause (solver, c);
   CLEAR (solver->clause);
-  solver->next = COUNT (solver->trail);
+  adjust_next_to_trail (solver);
   assign (solver, -lit, c);
   if (!solver->level) solver->iterating = 1;
   if (options.subsume) subsume (solver, c);
@@ -857,7 +868,7 @@ static void flip (Solver * solver, int lit) {
   int n = COUNT (solver->trail) - 1;
   assert (PEEK (solver->trail, n) == lit);
   POKE (solver->trail, n, -lit);
-  solver->next = n;
+  adjust_next (solver, n);
   v->val = -v->val;
   Frame * f = frame (solver, lit);
   assert (f->decision == lit);
@@ -902,7 +913,7 @@ static int backtrack (Solver * solver) {
     if (decision == 2) dec_level (solver);
     (void) POP (solver->trail);
   }
-  solver->next = 0;
+  adjust_next_to_trail (solver);
   return 0;
 }
 
@@ -1071,7 +1082,7 @@ static int back_jump (Solver * solver, Clause * c) {
   }
   assert (!val (solver, forced));
   assert (solver->level == level);
-  solver->next = COUNT (solver->trail);
+  adjust_next_to_trail (solver);
   assign (solver, forced, c);
   if (!level) solver->iterating = 1;
   return 1;
@@ -1251,7 +1262,7 @@ static void restart (Solver * solver) {
     if (decision) dec_level (solver);
     (void) POP (solver->trail);
   }
-  solver->next = COUNT (solver->trail);
+  adjust_next_to_trail (solver);
   report (solver, 2, 'r');
 }
 
@@ -1276,15 +1287,15 @@ int dual_sat (Solver * solver) {
   if (!connect_primal_cnf (solver)) return 20;
   if (primal_propagate (solver)) return 20;
   if (satisfied (solver)) return 10;
-  if (!connect_dual_cnf (solver, 0)) return 10;
-  // if (dual_propagate (solver)) return 10;
+  if (!connect_dual_cnf (solver, 0, 0)) return 10;
+  // if (dual_propagate (solver, 0)) return 10;
   int res = 0;
   while (!res) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
        if (!analyze (solver, conflict)) res = 20;
     } else if (satisfied (solver)) res = 10;
-    // else if (dual_propagate (solver)) res = 10;
+    // else if (dual_propagate (solver, 0)) res = 10;
     else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
@@ -1310,8 +1321,23 @@ void primal_count (Number res, Solver * solver) {
 }
 
 void dual_count (Number res, Solver * solver) {
-  assert (solver->dual);
-  return primal_count (res, solver);
+  if (!connect_primal_cnf (solver)) return;
+  if (primal_propagate (solver)) return;
+  if (satisfied (solver)) { new_model (solver, res); return; }
+  if (!connect_dual_cnf (solver, 1, res)) return;
+  // if (dual_propagate (solver, 1, res)) return;
+  for (;;) {
+    Clause * conflict = primal_propagate (solver);
+    if (conflict) {
+      if (!analyze (solver, conflict)) return;
+    } else if (satisfied (solver)) {
+      new_model (solver, res);
+      if (!backtrack (solver)) return;
+    // else if (dual_propagate (solver, 1, res)) return;
+    } else if (reducing (solver)) reduce (solver);
+    else if (restarting (solver)) restart (solver);
+    else decide (solver);
+  }
 }
 
 static void print_model (Solver * solver, Name name) {
