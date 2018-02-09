@@ -327,11 +327,35 @@ void encode_circuit (Circuit * circuit, CNF * cnf) {
   cone_of_influence (circuit);
   Encoder * encoder = new_encoder (circuit, cnf);
   reset_code_root_fields_of_circuit (circuit);
-  int idx = encode_inputs (encoder);
+  int inputs = encode_inputs (encoder);
   LOG ("starting to encode roots");
-  idx = encode_roots (encoder, circuit->output, idx);
+  int idx = encode_roots (encoder, circuit->output, inputs);
   delete_encoder (encoder);
   msg (2, "encoded %d gates in total", idx);
+}
+
+void encode_circuits (Circuit * c, Circuit * d, CNF * f, CNF * g) {
+  assert (COUNT (c->inputs) == COUNT (d->inputs));
+  LOG ("starting to encode first circuit");
+  cone_of_influence (c);
+  Encoder * encoder = new_encoder (c, f);
+  reset_code_root_fields_of_circuit (c);
+  int inputs1 = encode_inputs (encoder);
+  LOG ("starting to encode roots of first circuit");
+  int first = encode_roots (encoder, c->output, inputs1);
+  delete_encoder (encoder);
+  msg (2, "encoded %d gates of first circuit", first);
+  LOG ("starting to encode second circuit");
+  encoder = new_encoder (d, g);
+  reset_code_root_fields_of_circuit (d);
+  int inputs2 = encode_inputs (encoder);
+  assert (inputs1 == inputs2), (void) inputs2;
+  LOG ("starting to encode roots of second circuit");
+  int second = encode_roots (encoder, d->output, first);
+  assert (second >= first);
+  delete_encoder (encoder);
+  msg (2, "encoded %d gates of first circuit", second - first);
+  msg (2, "encoded %d gates in total", second);
 }
 
 void get_encoded_inputs (Circuit * c, IntStack * s) {

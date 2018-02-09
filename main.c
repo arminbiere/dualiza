@@ -462,9 +462,8 @@ static void count () {
   } else {
     msg (1, "counting with dual SAT engine");
     CNF * primal_cnf = new_cnf ();
-    encode_circuit (primal_circuit, primal_cnf);
     CNF * dual_cnf = new_cnf ();
-    encode_circuit (dual_circuit, dual_cnf);
+    encode_circuits (primal_circuit, dual_circuit, primal_cnf, dual_cnf);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
