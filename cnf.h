@@ -7,7 +7,7 @@ struct CNF {
   Clauses clauses;
 };
 
-CNF * new_cnf ();
+CNF * new_cnf (int dual);
 void delete_cnf (CNF *);
 
 int maximum_variable_index (CNF *);

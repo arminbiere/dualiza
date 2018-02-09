@@ -342,7 +342,7 @@ void delete_solver (Solver * solver) {
 	Clauses * p = primal_occs (solver, lit);
 	RELEASE (*p);
       }
-      if (solver->dual && is_dual_var (v)) {
+      if (solver->dual && is_dual_or_input_var (v)) {
 	Clauses * d = dual_occs (solver, lit);
 	RELEASE (*d);
       }
@@ -475,14 +475,14 @@ static int connect_dual_cnf (Solver * solver, Number * numptr) {
       return 0;
     } else if (c->size == 1) {
       int unit = c->literals[0];
-      LOG ("found unit clause %d dual CNF", unit);
+      LOG ("found unit clause %d in dual CNF", unit);
       int tmp = val (solver, unit);
       if (tmp > 0) {
 	LOG ("ignoring already satisfied unit %d", unit);
 	continue;
       }
       if (tmp < 0) {
-	LOG ("found already falsified unit %d in primal CNF", unit);
+	LOG ("found already falsified unit %d in dual CNF", unit);
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {

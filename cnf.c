@@ -1,9 +1,14 @@
 #include "headers.h"
 
-CNF * new_cnf () {
-  LOG ("new CNF");
+static const char * cnf_type (CNF * cnf) {
+  return cnf->dual ? "dual" : "primal";
+}
+
+CNF * new_cnf (int dual) {
   CNF * res;
   NEW (res);
+  res->dual = dual;
+  LOG ("new %s CNF", cnf_type (res));
   return res;
 }
 
@@ -27,7 +32,8 @@ static void check_cnf (CNF * cnf) {
 }
 
 void delete_cnf (CNF * cnf) {
-  LOG ("delete CNF");
+
+  LOG ("delete %s CNF", cnf_type (cnf));
   check_cnf (cnf);
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++)
     delete_clause (*p);
@@ -42,7 +48,7 @@ void add_clause_to_cnf (Clause * c, CNF * cnf) {
   assert (!c->active);
   c->id = cnf->added++;
   PUSH (cnf->clauses, c);
-  LOG ("added clause %lu to CNF", c->id);
+  LOG ("added clause %lu to %s CNF", c->id, cnf_type (cnf));
 }
 
 static void collect_garbage_clause (Clause * c, CNF * cnf) {
@@ -82,7 +88,7 @@ void collect_garbage_clauses (CNF * cnf) {
   }
   cnf->clauses.top = q;
   check_cnf (cnf);
-  LOG ("collected %ld garbage clauses", collected);
+  LOG ("collected %ld garbage clauses in %s CNF", collected, cnf_type (cnf));
   stats.collected += collected;
 }
 
