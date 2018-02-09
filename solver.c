@@ -281,7 +281,9 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     v->type = PRIMAL_VARIABLE;
   }
   if (dual) {
-    for (int idx = max_primal_var + 1; idx <= max_var; idx++) {
+    for (int idx = MAX (max_primal_var, max_input_var) + 1;
+         idx <= max_var;
+	 idx++) {
       Var * v = var (solver, idx);
       assert (!v->type);
       LOG ("dual variable %d", idx);
@@ -529,7 +531,7 @@ static Clause * primal_propagate (Solver * solver) {
 }
 
 static int satisfied (Solver * solver) {
-  return solver->next == solver->max_var;
+  return !solver->unassigned_primal_and_input_variables;
 }
 
 static void inc_level (Solver * solver) {
