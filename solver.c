@@ -555,10 +555,10 @@ static void print_model (Solver * solver) {
   const int n = COUNT (*solver->sorted);
   int first = 1;
   for (int i = 0; i < n; i++) {
-    if (!first) fputc (' ', stdout);
     const int lit = PEEK (*solver->sorted, i);
     const int tmp = val (solver, lit);
     if (!tmp) continue;
+    if (!first) fputc (' ', stdout);
     if (tmp < 0) fputc ('!', stdout);
     fputs (solver->name.get (solver->name.state, lit), stdout);
     first = 0;
