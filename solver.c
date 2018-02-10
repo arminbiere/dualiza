@@ -397,12 +397,15 @@ static void assign_temporarily (Solver * solver, int lit) {
   assert (!v->val);
   v->val = lit_sign (lit);
   SOG ("assign %d temporarily", lit);
+  dec_unassigned (solver, v);
 }
 
 static void unassign_temporarily (Solver * solver, int lit) {
-  assert (val (solver, lit) > 0);
-  var (solver, lit)->val = 0;
+  Var * v = var (solver, lit);
+  assert (v->val == lit_sign (lit));
+  v->val = 0;
   SOG ("unassign %d temporarily", lit);
+  inc_unassigned (solver, v);
 }
 
 static void assign (Solver * solver, int lit, Clause * reason) {
@@ -619,6 +622,7 @@ static void print_model (Solver * solver, Name name) {
     first = 0;
   }
   fputc ('\n', stdout);
+  stats.models++;
 }
 
 static int
