@@ -113,6 +113,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and '%ld'", PRINTING, limit);
   if (printing && first_solving_option)
     die ("can not combine%s%s%s and '%s'", PRINTING, first_solving_option);
+  if (options.dual && options.inputs)
+    die ("can use combine '--dual' and '--inputs' (forced for '--dual')");
 }
 
 static void init_mode () {
@@ -127,6 +129,10 @@ static void init_mode () {
     else          msg (1, "default counting mode"), counting = 1;
   }
   assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
+  if (!printing && options.dual && !options.inputs) {
+    msg (1, "forcing input splitting in dual mode");
+    options.inputs = 1;
+  }
 }
 
 # undef FORMULA

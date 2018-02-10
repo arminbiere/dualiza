@@ -136,8 +136,12 @@ configurations="\
 --no-dual_--block_--blocklimit=1 \
 --no-dual_--block_--blocklimit=2 \
 --no-dual_--block_--blocklimit=3 \
+--no-dual_--block_--blocklimit=4 \
+--no-dual_--block_--blocklimit=5 \
 --dual_--no-block \
 --dual_--block_--blocklimit=1 \
 --dual_--block_--blocklimit=2 \
 --dual_--block_--blocklimit=3 \
+--dual_--block_--blocklimit=4 \
+--dual_--block_--blocklimit=5 \
 "

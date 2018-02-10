@@ -463,6 +463,20 @@ static void inc_level (Solver * solver) {
   SOG ("incremented decision level");
 }
 
+static void adjust_flipped (Solver * solver, int lit) {
+  Frame * f = frame (solver, lit);
+  assert (f->decision == lit);
+  assert (!f->flipped);
+  f->flipped = 1;
+  assert (solver->last_flipped_level < solver->level);
+  solver->last_flipped_level = solver->level;
+  solver->num_flipped_levels++;
+  SOG ("new flipped level %d number %d",
+    solver->last_flipped_level, solver->num_flipped_levels);
+  if (solver->num_flipped_levels == solver->level)
+    solver->iterating = 1;
+}
+
 static void assume_decision (Solver * solver, int lit, int flipped) {
   assert (flipped == 0 || flipped == 1);
   inc_level (solver);
@@ -473,6 +487,7 @@ static void assume_decision (Solver * solver, int lit, int flipped) {
   stats.decisions++;
   PUSH (solver->frames, new_frame (solver, lit));
   assert (COUNT (solver->frames) == solver->level + 1);
+  if (flipped) adjust_flipped (solver, lit);
 }
 
 static void unassign (Solver * solver, int lit) {
@@ -778,10 +793,20 @@ static Clause * primal_propagate (Solver * solver) {
   return res;
 }
 
-static Clause * dual_propagate (Solver * solver) {
+typedef enum DualPropagationResult DualPropagationResult;
+
+enum DualPropagationResult {
+  DUAL_CONFLICT = -1,
+  DUAL_INPUT_UNIT = 1,
+};
+
+static DualPropagationResult
+dual_propagate (Solver * solver) {
   if (!solver->dual) return 0;
-  Clause * res = 0;
   assert (solver->next.primal == COUNT (solver->trail));
+  DualPropagationResult res = 0;
+  assert (res != DUAL_CONFLICT);
+  assert (res != DUAL_INPUT_UNIT);
   while (!res && solver->next.dual < COUNT (solver->trail)) {
     int lit = solver->trail.start[solver->next.dual++];
     if (is_primal_var (var (solver, lit))) continue;
@@ -816,21 +841,27 @@ static Clause * dual_propagate (Solver * solver) {
       } else if (other_val) {
 	SOGCLS (c, "conflict");
 	new_model (solver);
-	res = c;
+	res = DUAL_CONFLICT;
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing input %d", other);
 	assign_temporarily (solver, -other);
 	new_model (solver);
 	unassign_temporarily (solver, -other);
 	assume_decision (solver, other, 1);
-	res = c;
+	res = DUAL_INPUT_UNIT;;
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "forcing dual %d", other);
 	assign (solver, other, c);
       }
     }
-    while (p < o->top) *q++ = *p++;
+    if (res) {
+      if (p < o->top) {
+	while (p < o->top) *q++ = *p++;
+	assert (solver->next.dual > 0);
+	solver->next.dual--;
+      }
+    }
     o->top = q;
   }
   report_iterating (solver);
@@ -967,7 +998,8 @@ static void subsume (Solver * solver, Clause * c) {
 
 static void adjust_next (Solver * solver, int next) {
   assert (0 <= next), assert (next <= COUNT (solver->trail));
-  solver->next.primal = solver->next.dual = next;
+  if (next < solver->next.primal) solver->next.primal = next;
+  if (next < solver->next.dual) solver->next.dual = next;
 }
 
 static void adjust_next_to_trail (Solver * solver) {
@@ -983,11 +1015,12 @@ static void block_clause (Solver * solver, int lit) {
   assert (EMPTY (solver->clause));
   for (int level = solver->level; level > 0; level--) {
     Frame * f = solver->frames.start + level;
-    if (f->flipped) continue;
+    // if (f->flipped) continue; // TODO use? needed?
     int decision = f->decision;
     PUSH (solver->clause, -decision);
-    SOG ("%s adding literal %d",
-      var_type (var (solver, decision)), -decision);
+    SOG ("adding %s %s literal %d from decision level %d",
+      f->flipped ? "flipped" : "decision",
+      var_type (var (solver, decision)), -decision, level);
   }
   const int size = COUNT (solver->clause);
   stats.blocked.literals += size;
@@ -1027,17 +1060,7 @@ static void flip (Solver * solver, int lit) {
   POKE (solver->trail, n, -lit);
   adjust_next (solver, n);
   v->val = -v->val;
-  Frame * f = frame (solver, lit);
-  assert (f->decision == lit);
-  assert (!f->flipped);
-  f->flipped = 1;
-  assert (solver->last_flipped_level < solver->level);
-  solver->last_flipped_level = solver->level;
-  solver->num_flipped_levels++;
-  SOG ("new flipped level %d number %d",
-    solver->last_flipped_level, solver->num_flipped_levels);
-  if (solver->num_flipped_levels == solver->level)
-    solver->iterating = 1;
+  adjust_flipped (solver, lit);
 }
 
 static int blocking (Solver * solver) {
@@ -1053,7 +1076,7 @@ static int backtrack (Solver * solver) {
   stats.back.tracked++;
 #ifndef NLOG
   int level = solver->level;
-  while (PEEK (solver->frames, level).decision == 2)
+  while (PEEK (solver->frames, level).flipped)
     level--;
   SOG ("backtrack %ld to level %d", stats.back.tracked, level);
 #endif
@@ -1440,11 +1463,15 @@ static void solve (Solver * solver) {
     } else if (satisfied (solver)) {
       if (last_model (solver)) return;
       if (!backtrack (solver)) return;
-    } else if (dual_propagate (solver) &&
-               model_limit_reached (solver)) return;
-    else if (reducing (solver)) reduce (solver);
-    else if (restarting (solver)) restart (solver);
-    else decide (solver);
+    } else {
+      DualPropagationResult res = dual_propagate (solver);
+      if (res) {
+	if (model_limit_reached (solver)) return;
+	if (res == DUAL_CONFLICT && !backtrack (solver)) return;
+      } else if (reducing (solver)) reduce (solver);
+      else if (restarting (solver)) restart (solver);
+      else decide (solver);
+    }
   }
 }
 
