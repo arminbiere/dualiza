@@ -55,12 +55,13 @@ struct Limit {
     double slow, fast;
   } restart;
   long subsumed;
+  long models;
 };
 
 struct Solver {
   Var * vars;
-  char iterating, dual;
-  int max_var, max_primal_or_input_var;
+  char iterating, dual, printing;
+  int max_var, max_lit, max_primal_or_input_var;
   int level, phase;
   struct { int primal, dual; } next;
   int last_flipped_level, num_flipped_levels;
@@ -75,6 +76,8 @@ struct Solver {
   struct { CNF * primal, * dual; } cnf;
   struct { Queue primal, input, dual; } queue;
   struct { Clauses * primal, * dual; } occs;
+  Number models;
+  Name name;
 };
 
 static Var * var (Solver * solver, int lit) {
@@ -204,6 +207,19 @@ static void init_limits (Solver * solver) {
   init_reduce_limit (solver);
   init_restart_limit (solver);
   set_subsumed_limit (solver);
+  solver->limit.models = LONG_MAX;
+}
+
+void limit_number_of_partial_models (Solver * solver, long limit) {
+  assert (limit > 0);
+  solver->limit.models = limit;
+  msg (1, "number of partial models limited to %ld", limit);
+}
+
+void enable_model_printing (Solver * solver, Name name) {
+  solver->name = name;
+  solver->printing = 1;
+  msg (1, "enabled printing of partial models");
 }
 
 Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
@@ -265,6 +281,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
 #endif
   }
   solver->max_var = max_var;
+  solver->max_lit = 2*max_var + 1;
   LOG ("maximum variable index %d", solver->max_var);
   solver->max_primal_or_input_var = MAX (max_primal_var, max_input_var);
   LOG ("%d primal gate or input variables %d",
@@ -273,9 +290,9 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     solver->max_primal_or_input_var;
   solver->unassigned_input_variables = max_input_var;
   ALLOC (solver->vars, solver->max_var + 1);
-  ALLOC (solver->occs.primal, 2*(solver->max_var + 1));
+  ALLOC (solver->occs.primal, solver->max_lit + 1);
   if (dual)
-    ALLOC (solver->occs.dual, 2*(solver->max_var + 1));
+    ALLOC (solver->occs.dual, solver->max_lit + 1);
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
   assert (max_primal_var <= max_var);
@@ -309,6 +326,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   init_limits (solver);
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
+  init_number (solver->models);
   return solver;
 }
 
@@ -326,12 +344,16 @@ static int is_dual_or_input_var (Var * v) {
 
 static Clauses * primal_occs (Solver * solver, int lit) {
   assert (is_primal_or_input_var (var (solver, lit)));
-  return solver->occs.primal + 2*abs (lit) + (lit > 0);
+  const int pos = 2*abs (lit) + (lit > 0);
+  assert (2 <= pos), assert (pos <= solver->max_lit);
+  return solver->occs.primal + pos;
 }
 
 static Clauses * dual_occs (Solver * solver, int lit) {
   assert (is_dual_or_input_var (var (solver, lit)));
-  return solver->occs.dual + 2*abs (lit) + (lit > 0);
+  const int pos = 2*abs (lit) + (lit > 0);
+  assert (2 <= pos), assert (pos <= solver->max_lit);
+  return solver->occs.dual + pos;
 }
 
 void delete_solver (Solver * solver) {
@@ -350,8 +372,8 @@ void delete_solver (Solver * solver) {
       }
     }
   }
-  DEALLOC (solver->occs.primal, 2*(solver->max_var + 1));
-  if (solver->dual) DEALLOC (solver->occs.dual, 2*(solver->max_var + 1));
+  DEALLOC (solver->occs.primal, solver->max_lit + 1);
+  if (solver->dual) DEALLOC (solver->occs.dual, solver->max_lit + 1);
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
@@ -562,11 +584,37 @@ connect_dual_cnf_sat (Solver * solver) {
   return 1;
 }
 
-static void count_new_model (Solver * solver, Number res) {
-  int unassigned = solver->unassigned_input_variables;
-  SOG ("new model with %d unassigned inputs", unassigned);
-  add_power_of_two_to_number (res, unassigned);
+static void print_model (Solver * solver) {
+  assert (solver->printing);
+  const int n = COUNT (*solver->sorted);
+  int first = 1;
+  for (int i = 0; i < n; i++) {
+    if (!first) fputc (' ', stdout);
+    const int lit = PEEK (*solver->sorted, i);
+    const int tmp = val (solver, lit);
+    if (!tmp) continue;
+    if (tmp < 0) fputc ('!', stdout);
+    fputs (solver->name.get (solver->name.state, lit), stdout);
+    first = 0;
+  }
+  fputc ('\n', stdout);
   stats.models++;
+}
+
+static int model_limit_reached (Solver * solver) {
+  const long limit = solver->limit.models;
+  const int res = (stats.models >= limit);
+  if (res) msg (1, "reached partial models limit %ld", limit);
+  return res;
+}
+
+static void new_model (Solver * solver) {
+  int unassigned = solver->unassigned_input_variables;
+  stats.models++;
+  SOG ("new model %ld with %d unassigned inputs",
+    stats.models, unassigned);
+  if (solver->printing) print_model (solver);
+  add_power_of_two_to_number (solver->models, unassigned);
 }
 
 static int
@@ -592,12 +640,12 @@ connect_dual_cnf_count (Solver * solver, Number num) {
       }
       if (tmp < 0) {
 	LOG ("found already falsified unit %d in dual CNF", unit);
-        count_new_model (solver, num);
+        (void) new_model (solver);
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {
 	assign_temporarily (solver, -unit);
-	count_new_model (solver, num);
+	if (model_limit_reached (solver)) return 0;
 	unassign_temporarily (solver, -unit);
       }
       assign (solver, unit, c);
@@ -607,22 +655,6 @@ connect_dual_cnf_count (Solver * solver, Number num) {
     }
   }
   return 1;
-}
-
-static void print_model (Solver * solver, Name name) {
-  const int n = COUNT (*solver->sorted);
-  int first = 1;
-  for (int i = 0; i < n; i++) {
-    if (!first) fputc (' ', stdout);
-    const int lit = PEEK (*solver->sorted, i);
-    const int tmp = val (solver, lit);
-    if (!tmp) continue;
-    if (tmp < 0) fputc ('!', stdout);
-    fputs (name.get (name.state, lit), stdout);
-    first = 0;
-  }
-  fputc ('\n', stdout);
-  stats.models++;
 }
 
 static int
@@ -648,12 +680,12 @@ connect_dual_cnf_enumerate (Solver * solver, Name name) {
       }
       if (tmp < 0) {
 	LOG ("found already falsified unit %d in dual CNF", unit);
-	print_model (solver, name);
+	print_model (solver);
 	return 0;
       }
       if (is_input_var (var (solver, unit))) {
 	assign_temporarily (solver, -unit);
-	print_model (solver, name);
+	print_model (solver);
 	unassign_temporarily (solver, -unit);
       }
       assign (solver, unit, c);
@@ -891,12 +923,12 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
 	q--;
       } else if (other_val) {
 	SOGCLS (c, "conflict");
-	count_new_model (solver, num);
+	new_model (solver);
 	res = c;
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing input %d", other);
 	assign_temporarily (solver, -other);
-	count_new_model (solver, num);
+	new_model (solver);
 	unassign_temporarily (solver, -other);
 	assume_decision (solver, other, 1);
       } else {
@@ -947,12 +979,12 @@ static Clause * dual_propagate_enumerate (Solver * solver, Name name) {
 	q--;
       } else if (other_val) {
 	SOGCLS (c, "conflict");
-	print_model (solver, name);
+	print_model (solver);
 	res = c;
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing input %d", other);
 	assign_temporarily (solver, -other);
-	print_model (solver, name);
+	print_model (solver);
 	unassign_temporarily (solver, -other);
 	assume_decision (solver, other, 1);
       } else {
@@ -1599,13 +1631,13 @@ int dual_sat (Solver * solver) {
 void primal_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { count_new_model (solver, res); return; }
+  if (satisfied (solver)) { new_model (solver); return; }
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      count_new_model (solver, res);
+      new_model (solver);
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
@@ -1616,7 +1648,7 @@ void primal_count (Number res, Solver * solver) {
 void dual_count (Number res, Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { count_new_model (solver, res); return; }
+  if (satisfied (solver)) { new_model (solver); return; }
   if (!connect_dual_cnf_count (solver, res)) return;
   if (dual_propagate_count (solver, res)) return;
   for (;;) {
@@ -1624,7 +1656,7 @@ void dual_count (Number res, Solver * solver) {
     if (conflict) {
       if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      count_new_model (solver, res);
+      new_model (solver);
       if (!backtrack (solver)) return;
     } else if (dual_propagate_count (solver, res)) backtrack (solver);
     else if (reducing (solver)) reduce (solver);
@@ -1636,13 +1668,13 @@ void dual_count (Number res, Solver * solver) {
 void primal_enumerate (Solver * solver, Name name) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { print_model (solver, name); return; }
+  if (satisfied (solver)) { print_model (solver); return; }
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      print_model (solver, name);
+      print_model (solver);
       stats.models++;
       if (!backtrack (solver)) return;
     } else if (reducing (solver)) reduce (solver);
@@ -1654,7 +1686,7 @@ void primal_enumerate (Solver * solver, Name name) {
 void dual_enumerate (Solver * solver, Name name) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { print_model (solver, name); return; }
+  if (satisfied (solver)) { print_model (solver); return; }
   if (!connect_dual_cnf_enumerate (solver, name)) return;
   if (dual_propagate_enumerate (solver, name)) return;
   for (;;) {
@@ -1662,7 +1694,7 @@ void dual_enumerate (Solver * solver, Name name) {
     if (conflict) {
       if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      print_model (solver, name);
+      print_model (solver);
       stats.models++;
       if (!backtrack (solver)) return;
     } else if (dual_propagate_enumerate (solver, name)) backtrack (solver);
