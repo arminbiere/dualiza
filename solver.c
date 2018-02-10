@@ -1665,8 +1665,8 @@ void dual_enumerate (Solver * solver, Name name) {
       print_model (solver, name);
       stats.models++;
       if (!backtrack (solver)) return;
-    else if (dual_propagate_enumerate (solver, name)) backtrack (solver);
-    } else if (reducing (solver)) reduce (solver);
+    } else if (dual_propagate_enumerate (solver, name)) backtrack (solver);
+    else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
