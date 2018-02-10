@@ -61,7 +61,8 @@ struct Limit {
 struct Solver {
   Var * vars;
   char iterating, dual, printing;
-  int max_var, max_lit, max_primal_or_input_var;
+  int max_var, max_lit;
+  int max_input_var, max_primal_or_input_var;
   int level, phase;
   struct { int primal, dual; } next;
   int last_flipped_level, num_flipped_levels;
@@ -282,9 +283,10 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   }
   solver->max_var = max_var;
   solver->max_lit = 2*max_var + 1;
+  solver->max_input_var = max_input_var;
   LOG ("maximum variable index %d", solver->max_var);
   solver->max_primal_or_input_var = MAX (max_primal_var, max_input_var);
-  LOG ("%d primal gate or input variables %d",
+  LOG ("%d primal gate or input variables",
     solver->max_primal_or_input_var);
   solver->unassigned_primal_and_input_variables =
     solver->max_primal_or_input_var;
@@ -548,10 +550,6 @@ static void connect_dual_clause (Solver * solver, Clause * c) {
   connect_dual_literal (solver, c, c->literals[1]);
 }
 
-static int satisfied (Solver * solver) {
-  return !solver->unassigned_primal_and_input_variables;
-}
-
 static void print_model (Solver * solver) {
   assert (solver->printing);
   const int n = COUNT (*solver->sorted);
@@ -594,7 +592,6 @@ static void new_model (Solver * solver) {
 }
 
 static int last_model (Solver * solver) {
-  assert (satisfied (solver));
   assert (!model_limit_reached (solver));
   new_model (solver);
   return model_limit_reached (solver);
@@ -1427,10 +1424,14 @@ static void restart (Solver * solver) {
   report (solver, 2, 'r');
 }
 
+static int satisfied (Solver * solver) {
+  return !solver->unassigned_primal_and_input_variables;
+}
+
 static void solve (Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver) && last_model (solver)) return;
+  if (satisfied (solver)) { new_model (solver); return; }
   if (!connect_dual_cnf (solver)) return;
   for (;;) {
     Clause * conflict = primal_propagate (solver);
