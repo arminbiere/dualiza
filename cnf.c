@@ -1,8 +1,12 @@
 #include "headers.h"
 
+#ifndef NLOG
+
 static const char * cnf_type (CNF * cnf) {
   return cnf->dual ? "dual" : "primal";
 }
+
+#endif
 
 CNF * new_cnf (int dual) {
   CNF * res;

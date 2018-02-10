@@ -107,7 +107,7 @@ static int val (Solver * solver, int lit) {
 
 static Queue * queue (Solver * solver, Var * v) {
   if (v->type == DUAL_VARIABLE) return &solver->queue.dual;
-  if (!options.inputs) return &solver->queue.input;
+  if (!options.splitinputs) return &solver->queue.input;
   if (v->type == PRIMAL_VARIABLE) return &solver->queue.primal;
   return &solver->queue.input;
 }
@@ -596,6 +596,53 @@ static void first_model (Solver * solver) {
   }
 }
 
+#if 0
+static int signed_marked_literal (Solver * solver, int lit) {
+  Var * v = var (solver, lit);
+  int res = v->seen;
+  if (lit < 0) res = -res;
+  return res;
+}
+#endif
+
+static int sort_clause (Solver * solver) {
+  const int size = COUNT (solver->clause);
+  int * lits = solver->clause.start;
+  for (int i = 0; i < 2 && i < size; i++)
+    for (int j = i + 1; j < size; j++)
+      if (var (solver, lits[i])->level < var (solver, lits[j])->level) 
+	SWAP (int, lits[i], lits[j]);
+#ifndef NLOG
+  if (size > 0) SOG ("first sorted literal %d", lits[0]);
+  if (size > 1) SOG ("second sorted literal %d", lits[1]);
+#endif
+  return size;
+}
+
+static void add_input_blocking_clause (Solver * solver) {
+  assert (EMPTY (solver->clause));
+  int size = 0;
+  for (int idx = 1; idx <= solver->max_input_var; idx++) {
+    assert (is_input_var (var (solver, idx)));
+    const int tmp = val (solver, idx);
+    if (!tmp) continue;
+    const int lit = tmp < 0 ? idx : -idx;
+    PUSH (solver->clause, lit);
+    size++;
+  }
+  assert (size ==
+    solver->max_input_var - solver->unassigned_input_variables);
+  assert (size == COUNT (solver->clause));
+  SOG ("found %d assigned inputs", size);
+  sort_clause (solver);
+  Clause * c = new_clause (solver->clause.start, size);
+  assert (!c->glue), assert (!c->redundant);
+  SOGCLS (c, "input blocking");
+  add_clause_to_cnf (c, solver->cnf.primal);
+  if (size > 1) connect_primal_clause (solver, c);
+  CLEAR (solver->clause);
+}
+
 static void new_model (Solver * solver) {
   int unassigned = solver->unassigned_input_variables;
   stats.models++;
@@ -603,6 +650,7 @@ static void new_model (Solver * solver) {
   if (stats.models == 1) first_model (solver);
   if (solver->printing) print_model (solver);
   add_power_of_two_to_number (solver->models, unassigned);
+  if (options.blockinputs) add_input_blocking_clause (solver);
 }
 
 static int last_model (Solver * solver) {
@@ -839,6 +887,7 @@ dual_propagate (Solver * solver) {
 	connect_dual_literal (solver, c, replacement);
 	q--;
       } else if (other_val) {
+	assert (other_val < 0);
 	SOGCLS (c, "conflict");
 	new_model (solver);
 	res = DUAL_CONFLICT;
@@ -1006,16 +1055,16 @@ static void adjust_next_to_trail (Solver * solver) {
   adjust_next (solver, COUNT (solver->trail));
 }
 
-static void block_clause (Solver * solver, int lit) {
+static void add_decision_blocking_clause (Solver * solver, int lit) {
   assert (solver->level > 0);
   stats.blocked.clauses++;
-  SOG ("adding blocking clause for decision %d", lit);
+  SOG ("adding decision blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
   assert (var (solver, lit)->decision == 1);
   assert (EMPTY (solver->clause));
   for (int level = solver->level; level > 0; level--) {
     Frame * f = solver->frames.start + level;
-    // if (f->flipped) continue; // TODO use? needed?
+    if (f->flipped) continue;
     int decision = f->decision;
     PUSH (solver->clause, -decision);
     SOG ("adding %s %s literal %d from decision level %d",
@@ -1038,7 +1087,7 @@ static void block_clause (Solver * solver, int lit) {
   }
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
-  SOGCLS (c, "blocking");
+  SOGCLS (c, "decision blocking");
   add_clause_to_cnf (c, solver->cnf.primal);
   if (size > 1) connect_primal_clause (solver, c);
   CLEAR (solver->clause);
@@ -1085,7 +1134,7 @@ static int backtrack (Solver * solver) {
     Var * v = var (solver, lit);
     const int decision = v->decision;
     if (decision == 1) {
-      if (blocking (solver)) block_clause (solver, lit);
+      if (blocking (solver)) add_decision_blocking_clause (solver, lit);
       else flip (solver, lit);
       return 1;
     }
@@ -1198,20 +1247,6 @@ static int reset_levels (Solver * solver) {
   SOG ("new fast moving glue average %.2f", solver->limit.restart.fast);
   SOG ("new slow moving glue average %.2f", solver->limit.restart.slow);
   return res;
-}
-
-static int sort_clause (Solver * solver) {
-  const int size = COUNT (solver->clause);
-  int * lits = solver->clause.start;
-  for (int i = 0; i < 2 && i < size; i++)
-    for (int j = i + 1; j < size; j++)
-      if (var (solver, lits[i])->level < var (solver, lits[j])->level) 
-	SWAP (int, lits[i], lits[j]);
-#ifndef NLOG
-  if (size > 0) SOG ("first sorted literal %d", lits[0]);
-  if (size > 1) SOG ("second sorted literal %d", lits[1]);
-#endif
-  return size;
 }
 
 static int jump_level (Solver * solver, int * lits, int size) {
