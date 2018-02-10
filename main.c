@@ -42,6 +42,7 @@ fputs (
 "  -s | --sat             only check to be satisfiable\n"
 "  -t | --tautology       only check to be tautological\n"
 "  -e | --enumerate       enumerate and print all models\n"
+"  -c | --count           force counting (default)\n"
 "\n"
 "By default the SAT engine is used, or alternatively the BDD engine.\n"
 "\n"
@@ -74,6 +75,7 @@ static long limit;
 # define ENUMERATE (enumerate>0?" '--enumerate'":(enumerate<0?" '-e'":""))
 # define BDD       (bdd      >0?" '--bdd'"      :(bdd<0      ?" '-b'":""))
 # define NEGATE    (negate   >0?" '--negate'"   :(negate<0   ?" '-n'":""))
+# define COUNTING  (counting >0?" '--count'"    :(counting<0 ?" '-c'":""))
 
 # define PRINTING  FORMULA,AIGER,DIMACS
 # define CHECKING  SAT,TAUTOLOGY
@@ -89,8 +91,12 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and%s%s", PRINTING, CHECKING);
   if (printing && enumerate)
     die ("can not combine%s%s%s and%s", PRINTING, ENUMERATE);
+  if (printing && counting)
+    die ("can not combine%s%s%s and%s", PRINTING, COUNTING);
   if (checking && enumerate)
     die ("can not combine%s%s and%s", CHECKING, ENUMERATE);
+  if (checking && counting)
+    die ("can not combine%s%s and%s", CHECKING, COUNTING);
   if (!printing && output_name)
     die ("output specified without printing option");
   if (printing && bdd)
@@ -102,15 +108,15 @@ static void check_options (const char * output_name) {
 }
 
 static void init_mode () {
-  counting = !printing && !checking && !enumerate;
   if (formula)   msg (1, "formula printing mode due to%s", FORMULA);
   if (dimacs)    msg (1, "DIMACS printing mode due to%s", DIMACS);
   if (aiger)     msg (1, "AIGER printing mode due to%s", AIGER);
   if (sat)       msg (1, "satisfiability checking mode due to%s", SAT);
   if (tautology) msg (1, "tautology checking mode due to%s", TAUTOLOGY);
   if (enumerate) msg (1, "enumeration mode due to%s", ENUMERATE);
-  if (counting)  msg (1, "default counting mode");
-  assert (checking + printing + (enumerate!=0) + counting == 1);
+  if (counting)  msg (1, "counting mode due to%s", COUNTING);
+  else           msg (1, "default counting mode"), counting = 1;
+  assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
 }
 
 # undef FORMULA
@@ -555,6 +561,7 @@ int main (int argc, char ** argv) {
     else if (!strcmp (argv[i], "-s"))                sat = -1;
     else if (!strcmp (argv[i], "-t"))          tautology = -1;
     else if (!strcmp (argv[i], "-e"))          enumerate = -1;
+    else if (!strcmp (argv[i], "-c"))           counting = -1;
     else if (!strcmp (argv[i], "-b"))                bdd = -1;
     else if (!strcmp (argv[i], "--formula"))     formula = +1;
     else if (!strcmp (argv[i], "--aiger"))         aiger = +1;
@@ -563,6 +570,7 @@ int main (int argc, char ** argv) {
     else if (!strcmp (argv[i], "--sat"))             sat = +1;
     else if (!strcmp (argv[i], "--tautology")) tautology = +1;
     else if (!strcmp (argv[i], "--enumerate")) enumerate = +1;
+    else if (!strcmp (argv[i], "--counting"))   counting = +1;
     else if (!strcmp (argv[i], "--bdd"))             bdd = +1;
     else if (!strcmp (argv[i], "--visualize")) visualize = 1;
     else if (argv[i][0] == '-' && argv[i][1] == '-') {
