@@ -115,8 +115,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and '%s'", PRINTING, first_solving_option);
   if (bdd && first_solving_option)
     die ("can not use%s and '%s'", BDD, first_solving_option);
-  if (options.dual && !options.splitinputs && !options.blockinputs)
-    die ("can use '--dual' without '--splitinputs' nor '--blockinputs'");
+  if (options.dual && options.inputs)
+    die ("can use '--dual' with '--inputs' (anyhow enforced)");
 }
 
 static void init_mode () {
@@ -131,9 +131,9 @@ static void init_mode () {
     else          msg (1, "default counting mode"), counting = 1;
   }
   assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
-  if (options.splitinputs && options.blockinputs) {
-    msg (1, "input splitting takes precedence over blocking inputs");
-    options.blockinputs = 0;
+  if (options.dual && !options.inputs) {
+    msg (1, "dual propagations enforces input splitting");
+    options.inputs = 1;
   }
 }
 

@@ -107,7 +107,7 @@ static int val (Solver * solver, int lit) {
 
 static Queue * queue (Solver * solver, Var * v) {
   if (v->type == DUAL_VARIABLE) return &solver->queue.dual;
-  if (!options.splitinputs) return &solver->queue.input;
+  if (!options.inputs) return &solver->queue.input;
   if (v->type == PRIMAL_VARIABLE) return &solver->queue.primal;
   return &solver->queue.input;
 }
@@ -619,30 +619,6 @@ static int sort_clause (Solver * solver) {
   return size;
 }
 
-static void add_input_blocking_clause (Solver * solver) {
-  assert (EMPTY (solver->clause));
-  int size = 0;
-  for (int idx = 1; idx <= solver->max_input_var; idx++) {
-    assert (is_input_var (var (solver, idx)));
-    const int tmp = val (solver, idx);
-    if (!tmp) continue;
-    const int lit = tmp < 0 ? idx : -idx;
-    PUSH (solver->clause, lit);
-    size++;
-  }
-  assert (size ==
-    solver->max_input_var - solver->unassigned_input_variables);
-  assert (size == COUNT (solver->clause));
-  SOG ("found %d assigned inputs", size);
-  sort_clause (solver);
-  Clause * c = new_clause (solver->clause.start, size);
-  assert (!c->glue), assert (!c->redundant);
-  SOGCLS (c, "input blocking");
-  add_clause_to_cnf (c, solver->cnf.primal);
-  if (size > 1) connect_primal_clause (solver, c);
-  CLEAR (solver->clause);
-}
-
 static void new_model (Solver * solver) {
   int unassigned = solver->unassigned_input_variables;
   stats.models++;
@@ -650,7 +626,6 @@ static void new_model (Solver * solver) {
   if (stats.models == 1) first_model (solver);
   if (solver->printing) print_model (solver);
   add_power_of_two_to_number (solver->models, unassigned);
-  if (options.blockinputs) add_input_blocking_clause (solver);
 }
 
 static int last_model (Solver * solver) {

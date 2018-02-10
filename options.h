@@ -5,7 +5,6 @@
  \
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
-OPTION (blockinputs,  1, "block inputs instead of decisions") \
 OPTION (blocklimit,   2, "blocking clause size limit") \
 OPTION (dual,         0, "dual SAT engine too (opposite of '--primal')") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
@@ -20,7 +19,7 @@ OPTION (reduceinit, 2e3, "initial reduce interval") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
 OPTION (reuse,        1, "reuse trail during restart") \
-OPTION (splitinputs,  0, "split on inputs first (in primal solver)") \
+OPTION (inputs,       0, "split on inputs first (in primal solver)") \
 OPTION (subsume,      1, "eager blocking clause subsumption") \
 OPTION (subsumelimit, 4, "limit on number of non-subsumed clauses")  \
 OPTION (verbosity,    0, "verbose level") \
