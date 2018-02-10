@@ -38,6 +38,8 @@ OPTION (logging,	0, "logging level")
 OPTIONS_ALL \
 OPTIONS_LOG
 
+extern int solving_option_set;
+
 void usage_options ();
 void print_options ();
 int parse_option (const char * arg);

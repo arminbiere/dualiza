@@ -66,6 +66,8 @@ static int printing, checking, counting;
 static int sat, tautology, enumerate;
 static int bdd, limited, visualize;
 static long limit;
+
+static const char * first_solving_option;
  
 # define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
 # define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
@@ -109,6 +111,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s and '%ld'", CHECKING, limit);
   if (printing && limited)
     die ("can not combine%s%s%s and '%ld'", PRINTING, limit);
+  if (printing && first_solving_option)
+    die ("can not combine%s%s%s and '%s'", PRINTING, first_solving_option);
 }
 
 static void init_mode () {
@@ -586,6 +590,8 @@ int main (int argc, char ** argv) {
     else if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
 	die ("invalid long option '%s'", argv[i]);
+      else if (!first_solving_option && solving_option_set)
+	first_solving_option = argv[i];
     } else if (!strcmp (argv[i], "-o")) {
       if (++i == argc) die ("output file argument to '-o' missing'");
       if (output_name)
