@@ -115,6 +115,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and '%s'", PRINTING, first_solving_option);
   if (options.dual && options.inputs)
     die ("can use combine '--dual' and '--inputs' (forced for '--dual')");
+  if (bdd && first_solving_option)
+    die ("can not use%s and '%s'", BDD, first_solving_option);
 }
 
 static void init_mode () {
