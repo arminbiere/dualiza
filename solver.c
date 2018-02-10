@@ -380,6 +380,7 @@ void delete_solver (Solver * solver) {
   RELEASE (solver->clause);
   RELEASE (solver->levels);
   DEALLOC (solver->vars, solver->max_var+1);
+  clear_number (solver->models);
   DELETE (solver);
 }
 
