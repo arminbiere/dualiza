@@ -108,14 +108,16 @@ static void check_options (const char * output_name) {
 }
 
 static void init_mode () {
-  if (formula)   msg (1, "formula printing mode due to%s", FORMULA);
-  if (dimacs)    msg (1, "DIMACS printing mode due to%s", DIMACS);
-  if (aiger)     msg (1, "AIGER printing mode due to%s", AIGER);
-  if (sat)       msg (1, "satisfiability checking mode due to%s", SAT);
-  if (tautology) msg (1, "tautology checking mode due to%s", TAUTOLOGY);
-  if (enumerate) msg (1, "enumeration mode due to%s", ENUMERATE);
-  if (counting)  msg (1, "counting mode due to%s", COUNTING);
-  else           msg (1, "default counting mode"), counting = 1;
+  if (formula)    msg (1, "formula printing mode due to%s", FORMULA);
+  if (dimacs)     msg (1, "DIMACS printing mode due to%s", DIMACS);
+  if (aiger)      msg (1, "AIGER printing mode due to%s", AIGER);
+  if (sat)        msg (1, "satisfiability checking mode due to%s", SAT);
+  if (tautology)  msg (1, "tautology checking mode due to%s", TAUTOLOGY);
+  if (enumerate)  msg (1, "enumeration mode due to%s", ENUMERATE);
+  if (!printing && !checking && !enumerate) {
+    if (counting) msg (1, "counting mode due to%s", COUNTING);
+    else          msg (1, "default counting mode"), counting = 1;
+  }
   assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
 }
 
@@ -186,7 +188,7 @@ static void parse (const char * input_name) {
 }
 
 static void generate_dual_circuit () {
-  assert (checking + printing + (enumerate!=0) + counting == 1);
+  assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
   assert (primal_circuit);
   assert (!dual_circuit);
   if (negate) {
