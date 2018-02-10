@@ -367,6 +367,29 @@ static CNF * cnf (Solver * solver, Clause * c) {
 
 static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
 
+
+static void dec_unassigned (Solver * solver, Var * v) {
+  if (is_primal_or_input_var (v)) {
+    assert (solver->unassigned_primal_and_input_variables > 0);
+    solver->unassigned_primal_and_input_variables--;
+  }
+  if (is_input_var (v)) {
+    assert (solver->unassigned_input_variables > 0);
+    solver->unassigned_input_variables--;
+  }
+}
+
+static void inc_unassigned (Solver * solver, Var * v) {
+  if (is_primal_or_input_var (v)) {
+    solver->unassigned_primal_and_input_variables++;
+    assert (solver->unassigned_primal_and_input_variables > 0);
+  }
+  if (is_input_var (v)) {
+    solver->unassigned_input_variables++;
+    assert (solver->unassigned_input_variables > 0);
+  }
+}
+
 static void assign_temporarily (Solver * solver, int lit) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
@@ -404,14 +427,7 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
-  if (is_primal_or_input_var (v)) {
-    assert (solver->unassigned_primal_and_input_variables > 0);
-    solver->unassigned_primal_and_input_variables--;
-  }
-  if (is_input_var (v)) {
-    assert (solver->unassigned_input_variables > 0);
-    solver->unassigned_input_variables--;
-  }
+  dec_unassigned (solver, v);
 }
 
 static void inc_level (Solver * solver) {
@@ -442,14 +458,7 @@ static void unassign (Solver * solver, int lit) {
   Queue * q = queue (solver, v);
   if (!q->search || q->search->stamp < v->stamp)
     update_queue (solver, q, v);
-  if (is_primal_or_input_var (v)) {
-    solver->unassigned_primal_and_input_variables++;
-    assert (solver->unassigned_primal_and_input_variables > 0);
-  }
-  if (is_input_var (v)) {
-    solver->unassigned_input_variables++;
-    assert (solver->unassigned_input_variables > 0);
-  }
+  inc_unassigned (solver, v);
 }
 
 static void connect_primal_literal (Solver * solver, Clause * c, int lit) {
@@ -583,9 +592,12 @@ connect_dual_cnf_count (Solver * solver, Number num) {
         count_new_model (solver, num);
 	return 0;
       }
-      assign (solver, unit, c);
-      if (is_input_var (var (solver, unit)))
+      if (is_input_var (var (solver, unit))) {
+	assign_temporarily (solver, -unit);
 	count_new_model (solver, num);
+	unassign_temporarily (solver, -unit);
+      }
+      assign (solver, unit, c);
     } else {
       assert (c->size > 1);
       connect_dual_clause (solver, c);
@@ -803,7 +815,6 @@ static Clause * dual_propagate_sat (Solver * solver) {
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
       Clause * c = *q++ = *p++;
-      cover (c->garbage);
       if (c->garbage) { q--; continue; }
       SOGCLS (c, "visiting while propagating %d", lit);
       assert (c->size > 1);
@@ -853,7 +864,6 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
       Clause * c = *q++ = *p++;
-      cover (c->garbage);
       if (c->garbage) { q--; continue; }
       SOGCLS (c, "visiting while propagating %d", lit);
       assert (c->size > 1);
@@ -881,13 +891,66 @@ static Clause * dual_propagate_count (Solver * solver, Number num) {
 	res = c;
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing input %d", other);
-#if 0
-	// TODO does not work ...
 	assign_temporarily (solver, -other);
 	count_new_model (solver, num);
 	unassign_temporarily (solver, -other);
-	assume_decision (solver, other, 0);
-#endif
+	assume_decision (solver, other, 1);
+      } else {
+	assert (is_dual_var (var (solver, other)));
+	SOGCLS (c, "forcing dual %d", other);
+	assign (solver, other, c);
+      }
+    }
+    while (p < o->top) *q++ = *p++;
+    o->top = q;
+  }
+  report_iterating (solver);
+  return res;
+}
+
+static Clause * dual_propagate_enumerate (Solver * solver, Name name) {
+  Clause * res = 0;
+  while (!res && solver->next.dual < COUNT (solver->trail)) {
+    int lit = solver->trail.start[solver->next.dual++];
+    if (is_primal_var (var (solver, lit))) continue;
+    assert (val (solver, lit) > 0);
+    SOG ("dual propagating %d", lit);
+    stats.propagated++;
+    Clauses * o = dual_occs (solver, -lit);
+    Clause ** q = o->start, ** p = q;
+    while (!res && p < o->top) {
+      Clause * c = *q++ = *p++;
+      if (c->garbage) { q--; continue; }
+      SOGCLS (c, "visiting while propagating %d", lit);
+      assert (c->size > 1);
+      if (c->literals[0] != -lit)
+	SWAP (int, c->literals[0], c->literals[1]);
+      assert (c->literals[0] == -lit);
+      const int other = c->literals[1], other_val = val (solver, other);
+      if (other_val > 0) continue;
+      int i = 2, replacement_val = -1, replacement = 0;
+      while (i < c->size) {
+	replacement = c->literals[i];
+	replacement_val = val (solver, replacement);
+	if (replacement_val >= 0) break;
+	i++;
+      }
+      if (replacement_val >= 0) {
+	SOGCLS (c, "disconnecting literal %d from", -lit);
+	c->literals[0] = replacement;
+	c->literals[i] = -lit;
+	connect_dual_literal (solver, c, replacement);
+	q--;
+      } else if (other_val) {
+	SOGCLS (c, "conflict");
+	print_model (solver, name);
+	res = c;
+      } else if (is_input_var (var (solver, other))) {
+	SOGCLS (c, "forcing input %d", other);
+	assign_temporarily (solver, -other);
+	print_model (solver, name);
+	unassign_temporarily (solver, -other);
+	assume_decision (solver, other, 1);
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "forcing dual %d", other);
@@ -1589,7 +1652,7 @@ void dual_enumerate (Solver * solver, Name name) {
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) { print_model (solver, name); return; }
   if (!connect_dual_cnf_enumerate (solver, name)) return;
-  // if (dual_propagate_enumerate (solver, name)) return;
+  if (dual_propagate_enumerate (solver, name)) return;
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
@@ -1598,7 +1661,7 @@ void dual_enumerate (Solver * solver, Name name) {
       print_model (solver, name);
       stats.models++;
       if (!backtrack (solver)) return;
-    // else if (dual_propagate_enumerate (solver, name)) return;
+    else if (dual_propagate_enumerate (solver, name)) return;
     } else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
