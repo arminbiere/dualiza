@@ -564,7 +564,6 @@ static void print_model (Solver * solver) {
     first = 0;
   }
   fputc ('\n', stdout);
-  stats.models++;
 }
 
 static int model_limit_reached (Solver * solver) {
@@ -782,6 +781,7 @@ static Clause * primal_propagate (Solver * solver) {
 static Clause * dual_propagate (Solver * solver) {
   if (!solver->dual) return 0;
   Clause * res = 0;
+  assert (solver->next.primal == COUNT (solver->trail));
   while (!res && solver->next.dual < COUNT (solver->trail)) {
     int lit = solver->trail.start[solver->next.dual++];
     if (is_primal_var (var (solver, lit))) continue;
@@ -820,10 +820,10 @@ static Clause * dual_propagate (Solver * solver) {
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing input %d", other);
 	assign_temporarily (solver, -other);
-	if (!last_model (solver)) {
-	  unassign_temporarily (solver, -other);
-	  assume_decision (solver, other, 1);
-	} else res = c;
+	new_model (solver);
+	unassign_temporarily (solver, -other);
+	assume_decision (solver, other, 1);
+	res = c;
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "forcing dual %d", other);
@@ -1440,10 +1440,9 @@ static void solve (Solver * solver) {
     } else if (satisfied (solver)) {
       if (last_model (solver)) return;
       if (!backtrack (solver)) return;
-    } else if (dual_propagate (solver)) {
-      if (model_limit_reached (solver)) return;
-      if (!backtrack (solver)) return;
-    } else if (reducing (solver)) reduce (solver);
+    } else if (dual_propagate (solver) &&
+               model_limit_reached (solver)) return;
+    else if (reducing (solver)) reduce (solver);
     else if (restarting (solver)) restart (solver);
     else decide (solver);
   }
