@@ -64,6 +64,15 @@ void delete_circuit (Circuit * c) {
   DELETE (c);
 }
 
+#ifndef NLOG
+static const char * ordinal_suffix (int n) {
+  if (n == 1) return "st";
+  if (n == 2) return "nd";
+  if (n == 3) return "rd";
+  return "th";
+}
+#endif
+
 void connect_gates (Gate * input, Gate * output) {
   Gate * stripped_input = STRIP (input);
   Gate * stripped_output = STRIP (output);
@@ -74,12 +83,15 @@ void connect_gates (Gate * input, Gate * output) {
   assert (stripped_output->op != INPUT_OPERATOR);
   PUSH (stripped_input->outputs, output);
   PUSH (stripped_output->inputs, input);
+#ifndef NLOG
+  int count = COUNT (stripped_output->inputs);
   LOG (
-    "%s gate %d connected%s as input to %s gate %d",
+    "%s gate %d connected%s as %d%s input to %s gate %d",
     gate_name (stripped_input), stripped_input->idx,
     SIGN (input) ? " negated" : "",
+    count, ordinal_suffix (count),
     gate_name (stripped_output), stripped_output->idx);
-    
+#endif
 }
 
 void connect_output (Circuit * c, Gate * output) {

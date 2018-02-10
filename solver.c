@@ -820,10 +820,10 @@ static Clause * dual_propagate (Solver * solver) {
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "forcing input %d", other);
 	assign_temporarily (solver, -other);
-	new_model (solver);
-	unassign_temporarily (solver, -other);
-	assume_decision (solver, other, 1);
-	if (model_limit_reached (solver)) res = c;
+	if (!last_model (solver)) {
+	  unassign_temporarily (solver, -other);
+	  assume_decision (solver, other, 1);
+	} else res = c;
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "forcing dual %d", other);
@@ -1452,7 +1452,7 @@ static void solve (Solver * solver) {
 int primal_sat (Solver * solver) {
   msg (1, "primal checking");
   assert (!solver->dual);
-  assert (solver->limit.models > 0);
+  limit_number_of_partial_models (solver, 1);
   solve (solver);
   return stats.models ? 10 : 20;
 }
@@ -1460,7 +1460,7 @@ int primal_sat (Solver * solver) {
 int dual_sat (Solver * solver) {
   msg (1, "dual checking");
   assert (solver->dual);
-  assert (solver->limit.models > 0);
+  limit_number_of_partial_models (solver, 1);
   solve (solver);
   return stats.models ? 10 : 20;
 }

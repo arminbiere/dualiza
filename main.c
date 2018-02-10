@@ -105,6 +105,10 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s and%s", CHECKING, NEGATE);
   if (!bdd && visualize)
     die ("can not use '--visualize' without BDD");
+  if (checking && limited)
+    die ("can not combine%s%s and '%ld'", CHECKING, limit);
+  if (printing && limited)
+    die ("can not combine%s%s%s and '%ld'", PRINTING, limit);
 }
 
 static void init_mode () {
@@ -434,6 +438,7 @@ static void all () {
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
     Solver * solver = new_solver (cnf, &inputs, 0);
+    if (limited) limit_number_of_partial_models (solver, limit);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
     primal_enumerate (solver, n);
@@ -449,6 +454,7 @@ static void all () {
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
     Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    if (limited) limit_number_of_partial_models (solver, limit);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
     dual_enumerate (solver, n);
@@ -491,6 +497,7 @@ static void count () {
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
     Solver * solver = new_solver (cnf, &inputs, 0);
+    if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
     primal_count (n, solver);
@@ -511,6 +518,7 @@ static void count () {
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
     Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
     dual_count (n, solver);
