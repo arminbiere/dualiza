@@ -55,7 +55,8 @@ struct Limit {
     double slow, fast;
   } restart;
   long subsumed;
-  struct { long count, report, log10report; } models;
+  struct { long count, report, log2report; } models;
+  struct { Number report; long log2report; } count;
 };
 
 struct Solver {
@@ -77,7 +78,7 @@ struct Solver {
   struct { CNF * primal, * dual; } cnf;
   struct { Queue primal, input, dual; } queue;
   struct { Clauses * primal, * dual; } occs;
-  Number models;
+  Number count;
   Name name;
 };
 
@@ -210,7 +211,9 @@ static void init_limits (Solver * solver) {
   set_subsumed_limit (solver);
   solver->limit.models.count = LONG_MAX;
   solver->limit.models.report = 1;
-  solver->limit.models.log10report = 0;
+  solver->limit.models.log2report = 0;
+  init_number_from_unsigned (solver->limit.count.report, 1);
+  solver->limit.count.log2report = 0;
 }
 
 void limit_number_of_partial_models (Solver * solver, long limit) {
@@ -330,7 +333,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   init_limits (solver);
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
-  init_number (solver->models);
+  init_number (solver->count);
   return solver;
 }
 
@@ -384,7 +387,7 @@ void delete_solver (Solver * solver) {
   RELEASE (solver->clause);
   RELEASE (solver->levels);
   DEALLOC (solver->vars, solver->max_var+1);
-  clear_number (solver->models);
+  clear_number (solver->count);
   DELETE (solver);
 }
 
@@ -628,7 +631,8 @@ static void primal_header (Solver * solver) {
     "  learned"
     "    primal"
     "          "
-    " log10");
+    "  log2 "
+    "   log2");
   msg (1,
     "  "
     "    time"
@@ -637,15 +641,20 @@ static void primal_header (Solver * solver) {
     "  clauses"
     "   clauses"
     " variables"
-    " models");
+    " models"
+    "  count");
   msg (1, "");
 }
 
 static void inc_model_report_limit (Solver * solver) {
-  if (stats.models < solver->limit.models.report) return;
-  assert (stats.models == solver->limit.models.report);
-  solver->limit.models.log10report++;
-  solver->limit.models.report *= 10;
+  while (stats.models >= solver->limit.models.report) {
+    solver->limit.models.log2report++;
+    solver->limit.models.report *= 2;
+  }
+  while (cmp_number (solver->count, solver->limit.count.report) >= 0) {
+    solver->limit.count.log2report++;
+    multiply_number_by_power_of_two (solver->limit.count.report, 1);
+  }
 }
 
 static void
@@ -653,6 +662,7 @@ primal_report (Solver * solver, int verbosity, const char type) {
   assert (!solver->dual);
   if (options.verbosity < verbosity) return;
   if (!(stats.reports++ % 20)) primal_header (solver);
+  inc_model_report_limit (solver);
   msg (1,
     "%c"
     " %8.2f"
@@ -661,7 +671,8 @@ primal_report (Solver * solver, int verbosity, const char type) {
     " %8ld"
     " %9ld"
     " %8ld"
-    "  %ld",
+    " %6ld"
+    " %6ld",
     type,
     process_time (),
     current_resident_set_size ()/(double)(1<<20),
@@ -669,8 +680,8 @@ primal_report (Solver * solver, int verbosity, const char type) {
     solver->cnf.primal->redundant,
     solver->cnf.primal->irredundant,
     remaining_variables (solver),
-    solver->limit.models.log10report);
-  inc_model_report_limit (solver);
+    solver->limit.models.log2report-1,
+    solver->limit.count.log2report-1);
 }
 
 static void dual_header (Solver * solver) {
@@ -695,7 +706,8 @@ static void dual_header (Solver * solver) {
     "   clauses"
     "   clauses"
     " variables"
-    " models");
+    " models"
+    "  count");
   msg (1, "");
 }
 
@@ -706,6 +718,7 @@ dual_report (Solver * solver, int verbosity, const char type) {
   if (!(stats.reports++ % 20)) dual_header (solver);
   assert (solver->cnf.dual);
   assert (!solver->cnf.dual->redundant);
+  inc_model_report_limit (solver);
   msg (1,
     "%c"
     " %8.2f"
@@ -715,7 +728,8 @@ dual_report (Solver * solver, int verbosity, const char type) {
     " %9ld"
     " %9ld"
     " %8ld"
-    "  %ld",
+    " %6ld"
+    " %6ld",
     type,
     process_time (),
     current_resident_set_size ()/(double)(1<<20),
@@ -724,8 +738,8 @@ dual_report (Solver * solver, int verbosity, const char type) {
     solver->cnf.primal->irredundant,
     solver->cnf.dual->irredundant,
     remaining_variables (solver),
-    solver->limit.models.log10report);
-  inc_model_report_limit (solver);
+    solver->limit.models.log2report-1,
+    solver->limit.count.log2report-1);
 }
 
 static void report (Solver * solver, int verbosity, const char type) {
@@ -738,7 +752,6 @@ static void first_model (Solver * solver) {
     Var * v = var (solver, idx);
     v->first = v->val;
   }
-  report (solver, 1, '1');
 }
 
 static void new_model (Solver * solver) {
@@ -747,7 +760,7 @@ static void new_model (Solver * solver) {
   SOG ("model %ld with %d unassigned inputs", stats.models, unassigned);
   if (stats.models == 1) first_model (solver);
   if (solver->printing) print_model (solver);
-  add_power_of_two_to_number (solver->models, unassigned);
+  add_power_of_two_to_number (solver->count, unassigned);
   if (stats.models == solver->limit.models.report)
     report (solver, 1, '+');
   else report (solver, 3, 'm');
@@ -1056,7 +1069,7 @@ static void subsume (Solver * solver, Clause * c) {
   flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (solver->cnf.primal);
   set_subsumed_limit (solver);
-  report (solver, 1, '/');
+  report (solver, 1, 's');
 }
 
 static void adjust_next (Solver * solver, int next) {
@@ -1545,14 +1558,14 @@ void primal_count (Number models, Solver * solver) {
   msg (1, "primal counting");
   assert (!solver->dual);
   solve (solver);
-  copy_number (models, solver->models);
+  copy_number (models, solver->count);
 }
 
 void dual_count (Number models, Solver * solver) {
   msg (1, "dual counting");
   assert (solver->dual);
   solve (solver);
-  copy_number (models, solver->models);
+  copy_number (models, solver->count);
 }
 
 void primal_enumerate (Solver * solver, Name name) {

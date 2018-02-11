@@ -6,7 +6,13 @@
 
 void init_number (Number n) { mpz_init (n); }
 
+void init_number_from_unsigned (Number n, unsigned u) {
+  mpz_init_set_ui (n, u);
+}
+
 int is_zero_number (Number n) { return !mpz_cmp_ui (n, 0); }
+
+int cmp_number (Number a, Number b) { return mpz_cmp (a, b); }
 
 void copy_number (Number dst, const Number src) { mpz_set (dst, src); }
 
@@ -44,9 +50,35 @@ void print_number_to_file (Number n, FILE * file) {
 #else // our own home-made multiple precision number library
 /*------------------------------------------------------------------------*/
 
+#ifndef NDEBUG
+static int is_normalized_number (Number n) {
+  return EMPTY (n[0]) || TOP (n[0]);
+}
+#endif
+
 void init_number (Number n) { INIT (*n); }
 
+void init_number_from_unsigned (Number n, unsigned u) {
+  INIT (*n);
+  if (n) PUSH (u);
+}
+
 int is_zero_number (Number n) { return EMPTY (n[0]); }
+
+int cmp_number (Number a, Number b) {
+  assert (is_normalized_number (a));
+  assert (is_normalized_number (b));
+  unsigned m = COUNT (a[0]), n = COUNT (b[0]);
+  if (m < n) return -1;
+  if (m > n) return 1;
+  const unsigned * p = a[0].start, * q = b[0].start;
+  while (p != a[0].top) {
+    unsigned c = *p++, d = *q++;
+    if (c < d) return -1;
+    if (c > d) return 1;
+  }
+  return 0;
+}
 
 void copy_number (Number dst, const Number src) {
   CLEAR (dst[0]);
@@ -106,6 +138,7 @@ static void print_number_to_stack (Number n, CharStack * s) {
 static void normalize_number (Number n) {
   while (!EMPTY (n[0]) && !TOP (n[0]))
     (void) POP (n[0]);
+  assert (is_normalized_number (n));
 }
 
 void multiply_number_by_power_of_two (Number n, Exponent e) {

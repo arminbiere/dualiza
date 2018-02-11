@@ -11,10 +11,12 @@ typedef UnsignedStack Number[1];
 typedef unsigned long Exponent;
 
 void init_number (Number);
+void init_number_from_unsigned (Number, unsigned);
 void copy_number (Number, const Number);
 void clear_number (Number);
 
 int is_zero_number (Number);
+int cmp_number (Number, Number);
 
 void inc_number (Number);
 void multiply_number_by_power_of_two (Number, Exponent);
