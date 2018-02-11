@@ -31,11 +31,12 @@ do { \
 
 #define fatal(FMT,ARGS...) \
 do { \
-  if (!(C)) break; \
   fflush (stdout); \
   fprintf (stderr, \
-    "dualiza: %s:%d: %s: Fatal error: FMT\n", \
-    __FILE__, __LINE__, __FUNCTION__, #ARGS); \
+    "dualiza: %s:%d: %s: Fatal error: ", \
+    __FILE__, __LINE__, __FUNCTION__); \
+  fprintf (stderr, FMT, ##ARGS); \
+  fputc ('\n', stderr); \
   fflush (stderr); \
   abort (); \
 } while (0)
