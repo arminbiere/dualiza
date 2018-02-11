@@ -694,8 +694,8 @@ static void dual_header (Solver * solver) {
     "        "
     "          "
     "  learned"
-    "  primal"
-    "   dual "
+    "   primal"
+    "    dual "
     "          "
     "  log2"
     "   log2");
@@ -705,8 +705,8 @@ static void dual_header (Solver * solver) {
     "  memory"
     " conflicts"
     "  clauses"
-    " clauses"
-    " clauses"
+    "  clauses"
+    "  clauses"
     " variables"
     " models"
     " count");
@@ -728,8 +728,8 @@ dual_report (Solver * solver, int verbosity, const char type) {
     " %9ld"
     " %8ld"
     " %8ld"
-    " %7ld"
-    " %7ld"
+    " %8ld"
+    " %8ld"
     " %6ld"
     " %6ld",
     type,
