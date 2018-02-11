@@ -201,7 +201,7 @@ static void init_restart_limit (Solver * solver) {
 }
 
 static void set_subsumed_limit (Solver * solver) {
-  solver->limit.subsumed += COUNT (solver->cnf.primal->clauses)/10 + 1000;
+  solver->limit.subsumed += solver->cnf.primal->irredundant/10;
   LOG ("subsumed limit %ld", solver->limit.subsumed);
 }
 
