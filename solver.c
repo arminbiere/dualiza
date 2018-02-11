@@ -388,6 +388,7 @@ void delete_solver (Solver * solver) {
   RELEASE (solver->levels);
   DEALLOC (solver->vars, solver->max_var+1);
   clear_number (solver->count);
+  clear_number (solver->limit.count.report);
   DELETE (solver);
 }
 
@@ -974,6 +975,7 @@ static Var * next_queue (Solver * solver, Queue * queue) {
 static Var * next_decision (Solver * solver) {
   Var * v = next_queue (solver, &solver->queue.input);
   if (!v) v = next_queue (solver, &solver->queue.primal);
+  if (!v) cover ("no input nor primal variable unassigned");
   if (!v) v = next_queue (solver, &solver->queue.dual);
   assert (v);
   SOG ("next %s decision %d stamped %ld",
