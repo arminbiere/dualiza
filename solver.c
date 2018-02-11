@@ -629,20 +629,20 @@ static void primal_header (Solver * solver) {
     "        "
     "          "
     "  learned"
-    "    primal"
+    "   primal"
     "          "
     "  log2 "
-    "   log2");
+    "  log2");
   msg (1,
     "  "
     "    time"
     "  memory"
     " conflicts"
     "  clauses"
-    "   clauses"
+    "  clauses"
     " variables"
     " models"
-    "  count");
+    " count");
   msg (1, "");
 }
 
@@ -669,7 +669,7 @@ primal_report (Solver * solver, int verbosity, const char type) {
     " %7.1f"
     " %9ld"
     " %8ld"
-    " %9ld"
+    " %8ld"
     " %8ld"
     " %6ld"
     " %6ld",
@@ -693,21 +693,22 @@ static void dual_header (Solver * solver) {
     "        "
     "          "
     "  learned"
-    "    primal"
-    "     dual "
+    "  primal"
+    "   dual "
     "          "
-    " log10");
+    "  log2"
+    "   log2");
   msg (1,
     "  "
     "    time"
     "  memory"
     " conflicts"
     "  clauses"
-    "   clauses"
-    "   clauses"
+    " clauses"
+    " clauses"
     " variables"
     " models"
-    "  count");
+    " count");
   msg (1, "");
 }
 
@@ -725,9 +726,9 @@ dual_report (Solver * solver, int verbosity, const char type) {
     " %7.1f"
     " %9ld"
     " %8ld"
-    " %9ld"
-    " %9ld"
     " %8ld"
+    " %7ld"
+    " %7ld"
     " %6ld"
     " %6ld",
     type,
