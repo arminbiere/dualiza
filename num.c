@@ -52,7 +52,7 @@ void print_number_to_file (Number n, FILE * file) {
 
 #ifndef NDEBUG
 static int is_normalized_number (Number n) {
-  return EMPTY (n[0]) || TOP (n[0]);
+  return EMPTY (*n) || TOP (*n);
 }
 #endif
 
@@ -60,7 +60,7 @@ void init_number (Number n) { INIT (*n); }
 
 void init_number_from_unsigned (Number n, unsigned u) {
   INIT (*n);
-  if (n) PUSH (u);
+  if (n) PUSH (*n, u);
 }
 
 int is_zero_number (Number n) { return EMPTY (n[0]); }
