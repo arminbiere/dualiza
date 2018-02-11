@@ -44,7 +44,8 @@ static void set_option (int * p, int v) {
   *p = v;
   if (p == &options.dual) options.primal = !v;
   if (p == &options.primal) options.dual = !v;
-  if (p != &options.verbosity) solving_option_set = 1;
+  if (p != &options.annotate &&
+      p != &options.verbosity) solving_option_set = 1;
 }
 
 static int parse_option_aux (char * arg) {

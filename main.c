@@ -117,6 +117,8 @@ static void check_options (const char * output_name) {
     die ("can not use%s and '%s'", BDD, first_solving_option);
   if (options.dual && options.inputs)
     die ("can use '--dual' with '--inputs' (anyhow enforced)");
+  if (options.annotate && !dimacs)
+    die ("can not use '--annotate' without DIMACS printing");
 }
 
 static void init_mode () {
