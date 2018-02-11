@@ -17,3 +17,25 @@ do { \
 do { \
   memset ((P), 0, sizeof *(P)); \
 } while (0)
+
+#define cover(C) \
+do { \
+  if (!(C)) break; \
+  fflush (stdout); \
+  fprintf (stderr, \
+    "dualiza: %s:%d: %s: Coverage goal `%s' reached\n", \
+    __FILE__, __LINE__, __FUNCTION__, #C); \
+  fflush (stderr); \
+  abort (); \
+} while (0)
+
+#define fatal(FMT,ARGS...) \
+do { \
+  if (!(C)) break; \
+  fflush (stdout); \
+  fprintf (stderr, \
+    "dualiza: %s:%d: %s: Fatal error: FMT\n", \
+    __FILE__, __LINE__, __FUNCTION__, #ARGS); \
+  fflush (stderr); \
+  abort (); \
+} while (0)

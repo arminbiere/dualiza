@@ -15,7 +15,6 @@
 #include "clause.h"
 #include "cnf.h"
 #include "coi.h"
-#include "cover.h"
 #include "dimacs.h"
 #include "encode.h"
 #include "logging.h"

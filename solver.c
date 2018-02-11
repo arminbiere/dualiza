@@ -76,7 +76,7 @@ struct Solver {
   VarStack seen;
   Limit limit;
   struct { CNF * primal, * dual; } cnf;
-  struct { Queue primal, input, dual; } queue;
+  struct { Queue primal, input; } queue;
   struct { Clauses * primal, * dual; } occs;
   Number count;
   Name name;
@@ -107,10 +107,9 @@ static int val (Solver * solver, int lit) {
 }
 
 static Queue * queue (Solver * solver, Var * v) {
-  if (v->type == DUAL_VARIABLE) return &solver->queue.dual;
-  if (!options.inputs) return &solver->queue.input;
+  assert (v->type != DUAL_VARIABLE);
   if (v->type == PRIMAL_VARIABLE) return &solver->queue.primal;
-  return &solver->queue.input;
+  else return &solver->queue.input;
 }
 
 #ifndef NLOG
@@ -125,9 +124,8 @@ static const char * var_type (Var * v) {
 
 static const char * queue_type (Solver * s, Queue * q) {
   if (q == &s->queue.primal) return "primal";
-  if (q == &s->queue.input) return "input";
-  assert (q == &s->queue.dual);
-  return "dual";
+  assert (q == &s->queue.input);
+  return "input";
 }
 
 #endif
@@ -976,7 +974,6 @@ static Var * next_decision (Solver * solver) {
   Var * v = next_queue (solver, &solver->queue.input);
   if (!v) v = next_queue (solver, &solver->queue.primal);
   if (!v) cover ("no input nor primal variable unassigned");
-  if (!v) v = next_queue (solver, &solver->queue.dual);
   assert (v);
   SOG ("next %s decision %d stamped %ld",
     var_type (v), var2idx (solver, v), v->stamp);
