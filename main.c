@@ -420,7 +420,8 @@ static void print (const char * output_name) {
   } else if (dimacs) {
     CNF * cnf = new_cnf (0);
     encode_circuit (primal_circuit, cnf);
-    print_dimacs_encoding_to_file (primal_circuit, output->file);
+    if (options.annotate)
+      print_dimacs_encoding_to_file (primal_circuit, output->file);
     print_cnf_to_file (cnf, output->file);
     delete_cnf (cnf);
   } else {
