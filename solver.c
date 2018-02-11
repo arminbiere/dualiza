@@ -36,7 +36,6 @@ struct Var {
 
 struct Queue {
   Var * first, * last, * search;
-  long stamp;
 };
 
 struct Frame {
@@ -64,7 +63,7 @@ struct Solver {
   char found_new_fixed_variable;
   char dual_solving_enabled;
   char model_printing_enabled;
-  char split_on_intputs_first;
+  char split_on_inputs_first;
   int max_var, max_lit;
   int max_input_var, max_primal_or_input_var;
   int level, phase;
@@ -79,7 +78,7 @@ struct Solver {
   VarStack seen;
   Limit limit;
   struct { CNF * primal, * dual; } cnf;
-  struct { Queue primal, input; } queue;
+  struct { long stamp; Queue primal, input; } queue;
   struct { Clauses * primal, * dual; } occs;
   Number count;
   Name name;
@@ -148,7 +147,7 @@ static void enqueue (Solver * solver, Var * v) {
   Queue * q = queue (solver, v);
   assert (!v->next);
   assert (!v->prev);
-  v->stamp = ++q->stamp;
+  v->stamp = ++solver->queue.stamp;
   SOG ("%s enqueue variable %d stamp %ld",
     var_type (v), var2idx (solver, v), v->stamp);
   if (!q->first) q->first = v;
@@ -227,6 +226,12 @@ static void enable_model_printing (Solver * solver, Name name) {
   solver->name = name;
   solver->model_printing_enabled = 1;
   msg (1, "enabled printing of partial models");
+}
+
+static void force_splitting_on_inputs_first (Solver * solver) {
+  assert (!solver->split_on_inputs_first);
+  msg (2, "forcing to split on inputs first");
+  solver->split_on_inputs_first = 1;
 }
 
 Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
@@ -327,7 +332,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
     }
   }
   LOG ("connecting variables");
-  for (int idx = 1; idx <= solver->max_var; idx++)
+  for (int idx = 1; idx <= solver->max_primal_or_input_var; idx++)
     enqueue (solver, var (solver, idx));
   solver->phase = options.phaseinit ? 1 : -1;
   LOG ("default initial phase %d", solver->phase);
@@ -335,6 +340,7 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
   init_number (solver->count);
+  if (options.inputs) force_splitting_on_inputs_first (solver);
   return solver;
 }
 
@@ -506,9 +512,11 @@ static void unassign (Solver * solver, int lit) {
   v->val = v->decision = 0;
   if (v->reason)
     mark_clause_inactive (v->reason, cnf (solver, v->reason));
-  Queue * q = queue (solver, v);
-  if (!q->search || q->search->stamp < v->stamp)
-    update_queue (solver, q, v);
+  if (!is_dual_var (v)) {
+    Queue * q = queue (solver, v);
+    if (!q->search || q->search->stamp < v->stamp)
+      update_queue (solver, q, v);
+  }
   inc_unassigned (solver, v);
 }
 
@@ -697,8 +705,8 @@ static void dual_header (Solver * solver) {
     "          "
     "  learned"
     "   primal"
-    "    dual "
-    "          "
+    "   dual  "
+    "variables"
     "  log2"
     "   log2");
   msg (1,
@@ -709,9 +717,9 @@ static void dual_header (Solver * solver) {
     "  clauses"
     "  clauses"
     "  clauses"
-    " variables"
+    "        "
     " models"
-    " count");
+    "  count");
   msg (1, "");
 }
 
@@ -731,7 +739,7 @@ dual_report (Solver * solver, int verbosity, const char type) {
     " %8ld"
     " %8ld"
     " %8ld"
-    " %8ld"
+    " %7ld"
     " %6ld"
     " %6ld",
     type,
@@ -756,6 +764,8 @@ static void first_model (Solver * solver) {
     Var * v = var (solver, idx);
     v->first = v->val;
   }
+  if (solver->dual_solving_enabled && !solver->split_on_inputs_first)
+    force_splitting_on_inputs_first (solver);
 }
 
 static void new_model (Solver * solver) {
@@ -975,13 +985,18 @@ static Var * next_queue (Solver * solver, Queue * queue) {
 }
 
 static Var * next_decision (Solver * solver) {
-  Var * v = next_queue (solver, &solver->queue.input);
-  if (!v) v = next_queue (solver, &solver->queue.primal);
-  if (!v) fatal ("no input nor primal variable unassigned");
-  assert (v);
+  Var * input = next_queue (solver, &solver->queue.input);
+  Var * primal = next_queue (solver, &solver->queue.primal);
+  if (!input && !primal)
+    fatal ("no input nor primal variable unassigned");
+  Var * res;
+  if (!input && primal) res = primal;
+  else if (input && !primal) res = input;
+  else if (solver->split_on_inputs_first) res = input ? input : primal;
+  else res = input->stamp < primal->stamp ? primal : input;
   SOG ("next %s decision %d stamped %ld",
-    var_type (v), var2idx (solver, v), v->stamp);
-  return v;
+    var_type (res), var2idx (solver, res), res->stamp);
+  return res;
 }
 
 static void decide (Solver * solver) {
