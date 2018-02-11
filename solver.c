@@ -55,7 +55,7 @@ struct Limit {
     double slow, fast;
   } restart;
   long subsumed;
-  long models;
+  struct { long count, report, log10report; } models;
 };
 
 struct Solver {
@@ -208,12 +208,14 @@ static void init_limits (Solver * solver) {
   init_reduce_limit (solver);
   init_restart_limit (solver);
   set_subsumed_limit (solver);
-  solver->limit.models = LONG_MAX;
+  solver->limit.models.count = LONG_MAX;
+  solver->limit.models.report = 1;
+  solver->limit.models.log10report = 0;
 }
 
 void limit_number_of_partial_models (Solver * solver, long limit) {
   assert (limit > 0);
-  solver->limit.models = limit;
+  solver->limit.models.count = limit;
   msg (1, "number of partial models limited to %ld", limit);
 }
 
@@ -582,18 +584,10 @@ static void print_model (Solver * solver) {
 }
 
 static int model_limit_reached (Solver * solver) {
-  const long limit = solver->limit.models;
+  const long limit = solver->limit.models.count;
   const int res = (stats.models >= limit);
   if (res) msg (1, "reached partial models limit %ld", limit);
   return res;
-}
-
-static void first_model (Solver * solver) {
-  msg (1, "saving first model");
-  for (int idx = 1; idx <= solver->max_var; idx++) {
-    Var * v = var (solver, idx);
-    v->first = v->val;
-  }
 }
 
 #if 0
@@ -619,6 +613,134 @@ static int sort_clause (Solver * solver) {
   return size;
 }
 
+static int remaining_variables (Solver * solver) {
+  return solver->max_primal_or_input_var - solver->primal_or_input_fixed;
+}
+
+static void primal_header (Solver * solver) {
+  assert (!solver->dual);
+  msg (1, "");
+  msg (1,
+    "  "
+    "        "
+    "        "
+    "          "
+    "  learned"
+    "    primal"
+    "          "
+    " log10");
+  msg (1,
+    "  "
+    "    time"
+    "  memory"
+    " conflicts"
+    "  clauses"
+    "   clauses"
+    " variables"
+    " models");
+  msg (1, "");
+}
+
+static void inc_model_report_limit (Solver * solver) {
+  if (stats.models < solver->limit.models.report) return;
+  assert (stats.models == solver->limit.models.report);
+  solver->limit.models.log10report++;
+  solver->limit.models.report *= 10;
+}
+
+static void
+primal_report (Solver * solver, int verbosity, const char type) {
+  assert (!solver->dual);
+  if (options.verbosity < verbosity) return;
+  if (!(stats.reports++ % 20)) primal_header (solver);
+  msg (1,
+    "%c"
+    " %8.2f"
+    " %7.1f"
+    " %9ld"
+    " %8ld"
+    " %9ld"
+    " %8ld"
+    "  %ld",
+    type,
+    process_time (),
+    current_resident_set_size ()/(double)(1<<20),
+    stats.conflicts,
+    solver->cnf.primal->redundant,
+    solver->cnf.primal->irredundant,
+    remaining_variables (solver),
+    solver->limit.models.log10report);
+  inc_model_report_limit (solver);
+}
+
+static void dual_header (Solver * solver) {
+  assert (solver->dual);
+  msg (1, "");
+  msg (1,
+    "  "
+    "        "
+    "        "
+    "          "
+    "  learned"
+    "    primal"
+    "     dual "
+    "          "
+    " log10");
+  msg (1,
+    "  "
+    "    time"
+    "  memory"
+    " conflicts"
+    "  clauses"
+    "   clauses"
+    "   clauses"
+    " variables"
+    " models");
+  msg (1, "");
+}
+
+static void
+dual_report (Solver * solver, int verbosity, const char type) {
+  assert (solver->dual);
+  if (options.verbosity < verbosity) return;
+  if (!(stats.reports++ % 20)) dual_header (solver);
+  assert (solver->cnf.dual);
+  assert (!solver->cnf.dual->redundant);
+  msg (1,
+    "%c"
+    " %8.2f"
+    " %7.1f"
+    " %9ld"
+    " %8ld"
+    " %9ld"
+    " %9ld"
+    " %8ld"
+    "  %ld",
+    type,
+    process_time (),
+    current_resident_set_size ()/(double)(1<<20),
+    stats.conflicts,
+    solver->cnf.primal->redundant,
+    solver->cnf.primal->irredundant,
+    solver->cnf.dual->irredundant,
+    remaining_variables (solver),
+    solver->limit.models.log10report);
+  inc_model_report_limit (solver);
+}
+
+static void report (Solver * solver, int verbosity, const char type) {
+  if (solver->dual) dual_report (solver, verbosity, type);
+  else primal_report (solver, verbosity, type);
+}
+
+static void first_model (Solver * solver) {
+  for (int idx = 1; idx <= solver->max_var; idx++) {
+    Var * v = var (solver, idx);
+    v->first = v->val;
+  }
+  report (solver, 1, '1');
+}
+
 static void new_model (Solver * solver) {
   int unassigned = solver->unassigned_input_variables;
   stats.models++;
@@ -626,6 +748,9 @@ static void new_model (Solver * solver) {
   if (stats.models == 1) first_model (solver);
   if (solver->printing) print_model (solver);
   add_power_of_two_to_number (solver->models, unassigned);
+  if (stats.models == solver->limit.models.report)
+    report (solver, 1, '+');
+  else report (solver, 3, 'm');
 }
 
 static int last_model (Solver * solver) {
@@ -672,92 +797,6 @@ static int connect_dual_cnf (Solver * solver) {
     }
   }
   return 1;
-}
-
-static int remaining_variables (Solver * solver) {
-  return solver->max_primal_or_input_var - solver->primal_or_input_fixed;
-}
-
-static void primal_header (Solver * solver) {
-  assert (!solver->dual);
-  msg (1, "");
-  msg (1,
-    "  "
-    "    time"
-    "  memory"
-    " conflicts"
-    "  learned"
-    "   clauses"
-    " variables");
-  msg (1, "");
-}
-
-static void
-primal_report (Solver * solver, int verbosity, const char type) {
-  assert (!solver->dual);
-  if (options.verbosity < verbosity) return;
-  if (!(stats.reports++ % 20)) primal_header (solver);
-  msg (1,
-    "%c"
-    " %8.2f"
-    " %7.1f"
-    " %9ld"
-    " %8ld"
-    " %9ld"
-    " %8ld",
-    type,
-    process_time (),
-    current_resident_set_size ()/(double)(1<<20),
-    stats.conflicts,
-    solver->cnf.primal->redundant,
-    solver->cnf.primal->irredundant,
-    remaining_variables (solver));
-}
-
-static void dual_header (Solver * solver) {
-  assert (solver->dual);
-  msg (1, "");
-  msg (1,
-    "  "
-    "    time"
-    "  memory"
-    " conflicts"
-    "  learned"
-    "    primal"
-    "      dual"
-    " variables");
-  msg (1, "");
-}
-
-static void
-dual_report (Solver * solver, int verbosity, const char type) {
-  assert (solver->dual);
-  if (options.verbosity < verbosity) return;
-  if (!(stats.reports++ % 20)) dual_header (solver);
-  assert (solver->cnf.dual);
-  assert (!solver->cnf.dual->redundant);
-  msg (1,
-    "%c"
-    " %8.2f"
-    " %7.1f"
-    " %9ld"
-    " %8ld"
-    " %9ld"
-    " %9ld"
-    " %8ld",
-    type,
-    process_time (),
-    current_resident_set_size ()/(double)(1<<20),
-    stats.conflicts,
-    solver->cnf.primal->redundant,
-    solver->cnf.primal->irredundant,
-    solver->cnf.dual->irredundant,
-    remaining_variables (solver));
-}
-
-static void report (Solver * solver, int verbosity, const char type) {
-  if (solver->dual) dual_report (solver, verbosity, type);
-  else primal_report (solver, verbosity, type);
 }
 
 static void report_iterating (Solver * solver) {
@@ -1462,6 +1501,7 @@ static int satisfied (Solver * solver) {
 }
 
 static void solve (Solver * solver) {
+  if (model_limit_reached (solver)) return;
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) { new_model (solver); return; }
