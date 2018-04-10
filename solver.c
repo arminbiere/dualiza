@@ -19,9 +19,10 @@ typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
 
 enum VarType {
-  INPUT_VARIABLE = 0,
-  PRIMAL_VARIABLE = 1,
-  DUAL_VARIABLE = 2,
+  RELEVANT_VARIABLE = 0,
+  IRRELEVANT_VARIABLE = 1,
+  PRIMAL_VARIABLE = 2,
+  DUAL_VARIABLE = 3,
 };
 
 struct Var {
@@ -47,7 +48,7 @@ struct Frame {
 struct Limit {
   struct {
     long learned, interval, increment;
-    int primal_or_input_fixed;
+    int primal_or_shared_fixed;
   } reduce;
   struct {
     long conflicts;
@@ -63,22 +64,25 @@ struct Solver {
   char found_new_fixed_variable;
   char dual_solving_enabled;
   char model_printing_enabled;
-  char split_on_inputs_first;
+  char split_on_relevant_first;
   int max_var, max_lit;
-  int max_input_var, max_primal_or_input_var;
+  int max_shared_var, max_primal_or_shared_var;
   int level, phase;
   struct { int primal, dual; } next;
   int last_flipped_level, num_flipped_levels;
   int unassigned_primal_and_input_variables;
-  int unassigned_input_variables;
-  int primal_or_input_fixed;
-  int dual_non_input_fixed;
+  int unassigned_shared_variables;
+  int primal_or_shared_fixed;
+  int dual_non_shared_fixed;
   IntStack trail, clause, levels, * sorted;
   FrameStack frames;
   VarStack seen;
   Limit limit;
   struct { CNF * primal, * dual; } cnf;
-  struct { long stamp; Queue primal, input; } queue;
+  struct {
+    long stamp;
+    Queue relevant, primal_or_irrelevant, dual;
+  } queue;
   struct { Clauses * primal, * dual; } occs;
   Number count;
   Name name;
@@ -109,9 +113,11 @@ static int val (Solver * solver, int lit) {
 }
 
 static Queue * queue (Solver * solver, Var * v) {
-  assert (v->type != DUAL_VARIABLE);
-  if (v->type == PRIMAL_VARIABLE) return &solver->queue.primal;
-  else return &solver->queue.input;
+  if (v->type == RELEVANT_VARIABLE) return &solver->queue.relevant;
+  if (v->type == PRIMAL_VARIABLE || v->type == IRRELEVANT_VARIABLE)
+    return &solver->queue.primal_or_irrelevant;
+  assert (v->type == DUAL_VARIABLE);
+  return &solver->queue.dual;
 }
 
 #ifndef NLOG
@@ -119,15 +125,17 @@ static Queue * queue (Solver * solver, Var * v) {
 static const char * var_type (Var * v) {
   assert (v);
   if (v->type == PRIMAL_VARIABLE) return "primal";
-  if (v->type == INPUT_VARIABLE) return "input";
+  if (v->type == RELEVANT_VARIABLE ) return "relevant";
+  if (v->type == IRRELEVANT_VARIABLE) return "irrelevant";
   assert (v->type == DUAL_VARIABLE);
   return "dual";
 }
 
 static const char * queue_type (Solver * s, Queue * q) {
-  if (q == &s->queue.primal) return "primal";
-  assert (q == &s->queue.input);
-  return "input";
+  if (q == &s->queue.primal_or_irrelevant) return "primal/irrelevant";
+  if (q == &s->queue.relevant) return "relevant";
+  assert (q == &s->queue.dual);
+  return "dual";
 }
 
 #endif
@@ -228,43 +236,46 @@ static void enable_model_printing (Solver * solver, Name name) {
   msg (1, "enabled printing of partial models");
 }
 
-static void force_splitting_on_inputs_first (Solver * solver) {
-  assert (!solver->split_on_inputs_first);
-  msg (2, "forcing to split on inputs first");
-  solver->split_on_inputs_first = 1;
+static void force_splitting_on_relevant_first (Solver * solver) {
+  assert (!solver->split_on_relevant_first);
+  msg (2, "forcing to split on relevant shared variables first");
+  solver->split_on_relevant_first = 1;
 }
 
-Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
+Solver * new_solver (CNF * primal,
+                     IntStack * shared, IntStack * relevant,
+		     CNF * dual) {
+  assert (!relevant);
   assert (primal);
   Solver * solver;
   NEW (solver);
   solver->cnf.primal = primal;
   if (dual) {
     LOG (
-      "new solver over %ld primal and %ld dual clauses and %ld inputs",
+      "new solver over %ld primal and %ld dual clauses %ld shared variables",
       (long) COUNT (primal->clauses),
       (long) COUNT (dual->clauses),
-      (long) COUNT (*inputs));
+      (long) COUNT (*shared));
     solver->cnf.dual = dual;
     solver->dual_solving_enabled = 1;
   } else {
     LOG (
-      "new solver over %ld clauses and %ld inputs",
+      "new solver over %ld clauses and %ld shared variables",
       (long) COUNT (primal->clauses),
-      (long) COUNT (*inputs));
+      (long) COUNT (*shared));
     solver->cnf.dual = 0;
     solver->dual_solving_enabled = 0;
   }
-  solver->sorted = inputs;
-  int max_input_var = 0;
-  for (const int * p = inputs->start; p < inputs->top; p++) {
+  solver->sorted = shared;
+  int max_shared_var = 0;
+  for (const int * p = shared->start; p < shared->top; p++) {
     int input = abs (*p);
     assert (0 < input);
-    if (input > max_input_var) max_input_var = input;
+    if (input > max_shared_var) max_shared_var = input;
   }
-  LOG ("maximum variable index %d in inputs", max_input_var);
-  assert (COUNT (*inputs) == max_input_var);
-  int max_var = max_input_var;
+  LOG ("maximum shared variable index %d", max_shared_var);
+  assert (COUNT (*shared) == max_shared_var);
+  int max_var = max_shared_var;
   int max_primal_var = maximum_variable_index (primal);
   LOG ("maximum variable index %d in primal CNF", max_primal_var);
   if (max_var <  max_primal_var) {
@@ -280,28 +291,28 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
         max_dual_var - max_var, max_var + 1, max_dual_var);
       max_var = max_dual_var;
     } else LOG ("no dual gate variables");
-    int min_non_input_var_in_dual =
-      minimum_variable_index_above (dual, max_input_var);
+    int min_non_shared_var_in_dual =
+      minimum_variable_index_above (dual, max_shared_var);
     LOG ("minimum variable index %d above %d in dual CNF",
-      min_non_input_var_in_dual, max_input_var);
+      min_non_shared_var_in_dual, max_shared_var);
 #ifndef NDEBUG
-    assert (min_non_input_var_in_dual > max_primal_var);
-    if (min_non_input_var_in_dual < INT_MAX)
-      assert (min_non_input_var_in_dual <= max_dual_var);
+    assert (min_non_shared_var_in_dual > max_primal_var);
+    if (min_non_shared_var_in_dual < INT_MAX)
+      assert (min_non_shared_var_in_dual <= max_dual_var);
 #else
-    (void) min_non_input_var_in_dual;
+    (void) min_non_shared_var_in_dual;
 #endif
   }
   solver->max_var = max_var;
   solver->max_lit = 2*max_var + 1;
-  solver->max_input_var = max_input_var;
+  solver->max_shared_var = max_shared_var;
   LOG ("maximum variable index %d", solver->max_var);
-  solver->max_primal_or_input_var = MAX (max_primal_var, max_input_var);
+  solver->max_primal_or_shared_var = MAX (max_primal_var, max_shared_var);
   LOG ("%d primal gate or input variables",
-    solver->max_primal_or_input_var);
+    solver->max_primal_or_shared_var);
   solver->unassigned_primal_and_input_variables =
-    solver->max_primal_or_input_var;
-  solver->unassigned_input_variables = max_input_var;
+    solver->max_primal_or_shared_var;
+  solver->unassigned_shared_variables = max_shared_var;
   ALLOC (solver->vars, solver->max_var + 1);
   ALLOC (solver->occs.primal, solver->max_lit + 1);
   if (dual)
@@ -309,30 +320,57 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
   assert (max_primal_var <= max_var);
-  for (int idx = 1; idx <= max_input_var; idx++) {
-    Var * v = var (solver, idx);
-    assert (!v->type);
-    LOG ("input variable %d", idx);
-    v->type = INPUT_VARIABLE;
+  if (relevant) {
+    for (const int * p = relevant->start; p < relevant->top; p++) {
+      const int idx = * p;
+      assert (0 < idx);
+      assert (idx <= max_shared_var);
+      Var * v = var (solver, idx);
+      assert (!v->type);
+      v->type = RELEVANT_VARIABLE;
+    }
   }
-  for (int idx = max_input_var + 1; idx <= max_primal_var; idx++) {
+  long count_relevant = 0, count_irrelevant = 0;
+  for (int idx = 1; idx <= max_shared_var; idx++) {
+    Var * v = var (solver, idx);
+    if (!relevant || v->type) {
+      assert (!relevant || v->type == RELEVANT_VARIABLE);
+      LOG ("relevant shared variable %d", idx);
+      count_relevant++;
+    } else {
+      LOG ("irrelevant shared variable %d", idx);
+      v->type = IRRELEVANT_VARIABLE;
+      count_irrelevant++;
+    }
+  }
+  LOG ("found %ld relevant shared variables", count_relevant);
+  LOG ("found %ld irrelevant shared variables", count_irrelevant);
+  assert (count_relevant + count_irrelevant == COUNT (*shared));
+  assert (!relevant || count_relevant == COUNT (*relevant));
+  long count_primal = 0;
+  for (int idx = max_shared_var + 1; idx <= max_primal_var; idx++) {
     Var * v = var (solver, idx);
     assert (!v->type);
     LOG ("primal variable %d", idx);
     v->type = PRIMAL_VARIABLE;
+    count_primal++;
   }
+  LOG ("found %ld private primal variables", count_primal);
   if (dual) {
-    for (int idx = solver->max_primal_or_input_var + 1;
+    long count_dual = 0;
+    for (int idx = solver->max_primal_or_shared_var + 1;
          idx <= max_var;
 	 idx++) {
       Var * v = var (solver, idx);
       assert (!v->type);
       LOG ("dual variable %d", idx);
       v->type = DUAL_VARIABLE;
+      count_dual++;
     }
+    LOG ("found %ld private dual variables", count_dual);
   }
   LOG ("connecting variables");
-  for (int idx = 1; idx <= solver->max_primal_or_input_var; idx++)
+  for (int idx = 1; idx <= solver->max_primal_or_shared_var; idx++)
     enqueue (solver, var (solver, idx));
   solver->phase = options.phaseinit ? 1 : -1;
   LOG ("default initial phase %d", solver->phase);
@@ -340,31 +378,36 @@ Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual) {
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
   init_number (solver->count);
-  if (options.inputs) force_splitting_on_inputs_first (solver);
+  if (options.relevant) force_splitting_on_relevant_first (solver);
   return solver;
 }
 
 static int is_primal_var (Var * v) { return v->type == PRIMAL_VARIABLE; }
-static int is_input_var (Var * v) { return v->type == INPUT_VARIABLE; }
+static int is_relevant_var (Var * v) { return v->type == RELEVANT_VARIABLE; }
+static int is_irrelevant_var (Var * v) { return v->type == IRRELEVANT_VARIABLE; }
 static int is_dual_var (Var * v) { return v->type == DUAL_VARIABLE; }
 
-static int is_primal_or_input_var (Var * v) {
+static int is_shared_var (Var * v) {
+  return is_relevant_var (v) || is_irrelevant_var (v);
+}
+
+static int is_primal_or_shared_var (Var * v) {
   return v->type != DUAL_VARIABLE;
 }
 
-static int is_dual_or_input_var (Var * v) {
+static int is_dual_or_shared_var (Var * v) {
   return v->type != PRIMAL_VARIABLE;
 }
 
 static Clauses * primal_occs (Solver * solver, int lit) {
-  assert (is_primal_or_input_var (var (solver, lit)));
+  assert (is_primal_or_shared_var (var (solver, lit)));
   const int pos = 2*abs (lit) + (lit > 0);
   assert (2 <= pos), assert (pos <= solver->max_lit);
   return solver->occs.primal + pos;
 }
 
 static Clauses * dual_occs (Solver * solver, int lit) {
-  assert (is_dual_or_input_var (var (solver, lit)));
+  assert (is_dual_or_shared_var (var (solver, lit)));
   const int pos = 2*abs (lit) + (lit > 0);
   assert (2 <= pos), assert (pos <= solver->max_lit);
   return solver->occs.dual + pos;
@@ -376,11 +419,11 @@ void delete_solver (Solver * solver) {
     Var * v = var (solver, idx);
     for (int sign = -1; sign <= 1; sign +=2) {
       const int lit = sign * idx;
-      if (is_primal_or_input_var (v)) {
+      if (is_primal_or_shared_var (v)) {
 	Clauses * p = primal_occs (solver, lit);
 	RELEASE (*p);
       }
-      if (solver->dual_solving_enabled && is_dual_or_input_var (v)) {
+      if (solver->dual_solving_enabled && is_dual_or_shared_var (v)) {
 	Clauses * d = dual_occs (solver, lit);
 	RELEASE (*d);
       }
@@ -408,24 +451,24 @@ static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
 
 
 static void dec_unassigned (Solver * solver, Var * v) {
-  if (is_primal_or_input_var (v)) {
+  if (is_primal_or_shared_var (v)) {
     assert (solver->unassigned_primal_and_input_variables > 0);
     solver->unassigned_primal_and_input_variables--;
   }
   if (is_input_var (v)) {
-    assert (solver->unassigned_input_variables > 0);
-    solver->unassigned_input_variables--;
+    assert (solver->unassigned_shared_variables > 0);
+    solver->unassigned_shared_variables--;
   }
 }
 
 static void inc_unassigned (Solver * solver, Var * v) {
-  if (is_primal_or_input_var (v)) {
+  if (is_primal_or_shared_var (v)) {
     solver->unassigned_primal_and_input_variables++;
     assert (solver->unassigned_primal_and_input_variables > 0);
   }
   if (is_input_var (v)) {
-    solver->unassigned_input_variables++;
-    assert (solver->unassigned_input_variables > 0);
+    solver->unassigned_shared_variables++;
+    assert (solver->unassigned_shared_variables > 0);
   }
 }
 
@@ -464,8 +507,8 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     if (reason)
       mark_clause_active (v->reason, cnf (solver, v->reason));
   } else {
-    if (is_dual_var (v)) solver->dual_non_input_fixed++;
-    else solver->primal_or_input_fixed++;
+    if (is_dual_var (v)) solver->dual_non_shared_fixed++;
+    else solver->primal_or_shared_fixed++;
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
@@ -628,7 +671,7 @@ static int sort_clause (Solver * solver) {
 }
 
 static int remaining_variables (Solver * solver) {
-  return solver->max_primal_or_input_var - solver->primal_or_input_fixed;
+  return solver->max_primal_or_shared_var - solver->primal_or_shared_fixed;
 }
 
 static void primal_header (Solver * solver) {
@@ -769,9 +812,10 @@ static void first_model (Solver * solver) {
 }
 
 static void new_model (Solver * solver) {
-  int unassigned = solver->unassigned_input_variables;
+  int unassigned = solver->unassigned_shared_variables;
   stats.models++;
-  SOG ("model %ld with %d unassigned inputs", stats.models, unassigned);
+  SOG ("model %ld with %d unassigned shared variables",
+    stats.models, unassigned);
   if (stats.models == 1) first_model (solver);
   if (solver->model_printing_enabled) print_model (solver);
   add_power_of_two_to_number (solver->count, unassigned);
@@ -812,7 +856,7 @@ static int connect_dual_cnf (Solver * solver) {
         new_model (solver);
 	return 0;
       }
-      if (is_input_var (var (solver, unit))) {
+      if (is_shared_var (var (solver, unit))) {
 	assign_temporarily (solver, -unit);
 	if (last_model (solver)) return 0;
 	unassign_temporarily (solver, -unit);
@@ -932,8 +976,8 @@ dual_propagate (Solver * solver) {
 	SOGCLS (c, "conflict");
 	new_model (solver);
 	res = DUAL_CONFLICT;
-      } else if (is_input_var (var (solver, other))) {
-	SOGCLS (c, "forcing input %d", other);
+      } else if (is_shared_var (var (solver, other))) {
+	SOGCLS (c, "forcing shared %d", other);
 	assign_temporarily (solver, -other);
 	new_model (solver);
 	unassign_temporarily (solver, -other);
@@ -985,13 +1029,15 @@ static Var * next_queue (Solver * solver, Queue * queue) {
 }
 
 static Var * next_decision (Solver * solver) {
-  Var * input = next_queue (solver, &solver->queue.input);
+  Var * relevant = next_queue (solver, &solver->queue.relevant);
+  Var * irrelevant = next_queue (solver, &solver->queue.irrelevant);
   Var * primal = next_queue (solver, &solver->queue.primal);
-  if (!input && !primal)
-    fatal ("no input nor primal variable unassigned");
-  Var * res;
-  if (!input && primal) res = primal;
-  else if (input && !primal) res = input;
+  Var * dual = next_queue (solver, &solver->queue.dual);
+  if (!relevant && !irrelevant && !primal && !dual)
+    fatal ("no variable unassigned");
+       if (!relevant && !irrelevant && primal) res = primal;
+  else if (!relevant && irrelevant) res = irrelevant;
+  else if (relevant && !irrelevant && !primal) res = relevant;
   else if (solver->split_on_inputs_first) res = input ? input : primal;
   else res = input->stamp < primal->stamp ? primal : input;
   SOG ("next %s decision %d stamped %ld",
@@ -1051,7 +1097,7 @@ static int subsumed (Solver * solver, Clause * c, int expected) {
 
 static void flush_primal_garbage_occurrences (Solver * solver) {
   long flushed = 0;
-  for (int idx = 1; idx <= solver->max_primal_or_input_var; idx++)
+  for (int idx = 1; idx <= solver->max_primal_or_shared_var; idx++)
     for (int sign = -1; sign <= 1; sign += 2) {
       int lit = sign * idx;
       Clauses * o = primal_occs (solver, lit);
@@ -1387,8 +1433,8 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
 static int reducing (Solver * solver) {
   if (!options.reduce) return 0;
   if (!stats.conflicts &&
-      solver->primal_or_input_fixed >
-        solver->limit.reduce.primal_or_input_fixed) return 1;
+      solver->primal_or_shared_fixed >
+        solver->limit.reduce.primal_or_shared_fixed) return 1;
   return stats.learned > solver->limit.reduce.learned;
 }
 
@@ -1439,8 +1485,8 @@ static void reduce (Solver * solver) {
   INIT (candidates);
   CNF * primal = solver->cnf.primal;
   const int simplify =
-    solver->primal_or_input_fixed >
-      solver->limit.reduce.primal_or_input_fixed;
+    solver->primal_or_shared_fixed >
+      solver->limit.reduce.primal_or_shared_fixed;
   for (Clause ** p = primal->clauses.start; p < primal->clauses.top; p++) {
     Clause * c = *p;
     if (c->garbage) continue;
@@ -1454,8 +1500,8 @@ static void reduce (Solver * solver) {
     if (recent) continue;
     PUSH (candidates, c);
   }
-  solver->limit.reduce.primal_or_input_fixed =
-    solver->primal_or_input_fixed;
+  solver->limit.reduce.primal_or_shared_fixed =
+    solver->primal_or_shared_fixed;
   long n = COUNT (candidates);
   SOG ("found %ld reduce candidates out of %ld", n, primal->redundant);
   qsort (candidates.start, n, sizeof (Clause*), cmp_reduce);

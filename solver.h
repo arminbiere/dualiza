@@ -1,6 +1,10 @@
 typedef struct Solver Solver;
 
-Solver * new_solver (CNF * primal, IntStack * inputs, CNF * dual);
+Solver * new_solver (CNF * primal,
+                     IntStack * shared,	   // all shared variables
+		     IntStack * relevant,  // sub-set relevant shared
+		     CNF * dual);
+
 void limit_number_of_partial_models (Solver *, long limit);
 
 int primal_sat (Solver *);

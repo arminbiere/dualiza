@@ -360,7 +360,7 @@ static int check () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
     if (options.primal) res = primal_sat (solver);
     else res = dual_sat (solver);
     if (sat) {
@@ -446,7 +446,7 @@ static void all () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs, 0);
+    Solver * solver = new_solver (cnf, &inputs, 0, 0);
     if (limited) limit_number_of_partial_models (solver, limit);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
@@ -462,7 +462,7 @@ static void all () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
     if (limited) limit_number_of_partial_models (solver, limit);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
@@ -505,7 +505,7 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs, 0);
+    Solver * solver = new_solver (cnf, &inputs, 0, 0);
     if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
@@ -526,7 +526,7 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, dual_cnf);
+    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
     if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
