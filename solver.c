@@ -81,7 +81,7 @@ struct Solver {
   struct { CNF * primal, * dual; } cnf;
   struct {
     long stamp;
-    Queue relevant, primal_or_irrelevant, dual;
+    Queue relevant, irrelevant, primal, dual;
   } queue;
   struct { Clauses * primal, * dual; } occs;
   Number count;
@@ -114,8 +114,8 @@ static int val (Solver * solver, int lit) {
 
 static Queue * queue (Solver * solver, Var * v) {
   if (v->type == RELEVANT_VARIABLE) return &solver->queue.relevant;
-  if (v->type == PRIMAL_VARIABLE || v->type == IRRELEVANT_VARIABLE)
-    return &solver->queue.primal_or_irrelevant;
+  if (v->type == IRRELEVANT_VARIABLE) return &solver->queue.irrelevant;
+  if (v->type == PRIMAL_VARIABLE) return &solver->queue.primal;
   assert (v->type == DUAL_VARIABLE);
   return &solver->queue.dual;
 }
@@ -455,7 +455,7 @@ static void dec_unassigned (Solver * solver, Var * v) {
     assert (solver->unassigned_primal_and_input_variables > 0);
     solver->unassigned_primal_and_input_variables--;
   }
-  if (is_input_var (v)) {
+  if (is_shared_var (v)) {
     assert (solver->unassigned_shared_variables > 0);
     solver->unassigned_shared_variables--;
   }
@@ -466,7 +466,7 @@ static void inc_unassigned (Solver * solver, Var * v) {
     solver->unassigned_primal_and_input_variables++;
     assert (solver->unassigned_primal_and_input_variables > 0);
   }
-  if (is_input_var (v)) {
+  if (is_shared_var (v)) {
     solver->unassigned_shared_variables++;
     assert (solver->unassigned_shared_variables > 0);
   }
@@ -807,8 +807,8 @@ static void first_model (Solver * solver) {
     Var * v = var (solver, idx);
     v->first = v->val;
   }
-  if (solver->dual_solving_enabled && !solver->split_on_inputs_first)
-    force_splitting_on_inputs_first (solver);
+  if (solver->dual_solving_enabled && !solver->split_on_relevant_first)
+    force_splitting_on_relevant_first (solver);
 }
 
 static void new_model (Solver * solver) {
@@ -1033,13 +1033,20 @@ static Var * next_decision (Solver * solver) {
   Var * irrelevant = next_queue (solver, &solver->queue.irrelevant);
   Var * primal = next_queue (solver, &solver->queue.primal);
   Var * dual = next_queue (solver, &solver->queue.dual);
-  if (!relevant && !irrelevant && !primal && !dual)
-    fatal ("no variable unassigned");
-       if (!relevant && !irrelevant && primal) res = primal;
-  else if (!relevant && irrelevant) res = irrelevant;
-  else if (relevant && !irrelevant && !primal) res = relevant;
-  else if (solver->split_on_inputs_first) res = input ? input : primal;
-  else res = input->stamp < primal->stamp ? primal : input;
+  Var * res = 0;
+  if (!relevant && !irrelevant && !primal) {
+    if (!dual) fatal ("no variable unassigned");
+    res = dual;
+  } else {
+    if (relevant) res = relevant;
+    if (!res || !solver->split_on_relevant_first) {
+      if (irrelevant && (!res || res->stamp < irrelevant->stamp))
+	res = irrelevant;
+      if (primal && (!res || res->stamp < primal->stamp))
+	res = primal;
+    }
+  }
+  assert (res);
   SOG ("next %s decision %d stamped %ld",
     var_type (res), var2idx (solver, res), res->stamp);
   return res;
