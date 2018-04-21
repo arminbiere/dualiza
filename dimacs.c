@@ -33,7 +33,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	      idx *= 10;
 	      const int digit = dh - '0';
 	      if (INT_MAX - digit < idx) err = "too large index";
-	      else idx += digit;
+	      else idx += digit, p++;
 	    }
 	  }
 	  if (err) break;
