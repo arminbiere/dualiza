@@ -20,7 +20,18 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
     }
     if (EMPTY (relevant) && !EMPTY (comment)) {
       PUSH (comment, 0);
-      LOG ("comment: %s", comment.start);
+      LOG ("parsing comment for relevant: %s", comment.start);
+      const char * err = 0;
+      int dh;
+      for (const char * p = comment.start; !err && (dh = *p); p++) {
+	if (isdigit (dh)) {
+	  int idx = dh - '0';
+	  while (isdigit (dh = p[1])) {
+	  }
+	  if (dh == ',') p++;
+	  else if (dh)
+	} else err = "expected digit";
+      }
     }
     CLEAR (comment);
   }
