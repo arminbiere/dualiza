@@ -26,11 +26,26 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
       for (const char * p = comment.start; !err && (dh = *p); p++) {
 	if (isdigit (dh)) {
 	  int idx = dh - '0';
-	  while (isdigit (dh = p[1])) {
+	  while (!err && isdigit (dh = p[1])) {
+	    if (!idx) err = "invalid index";
+	    else if (INT_MAX/10 < idx) err = "really too large index";
+	    else {
+	      idx *= 10;
+	      const int digit = dh - '0';
+	      if (INT_MAX - digit < idx) err = "too large index";
+	      else idx += digit;
+	    }
 	  }
+	  if (err) break;
 	  if (dh == ',') p++;
-	  else if (dh)
+	  else if (dh) err = "expected ',' or digit";
 	} else err = "expected digit";
+	if (!err) PUSH (relevant, idx);
+      }
+      if (err) {
+	LOG ("parse error relevant variable lines: %s", err);
+      } else {
+	// TODO;
       }
     }
     CLEAR (comment);
