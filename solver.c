@@ -132,8 +132,9 @@ static const char * var_type (Var * v) {
 }
 
 static const char * queue_type (Solver * s, Queue * q) {
-  if (q == &s->queue.primal_or_irrelevant) return "primal/irrelevant";
   if (q == &s->queue.relevant) return "relevant";
+  if (q == &s->queue.irrelevant) return "irrelevant";
+  if (q == &s->queue.primal) return "primal";
   assert (q == &s->queue.dual);
   return "dual";
 }

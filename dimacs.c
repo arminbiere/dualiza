@@ -4,12 +4,27 @@ extern int sat_competition_mode;
 
 Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
   Circuit * res = new_circuit ();
+  CharStack comment;
+  IntStack relevant;
+  INIT (comment);
+  INIT (relevant);
   Char ch;
-  while ((ch = next_char (r)).code == 'c')
-    while ((ch = next_char (r)).code != '\n')
+  while ((ch = next_char (r)).code == 'c') {
+    while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
 	parse_error (r, ch,
 	  "unexpected end-of-file in header comment");
+      if (!EMPTY (relevant)) continue;
+      if (!EMPTY (comment) || ch.code != ' ')
+	PUSH (comment, ch.code);
+    }
+    if (EMPTY (relevant) && !EMPTY (comment)) {
+      PUSH (comment, 0);
+      LOG ("comment: %s", comment.start);
+    }
+    CLEAR (comment);
+  }
+  RELEASE (comment);
   if (ch.code != 'p')
     parse_error (r, ch, "expected 'p' or 'c'");
   if ((ch = next_char (r)).code != ' ')
@@ -58,6 +73,10 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	"non-space character before newline after 'p cnf %d %d'", s, t);
     else ch = next_char (r);
   msg (1, "parsed 'p cnf %d %d' header", s, t);
+  if (!EMPTY (relevant)) {
+    // TODO
+  }
+  RELEASE (relevant);
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];

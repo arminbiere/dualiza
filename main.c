@@ -169,7 +169,8 @@ static long parse_non_negative_number (const char * s) {
 
 static Reader * input;
 static Symbols * symbols;
-static Circuit * primal_circuit, * dual_circuit;
+static Circuit * primal_circuit;
+static Circuit * dual_circuit;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
