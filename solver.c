@@ -1030,21 +1030,16 @@ static Var * next_queue (Solver * solver, Queue * queue) {
 
 static Var * next_decision (Solver * solver) {
   Var * relevant = next_queue (solver, &solver->queue.relevant);
-  Var * irrelevant = next_queue (solver, &solver->queue.irrelevant);
-  Var * primal = next_queue (solver, &solver->queue.primal);
-  Var * dual = next_queue (solver, &solver->queue.dual);
   Var * res = 0;
-  if (!relevant && !irrelevant && !primal) {
-    if (!dual) fatal ("no variable unassigned");
-    res = dual;
-  } else {
-    if (relevant) res = relevant;
-    if (!res || !solver->split_on_relevant_first) {
-      if (irrelevant && (!res || res->stamp < irrelevant->stamp))
-	res = irrelevant;
-      if (primal && (!res || res->stamp < primal->stamp))
-	res = primal;
-    }
+  if (relevant) res = relevant;
+  if (!res || !solver->split_on_relevant_first) {
+    Var * irrelevant = next_queue (solver, &solver->queue.irrelevant);
+    Var * primal = next_queue (solver, &solver->queue.primal);
+    if (irrelevant && (!res || res->stamp < irrelevant->stamp))
+      res = irrelevant;
+    if (primal && (!res || res->stamp < primal->stamp))
+      res = primal;
+    if (!res) res = next_queue (solver, &solver->queue.dual);
   }
   assert (res);
   SOG ("next %s decision %d stamped %ld",
