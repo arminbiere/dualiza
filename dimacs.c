@@ -39,13 +39,32 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	  if (err) break;
 	  if (dh == ',') p++;
 	  else if (dh) err = "expected ',' or digit";
+	  else PUSH (relevant, idx);
 	} else err = "expected digit";
-	if (!err) PUSH (relevant, idx);
+      }
+      if (!err) {
+	assert (!EMPTY (relevant));
+	int cmp (const void * p, const void * q) {
+	  int l = * (int*) p, k = * (int*) q, res = abs (l) - abs (k);
+	  return res ? res : l - k;
+	}
+	qsort (relevant.start, COUNT (relevant), sizeof (int), cmp);
+	const size_t n = COUNT (relevant);
+	for (size_t i = 1; !err && i < n; i++) {
+	  int prev = PEEK (relevant, i-1);
+	  int current = PEEK (relevant, i);
+	  if (prev == current) err = "duplicated variable";
+	}
       }
       if (err) {
-	LOG ("parse error relevant variable lines: %s", err);
+	if (EMPTY (relevant))
+	  LOG ("parse error relevant variable line: %s", err);
+	else msg (2, "parse error relevant variable line: %s", err);
+	CLEAR (relevant);
       } else {
-	// TODO;
+	const size_t n = COUNT (relevant);
+	assert (n > 0);
+	msg (1, "found relevant variables with %zd variables", n);
       }
     }
     CLEAR (comment);
