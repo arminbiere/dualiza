@@ -37,9 +37,10 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	    }
 	  }
 	  if (err) break;
-	  if (dh == ',') p++;
-	  else if (dh) err = "expected ',' or digit";
-	  else PUSH (relevant, idx);
+	  if (dh == ',' || !dh) {
+	    if (dh) p++;
+	    PUSH (relevant, idx);
+	  } else err = "expected ',' or digit";
 	} else err = "expected digit";
       }
       if (!err) {
