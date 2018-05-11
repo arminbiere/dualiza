@@ -13,6 +13,7 @@ typedef struct Queue Queue;
 typedef struct Frame Frame;
 typedef struct Limit Limit;
 typedef enum VarType VarType;
+typedef enum DecisionType DecisionType;
 typedef enum Mode Mode;
 
 typedef STACK (Var *) VarStack;
@@ -25,24 +26,37 @@ enum VarType {
   DUAL_VARIABLE = 3,
 };
 
-struct Var {
-  VarType type;
-  char decision, seen;
-  signed char val, phase, first;
-  int level;
-  Clause * reason;
-  long stamp;
-  Var * prev, * next;
+
+enum DecisionType {
+  UNDECIDED = 0,
+  DECISION = 1,
+  FLIPPED = 2,
 };
 
-struct Queue {
-  Var * first, * last, * search;
+struct Var {
+  VarType type;
+  unsigned seen : 1;
+  unsigned decision : 2;	// actually of type 'DecisionType'
+  signed char val : 2;		// -1 = false, 0 = unassigned, 1 = true
+  signed char phase : 2;	// saved value of previous assignment
+  signed char first : 2;	// value in first model
+  int level;			// decision level
+  Clause * reason;		// reason clause
+  Var * prev, * next;		// doubly linked list in VMTF queue
+  long stamp;			// VMTF queue enqueue time stamp
+};
+
+struct Queue {			// VMTF decision queue
+  Var * first, * last;
+  Var * search;			// searched up to this variable
 };
 
 struct Frame {
-  int decision;
-  char flipped, seen;
+  char seen;			// seen during conflict analysis
+  char flipped;			// already flipped
+  int decision;			// current decision literal
   int prev_flipped_level;
+  int unassigned;
 };
 
 struct Limit {
@@ -495,10 +509,11 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
   Var * v = solver->vars + idx;
-  if (!reason)
-    SOG ("%s assign %d decision%s",
-      var_type (v), lit, v->decision == 2 ? " flipped" : ""); 
-  else SOGCLS (reason, "%s assign %d reason", var_type (v), lit);
+  if (!reason) {
+    assert (v->decision == DECISION || v->decision == FLIPPED);
+    SOG ("%s assign %d %s", var_type (v), lit,
+      v->decision == FLIPPED ? "flipped" : "decision"); 
+  } else SOGCLS (reason, "%s assign %d reason", var_type (v), lit);
   assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
@@ -540,7 +555,8 @@ static void assume_decision (Solver * solver, int lit, int flipped) {
   inc_level (solver);
   Var * v = var (solver, lit);
   assert (!v->decision);
-  v->decision = flipped ? 2 : 1;
+  assert (v->decision == UNDECIDED);
+  v->decision = flipped ? FLIPPED : DECISION;
   assign (solver, lit, 0);
   stats.decisions++;
   PUSH (solver->frames, new_frame (solver, lit));
@@ -553,7 +569,8 @@ static void unassign (Solver * solver, int lit) {
   assert (solver->level == v->level);
   SOG ("%s unassign %d", var_type (v), lit);
   assert (v->val);
-  v->val = v->decision = 0;
+  v->val = 0;
+  v->decision = UNDECIDED;
   if (v->reason)
     mark_clause_inactive (v->reason, cnf (solver, v->reason));
   if (!is_dual_var (v)) {
@@ -1155,7 +1172,7 @@ static void add_decision_blocking_clause (Solver * solver, int lit) {
   stats.blocked.clauses++;
   SOG ("adding decision blocking clause for decision %d", lit);
   assert (val (solver, lit) > 0);
-  assert (var (solver, lit)->decision == 1);
+  assert (var (solver, lit)->decision == DECISION);
   assert (EMPTY (solver->clause));
   for (int level = solver->level; level > 0; level--) {
     Frame * f = solver->frames.start + level;
@@ -1174,10 +1191,10 @@ static void add_decision_blocking_clause (Solver * solver, int lit) {
   for (;;) {
     other = TOP (solver->trail);
     Var * v = var (solver, other);
-    const int decision = v->decision;
+    const DecisionType decision = v->decision;
     (void) POP (solver->trail);
     unassign (solver, other);
-    if (decision) dec_level (solver);
+    if (decision != UNDECIDED) dec_level (solver);
     if (other == lit) break;
   }
   Clause * c = new_clause (solver->clause.start, size);
@@ -1195,8 +1212,8 @@ static void add_decision_blocking_clause (Solver * solver, int lit) {
 static void flip (Solver * solver, int lit) {
   assert (val (solver, lit) > 0);
   Var * v = var (solver, lit);
-  assert (v->decision == 1);
-  v->decision = 2;
+  assert (v->decision == DECISION);
+  v->decision = FLIPPED;
   SOG ("%s flip %d", var_type (v), lit);
   SOG ("%s assign %d", var_type (v), -lit);
   int n = COUNT (solver->trail) - 1;
@@ -1227,14 +1244,14 @@ static int backtrack (Solver * solver) {
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
-    const int decision = v->decision;
-    if (decision == 1) {
+    const DecisionType decision = v->decision;
+    if (decision == DECISION) {
       if (blocking (solver)) add_decision_blocking_clause (solver, lit);
       else flip (solver, lit);
       return 1;
     }
     unassign (solver, lit);
-    if (decision == 2) dec_level (solver);
+    if (decision == FLIPPED) dec_level (solver);
     (void) POP (solver->trail);
   }
   adjust_next_to_trail (solver);
@@ -1386,9 +1403,9 @@ static int back_jump (Solver * solver, Clause * c) {
     Var * v = var (solver, lit);
     if (v->level == level) break;
     (void) POP (solver->trail);
-    const int decision = v->decision;
+    const DecisionType decision = v->decision;
     unassign (solver, lit);
-    if (decision) dec_level (solver);
+    if (decision != UNDECIDED) dec_level (solver);
   }
   assert (!val (solver, forced));
   assert (solver->level == level);
@@ -1551,7 +1568,7 @@ static int reuse_trail (Solver * solver) {
   for (res = 0; res < solver->level; res++) {
     Frame * f = solver->frames.start + res + 1;
     Var * v = var (solver, f->decision);
-    assert (v->decision == 1);
+    assert (v->decision == DECISION);
     if (v->stamp < next->stamp) break;
   }
   SOG ("reuse trail level %d", res);
@@ -1567,10 +1584,10 @@ static void restart (Solver * solver) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
     if (v->level == level) break;
-    const int decision = v->decision;
-    assert (decision != 2);
+    const DecisionType decision = v->decision;
+    assert (decision != FLIPPED);
     unassign (solver, lit);
-    if (decision) dec_level (solver);
+    if (decision != UNDECIDED) dec_level (solver);
     (void) POP (solver->trail);
   }
   adjust_next_to_trail (solver);
@@ -1670,9 +1687,9 @@ void print_trail (Solver * solver) {
     }
     prev = v->level;
     printf ("%d", lit);
-    if (v->decision == 0) fputc ('p', stdout);
-    if (v->decision == 1) fputc ('d', stdout);
-    if (v->decision == 2) fputc ('f', stdout);
+    if (v->decision == UNDECIDED) fputc ('p', stdout);
+    if (v->decision == DECISION) fputc ('d', stdout);
+    if (v->decision == FLIPPED) fputc ('f', stdout);
   }
   fputc ('\n', stdout);
 }
