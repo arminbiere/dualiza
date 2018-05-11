@@ -35,11 +35,11 @@ enum DecisionType {
 
 struct Var {
   VarType type;
-  signed char val : 2;		// -1 = false, 0 = unassigned, 1 = true
-  signed char phase : 2;	// saved value of previous assignment
-  signed char first : 2;	// value in first model
+  signed int val : 2;		// -1 = false, 0 = unassigned, 1 = true
+  signed int phase : 2;	// saved value of previous assignment
+  signed int first : 2;	// value in first model
   unsigned decision : 2;	// actually of type 'DecisionType'
-  signed char seen : 2;		// signed mark flag
+  signed int seen : 2;		// signed mark flag
   int level;			// decision level
   Clause * reason;		// reason clause
   Var * prev, * next;		// doubly linked list in VMTF queue
