@@ -197,7 +197,11 @@ static void dequeue (Solver * solver, Var * v) {
 }
 
 static Frame new_frame (Solver * solver, int decision) {
-  Frame res = { decision, 0, 0, solver->last_flipped_level };
+  Frame res;
+  res.seen = res.flipped = 0;
+  res.decision = decision;
+  res.prev_flipped_level = solver->last_flipped_level;
+  res.unassigned = 0;
   return res;
 }
 
