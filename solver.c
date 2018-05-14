@@ -26,7 +26,6 @@ enum VarType {
   DUAL_VARIABLE = 3,
 };
 
-
 enum DecisionType {
   UNDECIDED = 0,
   DECISION = 1,
@@ -36,8 +35,8 @@ enum DecisionType {
 struct Var {
   VarType type;
   signed int val : 2;		// -1 = false, 0 = unassigned, 1 = true
-  signed int phase : 2;	// saved value of previous assignment
-  signed int first : 2;	// value in first model
+  signed int phase : 2;		// saved value of previous assignment
+  signed int first : 2;		// value in first model
   unsigned decision : 2;	// actually of type 'DecisionType'
   signed int seen : 2;		// signed mark flag
   int level;			// decision level
@@ -55,8 +54,8 @@ struct Frame {
   char seen;			// seen during conflict analysis
   char flipped;			// already flipped
   int decision;			// current decision literal
-  int prev_flipped_level;
-  int unassigned;
+  int prev_flipped_level;	// level of previous flipped frame
+  int counted;			// number of counted unassigned variables
 };
 
 struct Limit {
@@ -201,7 +200,7 @@ static Frame new_frame (Solver * solver, int decision) {
   res.seen = res.flipped = 0;
   res.decision = decision;
   res.prev_flipped_level = solver->last_flipped_level;
-  res.unassigned = 0;
+  res.counted = -1;
   return res;
 }
 
@@ -545,6 +544,7 @@ static void adjust_flipped (Solver * solver, int lit) {
   assert (f->decision == lit);
   assert (!f->flipped);
   f->flipped = 1;
+  assert (f->counted < 0);
   assert (solver->last_flipped_level < solver->level);
   solver->last_flipped_level = solver->level;
   solver->num_flipped_levels++;
@@ -833,7 +833,7 @@ static void first_model (Solver * solver) {
     force_splitting_on_relevant_first (solver);
 }
 
-static void new_model (Solver * solver) {
+static int new_model (Solver * solver) {
   int unassigned = solver->unassigned_shared_variables;
   stats.models++;
   SOG ("model %ld with %d unassigned shared variables",
@@ -844,11 +844,12 @@ static void new_model (Solver * solver) {
   if (stats.models == solver->limit.models.report)
     report (solver, 1, '+');
   else report (solver, 3, 'm');
+  return unassigned;
 }
 
-static int last_model (Solver * solver) {
+static int last_model (Solver * solver, int * unassigned_ptr) {
   assert (!model_limit_reached (solver));
-  new_model (solver);
+  *unassigned_ptr = new_model (solver);
   return model_limit_reached (solver);
 }
 
@@ -880,8 +881,10 @@ static int connect_dual_cnf (Solver * solver) {
       }
       if (is_shared_var (var (solver, unit))) {
 	assign_temporarily (solver, -unit);
-	if (last_model (solver)) return 0;
+	int unassigned;
+	if (last_model (solver, &unassigned)) return 0;
 	unassign_temporarily (solver, -unit);
+	// TODO: nothing to do with 'unassigned'?
       }
       assign (solver, unit, c);
     } else {
@@ -948,6 +951,9 @@ static Clause * primal_propagate (Solver * solver) {
   return res;
 }
 
+static void discount (Solver * solver, int unassigned) {
+}
+
 typedef enum DualPropagationResult DualPropagationResult;
 
 enum DualPropagationResult {
@@ -956,7 +962,7 @@ enum DualPropagationResult {
 };
 
 static DualPropagationResult
-dual_propagate (Solver * solver) {
+dual_propagate (Solver * solver, int *counted_ptr) {
   if (!solver->dual_solving_enabled) return 0;
   assert (solver->next.primal == COUNT (solver->trail));
   DualPropagationResult res = 0;
@@ -996,15 +1002,16 @@ dual_propagate (Solver * solver) {
       } else if (other_val) {
 	assert (other_val < 0);
 	SOGCLS (c, "conflict");
-	new_model (solver);
+	*counted_ptr = new_model (solver);
 	res = DUAL_CONFLICT;
       } else if (is_shared_var (var (solver, other))) {
 	SOGCLS (c, "forcing shared %d", other);
 	assign_temporarily (solver, -other);
-	new_model (solver);
+	int counted = new_model (solver);
 	unassign_temporarily (solver, -other);
 	assume_decision (solver, other, 1);
-	res = DUAL_INPUT_UNIT;;
+	discount (solver, counted);
+	res = DUAL_INPUT_UNIT;
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "forcing dual %d", other);
@@ -1606,20 +1613,26 @@ static void solve (Solver * solver) {
   if (model_limit_reached (solver)) return;
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (satisfied (solver)) { new_model (solver); return; }
+  if (satisfied (solver)) { (void) new_model (solver); return; }
   if (!connect_dual_cnf (solver)) return;
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
        if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
-      if (last_model (solver)) return;
+      int counted;
+      if (last_model (solver, &counted)) return;
       if (!backtrack (solver)) return;
+      discount (solver, counted);
     } else {
-      DualPropagationResult res = dual_propagate (solver);
+      int counted;
+      DualPropagationResult res = dual_propagate (solver, &counted);
       if (res) {
 	if (model_limit_reached (solver)) return;
-	if (res == DUAL_CONFLICT && !backtrack (solver)) return;
+	if (res == DUAL_CONFLICT) {
+	  if (!backtrack (solver)) return;
+	  discount (solver, counted);
+	}
       } else if (reducing (solver)) reduce (solver);
       else if (restarting (solver)) restart (solver);
       else decide (solver);
