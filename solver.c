@@ -951,7 +951,20 @@ static Clause * primal_propagate (Solver * solver) {
   return res;
 }
 
-static void discount (Solver * solver, int unassigned) {
+static Frame * current_frame (Solver * solver) {
+  assert (solver->level < COUNT (solver->frames));
+  return solver->frames.start + solver->level;
+}
+
+static void save_count (Solver * solver, int counted) {
+  Frame * frame = current_frame (solver);
+  if (!frame->flipped) {
+    SOG ("not saving count %d since not flipped", counted);
+    return;
+  }
+  assert (frame->counted < 0);
+  SOG ("saving count %d", counted);
+  frame->counted = counted;
 }
 
 typedef enum DualPropagationResult DualPropagationResult;
@@ -1010,7 +1023,7 @@ dual_propagate (Solver * solver, int *counted_ptr) {
 	int counted = new_model (solver);
 	unassign_temporarily (solver, -other);
 	assume_decision (solver, other, 1);
-	discount (solver, counted);
+	save_count (solver, counted);
 	res = DUAL_INPUT_UNIT;
       } else {
 	assert (is_dual_var (var (solver, other)));
@@ -1623,7 +1636,7 @@ static void solve (Solver * solver) {
       int counted;
       if (last_model (solver, &counted)) return;
       if (!backtrack (solver)) return;
-      discount (solver, counted);
+      save_count (solver, counted);
     } else {
       int counted;
       DualPropagationResult res = dual_propagate (solver, &counted);
@@ -1631,7 +1644,7 @@ static void solve (Solver * solver) {
 	if (model_limit_reached (solver)) return;
 	if (res == DUAL_CONFLICT) {
 	  if (!backtrack (solver)) return;
-	  discount (solver, counted);
+	  save_count (solver, counted);
 	}
       } else if (reducing (solver)) reduce (solver);
       else if (restarting (solver)) restart (solver);
