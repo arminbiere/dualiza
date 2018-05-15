@@ -958,13 +958,13 @@ static Frame * current_frame (Solver * solver) {
 
 static void save_count (Solver * solver, int counted) {
   Frame * frame = current_frame (solver);
-  if (!frame->flipped) {
-    SOG ("not saving count %d since not flipped", counted);
-    return;
-  }
   assert (frame->counted < 0);
-  SOG ("saving count %d", counted);
-  frame->counted = counted;
+  if (frame->flipped) {
+    SOG ("saving count 2^%d", counted);
+    frame->counted = counted;
+  } else {
+    SOG ("not saving count 2^%d since not flipped", counted);
+  }
 }
 
 typedef enum DualPropagationResult DualPropagationResult;
