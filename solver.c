@@ -1416,7 +1416,15 @@ static Clause * learn_clause (Solver * solver, int glue) {
   return res;
 }
 
-static int back_jump (Solver * solver, Clause * c) {
+static void discount (Solver * solver) {
+  Frame * f = solver->frames.start + solver->level;
+  assert (f->flipped);
+  SOG ("discounting 2^%d", f->counted);
+  sub_power_of_two_from_number (solver->count, f->counted);
+  report (solver, 3, 'd');
+}
+
+static int backjump (Solver * solver, Clause * c) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   const int level = jump_level (solver, c->literals, c->size);
@@ -1429,7 +1437,9 @@ static int back_jump (Solver * solver, Clause * c) {
     (void) POP (solver->trail);
     const DecisionType decision = v->decision;
     unassign (solver, lit);
-    if (decision != UNDECIDED) dec_level (solver);
+    if (decision == UNDECIDED) continue;
+    if (decision == FLIPPED) discount (solver);
+    dec_level (solver);
   }
   assert (!val (solver, forced));
   assert (solver->level == level);
@@ -1468,7 +1478,7 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
   int glue = resolve_conflict (solver, conflict);
   Clause * c = learn_clause (solver, glue);
   CLEAR (solver->clause);
-  if (c) return back_jump (solver, c);
+  if (c) return backjump (solver, c);
   stats.back.forced++;
   SOG ("forced backtrack %ld", stats.back.forced);
   return backtrack (solver);
