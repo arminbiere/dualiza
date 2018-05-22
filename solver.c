@@ -1400,9 +1400,14 @@ static Clause * learn_clause (Solver * solver, int glue) {
   SOG ("jump level %d of size %d clause", level, size);
   assert (solver->last_flipped_level <= solver->level);
   if (solver->last_flipped_level > level) {
-    SOG ("flipped frame %d forces backtracking",
-      solver->last_flipped_level);
-    return 0;
+    if (options.discount)
+      SOG ("expecting to discount at least flipped frame %d",
+	solver->last_flipped_level);
+    else {
+      SOG ("flipped frame %d forces backtracking",
+	solver->last_flipped_level);
+      return 0;
+    }
   }
   stats.learned++;
   SOG ("learning clause number %ld of size %d", stats.learned, size);
@@ -1417,6 +1422,7 @@ static Clause * learn_clause (Solver * solver, int glue) {
 }
 
 static void discount (Solver * solver) {
+  assert (options.discount);
   stats.models.discounted++;
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
