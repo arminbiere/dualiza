@@ -10,9 +10,14 @@ void print_statistics () {
   long resident = maximum_resident_set_size ();
   double seconds = process_time ();
   if (stats.conflicts || stats.decisions || stats.propagated) {
-    if (stats.models)
-      msg (1, "%ld partial models (%.1f decisions per model)",
-        stats.models, average (stats.decisions, stats.models));
+    if (stats.models.counted)
+      msg (1, "%ld counted models (%.1f decisions per model)",
+        stats.models.counted,
+	average (stats.decisions, stats.models.counted));
+    if (stats.models.discounted)
+      msg (1, "%ld discounted models (%.1f%% per counted model)",
+        stats.models.discounted,
+	percent (stats.models.discounted, stats.models.counted));
     msg (1, "%ld conflicts (%.0f per second)",
       stats.conflicts, average (stats.conflicts, seconds));
     msg (1, "%ld decisions (%.0f per second)",

@@ -14,7 +14,7 @@ struct Stats {
     long lookups, collisions;
   } symbol;
   struct { long max, current; } bytes;
-  long models;
+  struct { long counted, discounted; } models;
 };
 
 extern Stats stats;

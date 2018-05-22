@@ -664,7 +664,7 @@ static void print_model (Solver * solver) {
 
 static int model_limit_reached (Solver * solver) {
   const long limit = solver->limit.models.count;
-  const int res = (stats.models >= limit);
+  const int res = (stats.models.counted >= limit);
   if (res) msg (1, "reached partial models limit %ld", limit);
   return res;
 }
@@ -723,7 +723,7 @@ static void primal_header (Solver * solver) {
 }
 
 static void inc_model_report_limit (Solver * solver) {
-  while (stats.models >= solver->limit.models.report) {
+  while (stats.models.counted >= solver->limit.models.report) {
     solver->limit.models.log2report++;
     solver->limit.models.report *= 2;
   }
@@ -835,13 +835,13 @@ static void first_model (Solver * solver) {
 
 static int new_model (Solver * solver) {
   int unassigned = solver->unassigned_shared_variables;
-  stats.models++;
+  stats.models.counted++;
   SOG ("model %ld with %d unassigned shared variables",
     stats.models, unassigned);
-  if (stats.models == 1) first_model (solver);
+  if (stats.models.counted == 1) first_model (solver);
   if (solver->model_printing_enabled) print_model (solver);
   add_power_of_two_to_number (solver->count, unassigned);
-  if (stats.models == solver->limit.models.report)
+  if (stats.models.counted == solver->limit.models.report)
     report (solver, 1, '+');
   else report (solver, 3, 'm');
   return unassigned;
@@ -1417,6 +1417,7 @@ static Clause * learn_clause (Solver * solver, int glue) {
 }
 
 static void discount (Solver * solver) {
+  stats.models.discounted++;
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
   SOG ("discounting 2^%d", f->counted);
@@ -1668,7 +1669,7 @@ int primal_sat (Solver * solver) {
   assert (!solver->dual_solving_enabled);
   limit_number_of_partial_models (solver, 1);
   solve (solver);
-  return stats.models ? 10 : 20;
+  return stats.models.counted ? 10 : 20;
 }
 
 int dual_sat (Solver * solver) {
@@ -1676,7 +1677,7 @@ int dual_sat (Solver * solver) {
   assert (solver->dual_solving_enabled);
   limit_number_of_partial_models (solver, 1);
   solve (solver);
-  return stats.models ? 10 : 20;
+  return stats.models.counted ? 10 : 20;
 }
 
 void primal_count (Number models, Solver * solver) {
@@ -1708,7 +1709,7 @@ void dual_enumerate (Solver * solver, Name name) {
 }
 
 int deref (Solver * solver, int lit) {
-  assert (stats.models);
+  assert (stats.models.counted > 0);
   Var * v = var (solver, lit);
   int res = v->first;
   if (lit < 0) res = -res;
