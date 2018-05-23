@@ -1314,28 +1314,6 @@ static int blocking (Solver * solver) {
   return size <= options.blocklimit;
 }
 
-static int backtrack (Solver * solver, int level) {
-  if (!solver->level) return 0;
-  stats.back.tracked++;
-  SOG ("backtrack %ld to level %d", stats.back.tracked, level);
-  while (!EMPTY (solver->trail)) {
-    const int lit = TOP (solver->trail);
-    Var * v = var (solver, lit);
-    if (v->level < level) break;		// TODO adapt ...
-    const DecisionType decision = v->decision;
-    if (decision == DECISION) {
-      if (blocking (solver)) add_decision_blocking_clause (solver);
-      else flip_last_decision (solver);
-      return 1;
-    }
-    unassign (solver, lit);
-    if (decision == FLIPPED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
-  adjust_next_to_trail (solver);
-  return 0;
-}
-
 /*------------------------------------------------------------------------*/
 
 // Without the dual part we find models as in a standard CDCL solvers, i.e.,
@@ -1626,6 +1604,24 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
     backtrack_on_primal_conflict (solver);
     return 1;
   }
+}
+
+/*------------------------------------------------------------------------*/
+
+// Basic version without actual analysis part yet.
+
+static int analyze_dual (Solver * solver, Clause * conflict) {
+  SOG ("analyze dual");
+  assert (conflict);
+  assert (conflict->dual);
+  int counted;
+  if (last_model (solver, &counted)) return 0;
+  if (!solver->last_decision_level) {
+    SOG ("no more decisions left");
+    return 0;
+  }
+  backtrack_to_last_non_flipped_decision (solver, counted);
+  return 1;
 }
 
 /*------------------------------------------------------------------------*/
