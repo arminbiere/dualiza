@@ -28,6 +28,14 @@ int encode_input (Circuit * circuit, Gate * g) {
   assert (PEEK (circuit->inputs, g->input) == g);
   assert (g->input < INT_MAX);
   int res = g->input + 1;
+#ifndef NLOG
+  if (g->symbol) {
+    assert (g->symbol->name);
+    LOG ("encoding input %d symbol %s as %d",
+      g->input, g->symbol->name, res);
+  } else
+    LOG ("encoding input %d as %d", g->input, res);
+#endif
   if (sign) res = -res;
   return res;
 }

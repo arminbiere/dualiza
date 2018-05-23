@@ -54,8 +54,8 @@ struct Frame {
   char seen;			// seen during conflict analysis
   char flipped;			// already flipped
   int decision;			// current decision literal
-  int prev_flipped_level;	// level of previous flipped frame
   int counted;			// number of counted unassigned variables
+  int prev;			// prev decision or flipped level
 };
 
 struct Limit {
@@ -83,6 +83,7 @@ struct Solver {
   int level, phase;
   struct { int primal, dual; } next;
   int last_flipped_level, num_flipped_levels;
+  int last_decision_level, num_decision_levels;
   int unassigned_primal_and_input_variables;
   int unassigned_shared_variables;
   int primal_or_shared_fixed;
@@ -161,7 +162,7 @@ static void update_queue (Solver * solver, Queue * q, Var * v) {
   if (v) {
     SOG ("updating %s variable %d in %s queue",
       var_type (v), (int)(long)(v - solver->vars), queue_type (solver, q));
-  } else SOG ("flushed %s queue", queue_type (solver, q));
+  } else SOG ("empty %s queue", queue_type (solver, q));
 #endif
 }
 
@@ -197,10 +198,10 @@ static void dequeue (Solver * solver, Var * v) {
 
 static Frame new_frame (Solver * solver, int decision) {
   Frame res;
-  res.seen = res.flipped = 0;
+  res.seen = res.decision = 0;
   res.decision = decision;
-  res.prev_flipped_level = solver->last_flipped_level;
   res.counted = -1;
+  res.prev = 0;
   return res;
 }
 
@@ -214,21 +215,21 @@ static void init_reduce_limit (Solver * solver) {
   solver->limit.reduce.learned = MAX (options.reduceinit, 0);
   solver->limit.reduce.interval = MAX (options.reduceinit, 0);
   solver->limit.reduce.increment = MAX (options.reduceinc, 1);
-  LOG ("initial reduce interval %ld", solver->limit.reduce.interval);
-  LOG ("initial reduce increment %ld", solver->limit.reduce.increment);
-  LOG ("initial reduce learned limit %ld",
+  SOG ("initial reduce interval %ld", solver->limit.reduce.interval);
+  SOG ("initial reduce increment %ld", solver->limit.reduce.increment);
+  SOG ("initial reduce learned limit %ld",
     solver->limit.reduce.learned);
 }
 
 static void init_restart_limit (Solver * solver) {
   solver->limit.restart.conflicts = MAX (options.restartint, 1);
-  LOG ("initial restart conflict limit %ld",
+  SOG ("initial restart conflict limit %ld",
     solver->limit.restart.conflicts);
 }
 
 static void set_subsumed_limit (Solver * solver) {
   solver->limit.subsumed += solver->cnf.primal->irredundant/10;
-  LOG ("subsumed limit %ld", solver->limit.subsumed);
+  SOG ("subsumed limit %ld", solver->limit.subsumed);
 }
 
 static void init_limits (Solver * solver) {
@@ -269,7 +270,7 @@ Solver * new_solver (CNF * primal,
   NEW (solver);
   solver->cnf.primal = primal;
   if (dual) {
-    LOG (
+    SOG (
       "new solver over %ld primal and %ld dual clauses %ld shared variables",
       (long) COUNT (primal->clauses),
       (long) COUNT (dual->clauses),
@@ -277,7 +278,7 @@ Solver * new_solver (CNF * primal,
     solver->cnf.dual = dual;
     solver->dual_solving_enabled = 1;
   } else {
-    LOG (
+    SOG (
       "new solver over %ld clauses and %ld shared variables",
       (long) COUNT (primal->clauses),
       (long) COUNT (*shared));
@@ -291,27 +292,27 @@ Solver * new_solver (CNF * primal,
     assert (0 < input);
     if (input > max_shared_var) max_shared_var = input;
   }
-  LOG ("maximum shared variable index %d", max_shared_var);
+  SOG ("maximum shared variable index %d", max_shared_var);
   assert (COUNT (*shared) == max_shared_var);
   int max_var = max_shared_var;
   int max_primal_var = maximum_variable_index (primal);
-  LOG ("maximum variable index %d in primal CNF", max_primal_var);
+  SOG ("maximum variable index %d in primal CNF", max_primal_var);
   if (max_var <  max_primal_var) {
-    LOG ("%d primal gate variables %d ... %d",
+    SOG ("%d primal gate variables %d ... %d",
       max_primal_var - max_var, max_var + 1, max_primal_var);
     max_var = max_primal_var;
-  } else LOG ("no primal gate variables");
+  } else SOG ("no primal gate variables");
   if (dual) {
     int max_dual_var = dual ? maximum_variable_index (dual) : 0;
-    LOG ("maximum variable index %d in dual CNF", max_dual_var);
+    SOG ("maximum variable index %d in dual CNF", max_dual_var);
     if (max_var <  max_dual_var) {
-      LOG ("%d dual gate variables %d ... %d",
+      SOG ("%d dual gate variables %d ... %d",
         max_dual_var - max_var, max_var + 1, max_dual_var);
       max_var = max_dual_var;
-    } else LOG ("no dual gate variables");
+    } else SOG ("no dual gate variables");
     int min_non_shared_var_in_dual =
       minimum_variable_index_above (dual, max_shared_var);
-    LOG ("minimum variable index %d above %d in dual CNF",
+    SOG ("minimum variable index %d above %d in dual CNF",
       min_non_shared_var_in_dual, max_shared_var);
 #ifndef NDEBUG
     assert (min_non_shared_var_in_dual > max_primal_var);
@@ -324,9 +325,9 @@ Solver * new_solver (CNF * primal,
   solver->max_var = max_var;
   solver->max_lit = 2*max_var + 1;
   solver->max_shared_var = max_shared_var;
-  LOG ("maximum variable index %d", solver->max_var);
+  SOG ("maximum variable index %d", solver->max_var);
   solver->max_primal_or_shared_var = MAX (max_primal_var, max_shared_var);
-  LOG ("%d primal gate or input variables",
+  SOG ("%d primal gate or input variables",
     solver->max_primal_or_shared_var);
   solver->unassigned_primal_and_input_variables =
     solver->max_primal_or_shared_var;
@@ -353,27 +354,27 @@ Solver * new_solver (CNF * primal,
     Var * v = var (solver, idx);
     if (!relevant || v->type) {
       assert (!relevant || v->type == RELEVANT_VARIABLE);
-      LOG ("relevant shared variable %d", idx);
+      SOG ("relevant shared variable %d", idx);
       count_relevant++;
     } else {
-      LOG ("irrelevant shared variable %d", idx);
+      SOG ("irrelevant shared variable %d", idx);
       v->type = IRRELEVANT_VARIABLE;
       count_irrelevant++;
     }
   }
-  LOG ("found %ld relevant shared variables", count_relevant);
-  LOG ("found %ld irrelevant shared variables", count_irrelevant);
+  SOG ("found %ld relevant shared variables", count_relevant);
+  SOG ("found %ld irrelevant shared variables", count_irrelevant);
   assert (count_relevant + count_irrelevant == COUNT (*shared));
   assert (!relevant || count_relevant == COUNT (*relevant));
   long count_primal = 0;
   for (int idx = max_shared_var + 1; idx <= max_primal_var; idx++) {
     Var * v = var (solver, idx);
     assert (!v->type);
-    LOG ("primal variable %d", idx);
+    SOG ("primal variable %d", idx);
     v->type = PRIMAL_VARIABLE;
     count_primal++;
   }
-  LOG ("found %ld private primal variables", count_primal);
+  SOG ("found %ld private primal variables", count_primal);
   if (dual) {
     long count_dual = 0;
     for (int idx = solver->max_primal_or_shared_var + 1;
@@ -381,17 +382,17 @@ Solver * new_solver (CNF * primal,
 	 idx++) {
       Var * v = var (solver, idx);
       assert (!v->type);
-      LOG ("dual variable %d", idx);
+      SOG ("dual variable %d", idx);
       v->type = DUAL_VARIABLE;
       count_dual++;
     }
-    LOG ("found %ld private dual variables", count_dual);
+    SOG ("found %ld private dual variables", count_dual);
   }
-  LOG ("connecting variables");
+  SOG ("connecting variables");
   for (int idx = 1; idx <= solver->max_primal_or_shared_var; idx++)
     enqueue (solver, var (solver, idx));
   solver->phase = options.phaseinit ? 1 : -1;
-  LOG ("default initial phase %d", solver->phase);
+  SOG ("default initial phase %d", solver->phase);
   init_limits (solver);
   PUSH (solver->frames, new_frame (solver, 0));
   assert (COUNT (solver->frames) == solver->level + 1);
@@ -432,7 +433,7 @@ static Clauses * dual_occs (Solver * solver, int lit) {
 }
 
 void delete_solver (Solver * solver) {
-  LOG ("deleting solver");
+  SOG ("deleting solver");
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = var (solver, idx);
     for (int sign = -1; sign <= 1; sign +=2) {
@@ -534,39 +535,141 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   dec_unassigned (solver, v);
 }
 
-static void inc_level (Solver * solver) {
+static DecisionType decision_type (Solver * solver, int lit) {
+  return var (solver, lit)->decision;
+}
+
+static Frame * last_frame (Solver * solver) {
+  assert (0 <= solver->level);
+  assert (solver->level < (int) COUNT (solver->frames));
+  return solver->frames.start + solver->level;
+}
+
+/*------------------------------------------------------------------------*/
+
+static void adjust_next (Solver * solver, int next) {
+  assert (0 <= next), assert (next <= COUNT (solver->trail));
+  if (next < solver->next.primal) solver->next.primal = next;
+  if (next < solver->next.dual) solver->next.dual = next;
+}
+
+/*------------------------------------------------------------------------*/
+
+// The number of levels in the solver consists of both decision and flipped
+// levels.  After a variable is flipped its solver level remains the same,
+// but both its decision type and its frame become flipped.
+
+static void inc_solver_level (Solver * solver) {
   solver->level++;
-  SOG ("incremented decision level");
+  SOG ("incremented solver level");
 }
 
-static void adjust_flipped (Solver * solver, int lit) {
-  Frame * f = frame (solver, lit);
-  assert (f->decision == lit);
+/*------------------------------------------------------------------------*/
+
+// Maintain a global count 'num_decision_levels' of actual decision levels.
+
+static void inc_decision_levels (Solver * solver) {
+  assert (solver->level > 0);
+  Frame * f = last_frame (solver);
   assert (!f->flipped);
-  f->flipped = 1;
-  assert (f->counted < 0);
-  assert (solver->last_flipped_level < solver->level);
-  solver->last_flipped_level = solver->level;
-  solver->num_flipped_levels++;
-  SOG ("new flipped level %d number %d",
-    solver->last_flipped_level, solver->num_flipped_levels);
-  if (solver->num_flipped_levels == solver->level)
-    solver->found_new_fixed_variable = 1;
+  assert (decision_type (solver, f->decision) == DECISION);
+  solver->num_decision_levels++;
+  f->prev = solver->last_decision_level;
+  solver->last_decision_level = solver->level;
+  SOG ("incremented number decision levels to %d",
+    solver->num_decision_levels);
+  SOG ("new last decision level %d", solver->last_decision_level);
 }
 
-static void assume_decision (Solver * solver, int lit, int flipped) {
-  assert (flipped == 0 || flipped == 1);
-  inc_level (solver);
+static void dec_decision_levels (Solver * solver) {
+  assert (solver->level > 0);
+  Frame * f = last_frame (solver);
+  assert (!f->flipped);
+  assert (decision_type (solver, f->decision) == DECISION);
+  assert (solver->num_decision_levels > 0);
+  solver->num_decision_levels--;
+  solver->last_decision_level = f->prev;
+  SOG ("decremented number decision levels to %d",
+    solver->num_decision_levels);
+  SOG ("new last decision level %d", solver->last_decision_level);
+}
+
+/*------------------------------------------------------------------------*/
+
+// Maintain a global count 'num_flipped_levels' of actual flipped levels.
+
+static void inc_flipped_levels (Solver * solver) {
+  assert (solver->level > 0);
+  Frame * f = last_frame (solver);
+  assert (f->flipped);
+  assert (decision_type (solver, f->decision) == FLIPPED);
+  solver->num_flipped_levels++;
+  f->prev = solver->last_flipped_level;
+  solver->last_flipped_level = solver->level;
+  SOG ("incremented number flipped levels to %d",
+    solver->num_flipped_levels);
+  SOG ("new last flipped level %d", solver->last_flipped_level);
+}
+
+static void dec_flipped_levels (Solver * solver) {
+  assert (solver->level > 0);
+  Frame * f = last_frame (solver);
+  assert (f->flipped);
+  assert (decision_type (solver, f->flipped) == FLIPPED);
+  assert (solver->num_flipped_levels > 0);
+  solver->num_flipped_levels--;
+  solver->last_flipped_level = f->prev;
+  SOG ("decremented number flipped levels to %d",
+    solver->num_flipped_levels);
+  SOG ("new last flipped level %d", solver->last_flipped_level);
+}
+
+/*------------------------------------------------------------------------*/
+
+static void assume_decision (Solver * solver, int lit) {
+  inc_solver_level (solver);
+  SOG ("assume decision %d", lit);
+  stats.decisions++;
+  PUSH (solver->frames, new_frame (solver, lit));
   Var * v = var (solver, lit);
   assert (!v->decision);
   assert (v->decision == UNDECIDED);
-  v->decision = flipped ? FLIPPED : DECISION;
+  v->decision = DECISION;
+  inc_decision_levels (solver);
   assign (solver, lit, 0);
-  stats.decisions++;
-  PUSH (solver->frames, new_frame (solver, lit));
-  assert (COUNT (solver->frames) == solver->level + 1);
-  if (flipped) adjust_flipped (solver, lit);
 }
+
+static void dec_level (Solver * solver) {
+  assert (solver->level > 0);
+  Frame * f = last_frame (solver);
+  if (f->flipped) dec_flipped_levels (solver);
+  else dec_decision_levels (solver);
+  solver->level--;
+  SOG ("decremented solver level");
+  POP (solver->frames);
+  assert (COUNT (solver->frames) == solver->level + 1);
+}
+
+static void flip_literal (Solver * solver, int lit) {
+  stats.flipped++;
+  assert (TOP (solver->trail) == lit);
+  assert (val (solver, lit) > 0);
+  Var * v = var (solver, lit);
+  assert (v->level == solver->level);
+  assert (v->decision == DECISION);
+  dec_decision_levels (solver);
+  v->decision = FLIPPED;
+  SOG ("%s flip %d", var_type (v), lit);
+  inc_flipped_levels (solver);
+  SOG ("%s assign %d", var_type (v), -lit);
+  int n = COUNT (solver->trail) - 1;
+  assert (PEEK (solver->trail, n) == lit);
+  POKE (solver->trail, n, -lit);
+  adjust_next (solver, n);
+  v->val = -v->val;
+}
+
+/*------------------------------------------------------------------------*/
 
 static void unassign (Solver * solver, int lit) {
   Var * v = var (solver, lit);
@@ -603,24 +706,24 @@ static int connect_primal_cnf (Solver * solver) {
   assert (!solver->level);
   CNF * cnf = solver->cnf.primal;
   Clauses * clauses = &cnf->clauses;
-  LOG ("connecting %ld primal clauses to solver",
+  SOG ("connecting %ld primal clauses to solver",
     (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
     assert (c->dual == cnf->dual);
     if (c->size == 0) {
-      LOG ("found empty clause in primal CNF");
+      SOG ("found empty clause in primal CNF");
       return 0;
     } else if (c->size == 1) {
       int unit = c->literals[0];
-      LOG ("found unit clause %d in primal CNF", unit);
+      SOG ("found unit clause %d in primal CNF", unit);
       int tmp = val (solver, unit);
       if (tmp > 0) {
-	LOG ("ignoring already satisfied unit %d", unit);
+	SOG ("ignoring already satisfied unit %d", unit);
 	continue;
       }
       if (tmp < 0) {
-	LOG ("found already falsified unit %d in primal CNF", unit);
+	SOG ("found already falsified unit %d in primal CNF", unit);
 	return 0;
       }
       assign (solver, unit, c);
@@ -858,24 +961,24 @@ static int connect_dual_cnf (Solver * solver) {
   if (!solver->dual_solving_enabled) return 1;
   CNF * cnf = solver->cnf.dual;
   Clauses * clauses = &cnf->clauses;
-  LOG ("connecting %ld dual clauses to solver for counting",
+  SOG ("connecting %ld dual clauses to solver for counting",
     (long) COUNT (*clauses));
   for (Clause ** p = clauses->start; p < clauses->top; p++) {
     Clause * c = *p;
     assert (c->dual == cnf->dual);
     if (c->size == 0) {
-      LOG ("found empty clause in dual CNF");
+      SOG ("found empty clause in dual CNF");
       return 0;
     } else if (c->size == 1) {
       int unit = c->literals[0];
-      LOG ("found unit clause %d in dual CNF", unit);
+      SOG ("found unit clause %d in dual CNF", unit);
       int tmp = val (solver, unit);
       if (tmp > 0) {
-	LOG ("ignoring already satisfied unit %d", unit);
+	SOG ("ignoring already satisfied unit %d", unit);
 	continue;
       }
       if (tmp < 0) {
-	LOG ("found already falsified unit %d in dual CNF", unit);
+	SOG ("found already falsified unit %d in dual CNF", unit);
         new_model (solver);
 	return 0;
       }
@@ -1022,7 +1125,8 @@ dual_propagate (Solver * solver, int *counted_ptr) {
 	assign_temporarily (solver, -other);
 	int counted = new_model (solver);
 	unassign_temporarily (solver, -other);
-	assume_decision (solver, other, 1);
+	assume_decision (solver, -other);
+	flip_literal (solver, -other);
 	save_count (solver, counted);
 	res = DUAL_INPUT_UNIT;
       } else {
@@ -1042,24 +1146,6 @@ dual_propagate (Solver * solver, int *counted_ptr) {
   }
   report_iterating (solver);
   return res;
-}
-
-static void dec_level (Solver * solver) {
-  assert (solver->level > 0);
-  solver->level--;
-  SOG ("decremented decision level");
-  Frame f = POP (solver->frames);
-  SOG ("popped %s frame", f.flipped ? "flipped" : "decision");
-  if (f.prev_flipped_level != solver->last_flipped_level) {
-    assert (f.flipped);
-    assert (f.prev_flipped_level < solver->last_flipped_level);
-    assert (solver->last_flipped_level == solver->level + 1);
-    solver->last_flipped_level = f.prev_flipped_level;
-    SOG ("restored flipped level %d", solver->last_flipped_level);
-    assert (solver->num_flipped_levels);
-    solver->num_flipped_levels--;
-  } else assert (!f.flipped);
-  assert (COUNT (solver->frames) == solver->level + 1);
 }
 
 static Var * next_queue (Solver * solver, Queue * queue) {
@@ -1094,7 +1180,7 @@ static void decide (Solver * solver) {
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   SOG ("%s decide %d", var_type (v), lit);
-  assume_decision (solver, lit, 0);
+  assume_decision (solver, lit);
 }
 
 static void mark_literal (Solver * solver, int lit) {
@@ -1181,12 +1267,6 @@ static void subsume (Solver * solver, Clause * c) {
   report (solver, 1, 's');
 }
 
-static void adjust_next (Solver * solver, int next) {
-  assert (0 <= next), assert (next <= COUNT (solver->trail));
-  if (next < solver->next.primal) solver->next.primal = next;
-  if (next < solver->next.dual) solver->next.dual = next;
-}
-
 static void adjust_next_to_trail (Solver * solver) {
   adjust_next (solver, COUNT (solver->trail));
 }
@@ -1214,8 +1294,7 @@ static void add_decision_blocking_clause (Solver * solver, int lit) {
   int other;
   for (;;) {
     other = TOP (solver->trail);
-    Var * v = var (solver, other);
-    const DecisionType decision = v->decision;
+    const DecisionType decision = decision_type (solver, other);
     (void) POP (solver->trail);
     unassign (solver, other);
     if (decision != UNDECIDED) dec_level (solver);
@@ -1233,21 +1312,6 @@ static void add_decision_blocking_clause (Solver * solver, int lit) {
   if (options.subsume) subsume (solver, c);
 }
 
-static void flip (Solver * solver, int lit) {
-  assert (val (solver, lit) > 0);
-  Var * v = var (solver, lit);
-  assert (v->decision == DECISION);
-  v->decision = FLIPPED;
-  SOG ("%s flip %d", var_type (v), lit);
-  SOG ("%s assign %d", var_type (v), -lit);
-  int n = COUNT (solver->trail) - 1;
-  assert (PEEK (solver->trail, n) == lit);
-  POKE (solver->trail, n, -lit);
-  adjust_next (solver, n);
-  v->val = -v->val;
-  adjust_flipped (solver, lit);
-}
-
 static int blocking (Solver * solver) {
   if (!options.block) return 0;
   assert (solver->level >= solver->num_flipped_levels);
@@ -1256,22 +1320,18 @@ static int blocking (Solver * solver) {
   return size <= options.blocklimit;
 }
 
-static int backtrack (Solver * solver) {
+static int backtrack (Solver * solver, int level) {
   if (!solver->level) return 0;
   stats.back.tracked++;
-#ifndef NLOG
-  int level = solver->level;
-  while (PEEK (solver->frames, level).flipped)
-    level--;
   SOG ("backtrack %ld to level %d", stats.back.tracked, level);
-#endif
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
+    if (v->level < level) break;		// TODO adapt ...
     const DecisionType decision = v->decision;
     if (decision == DECISION) {
       if (blocking (solver)) add_decision_blocking_clause (solver, lit);
-      else flip (solver, lit);
+      else flip_literal (solver, lit);
       return 1;
     }
     unassign (solver, lit);
@@ -1385,32 +1445,24 @@ static int reset_levels (Solver * solver) {
   return res;
 }
 
-static int jump_level (Solver * solver, int * lits, int size) {
-  if (size < 2) return 0;
-  assert (var (solver, lits[0])->level == solver->level);
-  assert (var (solver, lits[1])->level < solver->level);
-  return var (solver, lits[1])->level;
+static int jump_level (Solver * solver) {
+  sort_clause (solver);
+  const size_t size = COUNT (solver->clause);
+  int res;
+  if (size >= 2) {
+    const int * lits = solver->clause.start;
+    assert (var (solver, lits[0])->level == solver->level);
+    assert (var (solver, lits[1])->level < solver->level);
+    res = var (solver, lits[1])->level;
+  } else res = 0;
+  SOG ("jump level %d of learned clause of size %d", res, size);
+  return res;
 }
 
-static Clause * learn_clause (Solver * solver, int glue) {
-  if (!options.learn) return 0;
-  sort_clause (solver);
-  const int size = COUNT (solver->clause);
-  const int level = jump_level (solver, solver->clause.start, size);
-  SOG ("jump level %d of size %d clause", level, size);
-  assert (solver->last_flipped_level <= solver->level);
-  if (solver->last_flipped_level > level) {
-    if (options.discount)
-      SOG ("expecting to discount at least flipped frame %d",
-	solver->last_flipped_level);
-    else {
-      SOG ("flipped frame %d forces backtracking",
-	solver->last_flipped_level);
-      return 0;
-    }
-  }
+static Clause * learn_clause (Solver * solver, int glue, int level) {
   stats.learned++;
-  SOG ("learning clause number %ld of size %d", stats.learned, size);
+  const int size = COUNT (solver->clause);
+  SOG ("learning clause number %ld of size %zd", stats.learned, size);
   Clause * res = new_clause (solver->clause.start, size);
   res->glue = glue;
   res->redundant = 1;
@@ -1418,6 +1470,7 @@ static Clause * learn_clause (Solver * solver, int glue) {
   SOGCLS (res, "learned new");
   add_clause_to_cnf (res, solver->cnf.primal);
   if (size > 1) connect_primal_clause (solver, res);
+  CLEAR (solver->clause);
   return res;
 }
 
@@ -1431,10 +1484,9 @@ static void discount (Solver * solver) {
   report (solver, 3, 'd');
 }
 
-static int backjump (Solver * solver, Clause * c) {
+static int backjump (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
-  const int level = jump_level (solver, c->literals, c->size);
   stats.back.jumped++;
   SOG ("back jump %ld to level %d", stats.back.jumped, level);
   while (!EMPTY (solver->trail)) {
@@ -1456,7 +1508,7 @@ static int backjump (Solver * solver, Clause * c) {
   return 1;
 }
 
-static int resolve_conflict (Solver * solver, Clause * conflict) {
+static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
   assert (EMPTY (solver->seen));
   assert (EMPTY (solver->clause));
   assert (EMPTY (solver->levels));
@@ -1480,15 +1532,44 @@ static int resolve_conflict (Solver * solver, Clause * conflict) {
 }
 
 static int analyze_primal (Solver * solver, Clause * conflict) {
+  SOG ("analyze primal");
+  assert (conflict);
   assert (!conflict->dual);
-  if (!solver->level) return 0;
-  int glue = resolve_conflict (solver, conflict);
-  Clause * c = learn_clause (solver, glue);
-  CLEAR (solver->clause);
-  if (c) return backjump (solver, c);
-  stats.back.forced++;
-  SOG ("forced backtrack %ld", stats.back.forced);
-  return backtrack (solver);
+  if (!solver->last_decision_level) {
+    SOG ("primal conflict without any decisions");
+    return 0;
+  }
+  int glue = resolve_primal_conflict (solver, conflict), level, learn;
+  if (options.learn) {
+    level = jump_level (solver);
+    assert (solver->last_flipped_level <= solver->level);
+    if (solver->last_flipped_level > level) {
+      if (options.discount) {
+	SOG ("expecting to discount at least flipped frame %d",
+	  solver->last_flipped_level);
+	stats.back.discounting++;
+	SOG ("discounting backtrack %ld", stats.back.discounting);
+	learn = 0;
+      } else {
+	SOG ("flipped frame %d forces backtracking without discounting",
+	  solver->last_flipped_level);
+	SOG ("forced backtrack %ld", stats.back.forced);
+	stats.back.forced++;
+	learn = 0;
+      }
+    }
+  } else {
+    SOG ("learning disabled");
+    level = solver->level - 1;
+    learn = 0;
+  }
+  if (learn) {
+    Clause * c = learn_clause (solver, glue, level);
+    return backjump (solver, c, level);
+  } else {
+    CLEAR (solver->clause);
+    return backtrack (solver, level);
+  }
 }
 
 static int reducing (Solver * solver) {
@@ -1648,11 +1729,11 @@ static void solve (Solver * solver) {
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-       if (!analyze_primal (solver, conflict)) return;
+      if (!analyze_primal (solver, conflict)) return;
     } else if (satisfied (solver)) {
       int counted;
       if (last_model (solver, &counted)) return;
-      if (!backtrack (solver)) return;
+      if (!backtrack (solver, solver->level-1)) return;
       save_count (solver, counted);
     } else {
       int counted;
@@ -1660,7 +1741,7 @@ static void solve (Solver * solver) {
       if (res) {
 	if (model_limit_reached (solver)) return;
 	if (res == DUAL_CONFLICT) {
-	  if (!backtrack (solver)) return;
+	  if (!backtrack (solver, solver->level-1)) return;
 	  save_count (solver, counted);
 	}
       } else if (reducing (solver)) reduce (solver);

@@ -10,9 +10,9 @@ do { \
 
 #define EMPTY(S) ((S).top == (S).start)
 
-#define COUNT(S) ((S).top - (S).start)
+#define COUNT(S) ((size_t)((S).top - (S).start))
 
-#define SIZE(S) ((S).end - (S).start)
+#define SIZE(S) ((size_t)((S).end - (S).start))
 
 #define PEEK(S,I) \
   (assert ((I) < COUNT (S)), (S).start[I])

@@ -1,8 +1,8 @@
 typedef struct Stats Stats;
 
 struct Stats {
-  long decisions, propagated, conflicts;
-  struct { long tracked, jumped, forced; } back;
+  long decisions, flipped, propagated, conflicts;
+  struct { long tracked, jumped, forced, discounting; } back;
   long bumped, searched, learned, subsumed;
   struct { long clauses, literals; } blocked;
   long reductions, collected;
