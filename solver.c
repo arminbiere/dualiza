@@ -1379,6 +1379,30 @@ static int backtrack_satisfied (Solver * solver) {
 
 /*------------------------------------------------------------------------*/
 
+static int backtrack_on_primal_conflict (Solver * solver, int level) {
+  SOG ("primal conflict to level %d", level);
+  assert (solver->level > 0);
+  stats.back.tracked++;
+  while (!EMPTY (solver->trail)) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
+    if (v->level < level) break;		// TODO adapt ...
+    const DecisionType decision = v->decision;
+    if (decision == DECISION) {
+      if (blocking (solver)) add_decision_blocking_clause (solver);
+      else flip_last_decision (solver);
+      return 1;
+    }
+    unassign (solver, lit);
+    if (decision == FLIPPED) dec_level (solver);
+    (void) POP (solver->trail);
+  }
+  adjust_next_to_trail (solver);
+  return 0;
+}
+
+/*------------------------------------------------------------------------*/
+
 static int resolve_literal (Solver * solver, int lit) {
   Var * v = var (solver, lit);
   if (!v->level) return 0;
@@ -1521,7 +1545,8 @@ static void discount (Solver * solver) {
   report (solver, 3, 'd');
 }
 
-static int backjump (Solver * solver, Clause * c, int level) {
+static int
+backjump_on_primal_conflict (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   stats.back.jumped++;
@@ -1544,6 +1569,8 @@ static int backjump (Solver * solver, Clause * c, int level) {
   if (!level) solver->found_new_fixed_variable = 1;
   return 1;
 }
+
+/*------------------------------------------------------------------------*/
 
 static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
   assert (EMPTY (solver->seen));
@@ -1602,10 +1629,10 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
   }
   if (learn) {
     Clause * c = learn_clause (solver, glue, level);
-    return backjump (solver, c, level);
+    return backjump_on_primal_conflict (solver, c, level);
   } else {
     CLEAR (solver->clause);
-    return backtrack (solver, level);
+    return backtrack_on_primal_conflict (solver, level);
   }
 }
 
