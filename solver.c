@@ -585,7 +585,6 @@ static void dec_decision_levels (Solver * solver) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
   assert (!f->flipped);
-  assert (decision_type (solver, f->decision) == DECISION);
   assert (solver->num_decision_levels > 0);
   solver->num_decision_levels--;
   solver->last_decision_level = f->prev;
@@ -1264,11 +1263,10 @@ static void adjust_next_to_trail (Solver * solver) {
 static void add_decision_blocking_clause (Solver * solver) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
-  int decision = f->decision;
-  SOG ("adding decision blocking clause for decision %d", decision);
+  int first = f->decision;
+  SOG ("adding decision blocking clause for decision %d", first);
   assert (!f->flipped);
-  assert (decision = TOP (solver->trail));
-  assert (decision_type (solver, decision) == DECISION);
+  assert (first = TOP (solver->trail));
   stats.blocked.clauses++;
   assert (EMPTY (solver->clause));
   for (int level = solver->level; level > 0; level--) {
@@ -1283,7 +1281,7 @@ static void add_decision_blocking_clause (Solver * solver) {
   const int size = COUNT (solver->clause);
   stats.blocked.literals += size;
   SOG ("found blocking clause of length %d", size);
-  assert (solver->clause.start[0] == -decision);
+  assert (!size || solver->clause.start[0] == -first);
   int other;
   for (;;) {
     other = TOP (solver->trail);
@@ -1300,7 +1298,7 @@ static void add_decision_blocking_clause (Solver * solver) {
   if (size > 1) connect_primal_clause (solver, c);
   CLEAR (solver->clause);
   adjust_next_to_trail (solver);
-  assign (solver, -decision, c);
+  assign (solver, -first, c);
   if (!solver->level) solver->found_new_fixed_variable = 1;
   if (options.subsume) subsume (solver, c);
 }
@@ -1333,7 +1331,7 @@ backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
   SOG ("backtracking to last non-flipped decision level %d",
     solver->last_decision_level);
   stats.back.tracked++;
-  for (;;) {
+  while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
     assert (v->level >= solver->last_decision_level);
