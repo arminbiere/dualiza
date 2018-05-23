@@ -1347,6 +1347,33 @@ static int satisfied (Solver * solver) {
   return !solver->unassigned_primal_and_input_variables;
 }
 
+// Common backtracking.
+
+static void
+backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
+  assert (solver->last_decision_level > 0);
+  SOG ("backtracking to last non-flipped decision level %d",
+    solver->last_decision_level);
+  stats.back.tracked++;
+  for (;;) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
+    assert (v->level >= solver->last_decision_level);
+    if (v->level == solver->last_decision_level) break;
+    unassign (solver, lit);
+    if (v->decision == FLIPPED) dec_level (solver);
+    (void) POP (solver->trail);
+  }
+  if (blocking (solver)) {
+    add_decision_blocking_clause (solver);
+  } else {
+    flip_last_decision (solver);
+    if (counted >= 0) save_count (solver, counted);
+    else assert (last_frame (solver)->counted < 0);
+    adjust_next_to_trail (solver);
+  }
+}
+
 static int backtrack_satisfied (Solver * solver) {
   SOG ("backtrack satisfied");
   assert (satisfied (solver));
@@ -1356,49 +1383,13 @@ static int backtrack_satisfied (Solver * solver) {
     SOG ("no more decisions left");
     return 0;
   }
-  SOG ("backtracking to last non-flipped decision level %d",
-    solver->last_decision_level);
-  int lit;
-  for (;;) {
-    lit = TOP (solver->trail);
-    Var * v = var (solver, lit);
-    assert (v->level >= solver->last_decision_level);
-    if (v->level == solver->last_decision_level) break;
-    unassign (solver, lit);
-    (void) POP (solver->trail);
-  }
-  if (blocking (solver)) {
-    add_decision_blocking_clause (solver);
-  } else {
-    flip_last_decision (solver);
-    save_count (solver, counted);
-    adjust_next_to_trail (solver);
-  }
+  backtrack_to_last_non_flipped_decision (solver, counted);
   return 1;
 }
 
-/*------------------------------------------------------------------------*/
-
-static int backtrack_on_primal_conflict (Solver * solver, int level) {
-  SOG ("primal conflict to level %d", level);
-  assert (solver->level > 0);
-  stats.back.tracked++;
-  while (!EMPTY (solver->trail)) {
-    const int lit = TOP (solver->trail);
-    Var * v = var (solver, lit);
-    if (v->level < level) break;		// TODO adapt ...
-    const DecisionType decision = v->decision;
-    if (decision == DECISION) {
-      if (blocking (solver)) add_decision_blocking_clause (solver);
-      else flip_last_decision (solver);
-      return 1;
-    }
-    unassign (solver, lit);
-    if (decision == FLIPPED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
-  adjust_next_to_trail (solver);
-  return 0;
+static void backtrack_on_primal_conflict (Solver * solver) {
+  SOG ("backtracking due to primal conflict");
+  backtrack_to_last_non_flipped_decision (solver, -1);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1632,7 +1623,8 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
     return backjump_on_primal_conflict (solver, c, level);
   } else {
     CLEAR (solver->clause);
-    return backtrack_on_primal_conflict (solver, level);
+    backtrack_on_primal_conflict (solver);
+    return 1;
   }
 }
 
