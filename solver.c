@@ -198,7 +198,7 @@ static void dequeue (Solver * solver, Var * v) {
 
 static Frame new_frame (Solver * solver, int decision) {
   Frame res;
-  res.seen = res.decision = 0;
+  res.seen = res.flipped = 0;
   res.decision = decision;
   res.counted = -1;
   res.prev = 0;
