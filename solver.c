@@ -1033,7 +1033,7 @@ static Clause * primal_propagate (Solver * solver) {
     if (is_dual_var (var (solver, lit))) continue;
     assert (val (solver, lit) > 0);
     SOG ("primal propagating %d", lit);
-    stats.propagated++;
+    stats.propagated.primal++;
     Clauses * o = primal_occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
@@ -1065,7 +1065,7 @@ static Clause * primal_propagate (Solver * solver) {
 	assign (solver, other, c);
       } else {
 	assert (other_val < 0);
-	stats.conflicts++;
+	stats.conflicts.primal++;
 	SOGCLS (c, "conflict %ld", stats.conflicts);
 	res = c;
       }
@@ -1102,7 +1102,7 @@ static Clause * dual_propagate (Solver * solver) {
     if (is_primal_var (var (solver, lit))) continue;
     assert (val (solver, lit) > 0);
     SOG ("dual propagating %d", lit);
-    stats.propagated++;
+    stats.propagated.dual++;
     Clauses * o = dual_occs (solver, -lit);
     Clause ** q = o->start, ** p = q;
     while (!res && p < o->top) {
@@ -1132,16 +1132,20 @@ static Clause * dual_propagate (Solver * solver) {
       } else if (other_val) {
 	assert (other_val < 0);
 	SOGCLS (c, "conflict");
+	stats.conflicts.dual++;
 	res = c;
       } else if (is_input_var (var (solver, other))) {
 	SOGCLS (c, "shared unit %d", other);
+	stats.dual_shared_units++;
 	assume_decision (solver, -other);
 	SOGCLS (c, "conflict");
+	stats.conflicts.dual++;
 	res = c;
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "dual unit %d", other);
 	assign (solver, other, c);
+	stats.dual_non_shared_units++;
       }
     }
     if (res) {
@@ -1487,7 +1491,7 @@ static int reset_levels (Solver * solver) {
     assert (f->seen);
     f->seen = 0;
   }
-  const long n = stats.conflicts;
+  const long n = stats.conflicts.primal;
   update_ema (solver, &solver->limit.restart.fast, res, n, 3e-2);
   update_ema (solver, &solver->limit.restart.slow, res, n, 1e-5);
   SOG ("new fast moving glue average %.2f", solver->limit.restart.fast);
@@ -1647,14 +1651,14 @@ static int analyze_dual (Solver * solver, Clause * conflict) {
 
 static int reducing (Solver * solver) {
   if (!options.reduce) return 0;
-  if (!stats.conflicts &&
+  if (!stats.conflicts.primal &&
       solver->primal_or_input_fixed >
         solver->limit.reduce.primal_or_input_fixed) return 1;
   return stats.learned > solver->limit.reduce.learned;
 }
 
 static void inc_reduce_limit (Solver * solver) {
-  if (!stats.conflicts) return;
+  if (!stats.conflicts.primal) return;
   long inc = solver->limit.reduce.increment;
   SOG ("reduce interval increment %d", inc);
   assert (inc > 0);
@@ -1741,7 +1745,7 @@ static void reduce (Solver * solver) {
 
 static void inc_restart_limit (Solver * solver) {
   const int inc = MAX (options.restartint, 1);
-  solver->limit.restart.conflicts = stats.conflicts + inc;
+  solver->limit.restart.conflicts = stats.conflicts.primal + inc;
   SOG ("new restart conflicts limit %ld",
     solver->limit.restart.conflicts);
 }
@@ -1750,7 +1754,7 @@ static int restarting (Solver * solver) {
   if (!options.restart) return 0;
   if (solver->last_flipped_level) return 0;
   if (!solver->level) return 0;
-  if (stats.conflicts <= solver->limit.restart.conflicts) return 0;
+  if (stats.conflicts.primal <= solver->limit.restart.conflicts) return 0;
   inc_restart_limit (solver);
   double limit = solver->limit.restart.slow * 1.1;
   int res = solver->limit.restart.fast > limit;

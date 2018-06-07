@@ -1,7 +1,9 @@
 typedef struct Stats Stats;
 
 struct Stats {
-  long decisions, flipped, propagated, conflicts;
+  long decisions, flipped;
+  long dual_shared_units, dual_non_shared_units;
+  struct { long dual, primal; } conflicts, propagated;
   struct { long tracked, jumped, forced, discounting; } back;
   long bumped, searched, learned, subsumed;
   struct { long clauses, literals; } blocked;

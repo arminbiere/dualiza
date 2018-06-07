@@ -9,7 +9,9 @@ void print_statistics () {
   if (options.verbosity < 1) return;
   long resident = maximum_resident_set_size ();
   double seconds = process_time ();
-  if (stats.conflicts || stats.decisions || stats.propagated) {
+  if (stats.decisions ||
+      stats.conflicts.primal || stats.conflicts.dual ||
+      stats.propagated.primal || stats.propagated.dual) {
     if (stats.models.counted)
       msg (1, "%ld counted models (%.1f decisions per model)",
         stats.models.counted,
@@ -18,21 +20,50 @@ void print_statistics () {
       msg (1, "%ld discounted models (%.1f%% per counted model)",
         stats.models.discounted,
 	percent (stats.models.discounted, stats.models.counted));
+    long total = stats.conflicts.primal + stats.conflicts.dual;
     msg (1, "%ld conflicts (%.0f per second)",
-      stats.conflicts, average (stats.conflicts, seconds));
+      total, average (total, seconds));
+    if (stats.conflicts.primal)
+      msg (1, "%ld primal conflicts (%.0f per second)",
+	stats.conflicts.primal,
+	average (stats.conflicts.primal, seconds));
+    if (stats.conflicts.dual)
+      msg (1, "%ld dual conflicts (%.0f per second)",
+	stats.conflicts.dual,
+	average (stats.conflicts.dual, seconds));
+    if (stats.dual_shared_units)
+      msg (1, "%ld dual shared units (%.0f%% dual conflicts)",
+	stats.dual_shared_units,
+	average (stats.dual_shared_units, stats.conflicts.dual));
+    if (stats.dual_non_shared_units)
+      total = stats.dual_shared_units + stats.dual_non_shared_units,
+      msg (1, "%ld dual non-shared units (%.0f%% dual units)",
+	stats.dual_non_shared_units,
+	average (stats.dual_non_shared_units, total));
     msg (1, "%ld decisions (%.0f per second)",
       stats.decisions, average (stats.decisions, seconds));
+    total = stats.propagated.primal + stats.propagated.dual;
     msg (1, "%ld propagations (%.1f million per second)",
-      stats.propagated, average (stats.propagated / 1e6, seconds));
+      total, average (total / 1e6, seconds));
+    if (stats.propagated.primal)
+      msg (1, "%ld primal propagations (%.1f million per second)",
+	stats.propagated.primal,
+	average (stats.propagated.primal / 1e6, seconds));
+    if (stats.propagated.dual)
+      msg (1, "%ld dual propagations (%.1f million per second)",
+	stats.propagated.dual,
+	average (stats.propagated.dual / 1e6, seconds));
     if (stats.back.tracked)
       msg (1, "%ld backtracked (%.0f%% per decision)",
       stats.back.tracked, percent (stats.back.tracked, stats.decisions));
     if (stats.back.jumped)
       msg (1, "%ld back jumped (%.0f%% per conflict)",
-      stats.back.jumped, percent (stats.back.jumped, stats.conflicts));
+      stats.back.jumped,
+      percent (stats.back.jumped, stats.conflicts.primal));
     if (stats.back.forced)
-      msg (1, "%ld forced backtracks (%.0f%% per conflict)",
-      stats.back.forced, percent (stats.back.forced, stats.conflicts));
+      msg (1, "%ld forced backtracks (%.0f%% per primal conflict)",
+      stats.back.forced,
+      percent (stats.back.forced, stats.conflicts.primal));
     if (stats.blocked.clauses)
       msg (1, "%ld blocking clauses (%.1f average length)",
         stats.blocked.clauses,
@@ -41,21 +72,24 @@ void print_statistics () {
       msg (1, "%ld subsumed clauses (%.1f%% of blocking clauses)",
         stats.subsumed, percent (stats.subsumed, stats.blocked.clauses));
     if (stats.restarts)
-      msg (1, "%ld restarts (%.0f conflicts per restart)",
-      stats.restarts, average (stats.conflicts, stats.restarts));
+      msg (1, "%ld restarts (%.0f primal conflicts per restart)",
+        stats.restarts,
+        average (stats.conflicts.primal, stats.restarts));
     if (stats.reused)
       msg (1, "%ld reused (%.0f%% per restart)",
       stats.reused, percent (stats.reused, stats.restarts));
     if (stats.reductions)
-      msg (1, "%ld reductions (%.0f conflicts per reduction)",
-      stats.reductions, average (stats.conflicts, stats.reductions));
+      msg (1, "%ld reductions (%.0f primal conflicts per reduction)",
+      stats.reductions,
+      average (stats.conflicts.primal, stats.reductions));
     if (stats.collected)
       msg (1, "collected %ld clauses (%.0f per reduction)",
       stats.collected, average (stats.collected, stats.reductions));
   }
   if (stats.bumped || stats.searched) {
-    msg (1, "bumped %ld variables (%.1f per conflict)",
-      stats.bumped, average (stats.bumped, stats.conflicts));
+    msg (1, "bumped %ld variables (%.1f per primal conflict)",
+      stats.bumped, average (stats.bumped,
+      stats.conflicts.primal));
     msg (1, "searched %ld variables (%.1f per decision)",
       stats.searched, average (stats.searched, stats.decisions));
   }
