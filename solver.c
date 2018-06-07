@@ -126,6 +126,11 @@ static int val (Solver * solver, int lit) {
   return res;
 }
 
+static int level (Solver * solver, int lit) {
+  assert (val (solver, lit));
+  return var (solver, lit)->level;
+}
+
 static Queue * queue (Solver * solver, Var * v) {
   if (v->type == RELEVANT_VARIABLE) return &solver->queue.relevant;
   if (v->type == IRRELEVANT_VARIABLE) return &solver->queue.irrelevant;
@@ -160,7 +165,7 @@ static void update_queue (Solver * solver, Queue * q, Var * v) {
   q->search = v;
 #ifndef NLOG
   if (v) {
-    SOG ("updating %s variable %d in %s queue",
+    SOG ("updating to search %s variable %d next in %s queue",
       var_type (v), (int)(long)(v - solver->vars), queue_type (solver, q));
   } else SOG ("empty %s queue", queue_type (solver, q));
 #endif
@@ -1237,10 +1242,12 @@ static void flush_primal_garbage_occurrences (Solver * solver) {
 
 static void subsume (Solver * solver, Clause * c) {
   assert (!c->redundant);
-  mark_clause (solver, c);
   int limit = MAX (options.subsumelimit, 0);
+  SOG ("trying to subsume at most %d clauses", limit);
   assert (!c->dual);
+  mark_clause (solver, c);
   Clause ** p = solver->cnf.primal->clauses.top;
+  int count = 0;
   while (p != solver->cnf.primal->clauses.start) {
     Clause * d = *--p;
     if (d == c) continue;
@@ -1249,9 +1256,11 @@ static void subsume (Solver * solver, Clause * c) {
       SOGCLS (d, "subsumed");
       d->garbage = 1;
       stats.subsumed++;
+      count++;
     } else if (!limit--) break;
   }
   unmark_clause (solver, c);
+  SOG ("subsumed %d clauses", count);
   if (stats.subsumed <= solver->limit.subsumed) return;
   flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (solver->cnf.primal);
@@ -1267,10 +1276,10 @@ static void add_decision_blocking_clause (Solver * solver) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
   int first = f->decision;
-  SOG ("adding decision blocking clause for decision %d", first);
-  assert (!f->flipped);
-  assert (first = TOP (solver->trail));
   stats.blocked.clauses++;
+  SOG ("adding decision blocking clause %ld for decision %d at level %d",
+    stats.blocked.clauses, first, level (solver, first));
+  assert (!f->flipped);
   assert (EMPTY (solver->clause));
   for (int level = solver->level; level > 0; level--) {
     f = solver->frames.start + level;
@@ -1284,7 +1293,7 @@ static void add_decision_blocking_clause (Solver * solver) {
   const int size = COUNT (solver->clause);
   stats.blocked.literals += size;
   SOG ("found blocking clause of length %d", size);
-  assert (!size || solver->clause.start[0] == -first);
+  assert (size <= 1 || solver->clause.start[0] == -first);
   int other;
   for (;;) {
     other = TOP (solver->trail);
@@ -1309,7 +1318,7 @@ static int blocking (Solver * solver) {
   if (!options.block) return 0;
   assert (solver->level >= solver->num_flipped_levels);
   const int size = solver->num_decision_levels;
-  SOG ("expected blocking clause size %d", size);
+  SOG ("expecting blocking clause of size %d", size);
   assert (size == solver->level - solver->num_flipped_levels);
   return size <= options.blocklimit;
 }
@@ -1330,9 +1339,9 @@ static int satisfied (Solver * solver) {
 static void
 backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
   assert (solver->last_decision_level > 0);
-  SOG ("backtracking to last non-flipped decision level %d",
-    solver->last_decision_level);
   stats.back.tracked++;
+  SOG ("backtracking %ld to last non-flipped decision level %d",
+    stats.back.tracked, solver->last_decision_level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
