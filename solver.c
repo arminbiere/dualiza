@@ -614,7 +614,6 @@ static void dec_flipped_levels (Solver * solver) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
   assert (f->flipped);
-  assert (decision_type (solver, f->flipped) == FLIPPED);
   assert (solver->num_flipped_levels > 0);
   solver->num_flipped_levels--;
   solver->last_flipped_level = f->prev;
@@ -659,8 +658,10 @@ static void flip_last_decision (Solver * solver) {
   Var * v = var (solver, decision);
   assert (v->level == solver->level);
   assert (v->decision == DECISION);
+  assert (!f->flipped);
   dec_decision_levels (solver);
   v->decision = FLIPPED;
+  f->flipped = 1;
   SOG ("%s flip %d", var_type (v), decision);
   inc_flipped_levels (solver);
   SOG ("%s assign %d", var_type (v), -decision);
@@ -673,12 +674,13 @@ static void flip_last_decision (Solver * solver) {
 
 /*------------------------------------------------------------------------*/
 
-static void unassign (Solver * solver, int lit) {
+static DecisionType unassign (Solver * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
   SOG ("%s unassign %d", var_type (v), lit);
   assert (v->val);
   v->val = 0;
+  const DecisionType res = v->decision;
   v->decision = UNDECIDED;
   if (v->reason)
     mark_clause_inactive (v->reason, cnf (solver, v->reason));
@@ -688,6 +690,7 @@ static void unassign (Solver * solver, int lit) {
       update_queue (solver, q, v);
   }
   inc_unassigned (solver, v);
+  return res;
 }
 
 static void connect_primal_literal (Solver * solver, Clause * c, int lit) {
@@ -1287,8 +1290,7 @@ static void add_decision_blocking_clause (Solver * solver) {
     other = TOP (solver->trail);
     const DecisionType decision = decision_type (solver, other);
     (void) POP (solver->trail);
-    unassign (solver, other);
-    if (decision != UNDECIDED) dec_level (solver);
+    if (unassign (solver, other) != UNDECIDED) dec_level (solver);
     if (other == decision) break;
   }
   Clause * c = new_clause (solver->clause.start, size);
@@ -1336,8 +1338,7 @@ backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
     Var * v = var (solver, lit);
     assert (v->level >= solver->last_decision_level);
     if (v->level == solver->last_decision_level) break;
-    unassign (solver, lit);
-    if (v->decision == FLIPPED) dec_level (solver);
+    if (unassign (solver, lit) == FLIPPED) dec_level (solver);
     (void) POP (solver->trail);
   }
   if (blocking (solver)) {
@@ -1523,8 +1524,7 @@ backjump_on_primal_conflict (Solver * solver, Clause * c, int level) {
     Var * v = var (solver, lit);
     if (v->level == level) break;
     (void) POP (solver->trail);
-    const DecisionType decision = v->decision;
-    unassign (solver, lit);
+    const DecisionType decision = unassign (solver, lit);
     if (decision == UNDECIDED) continue;
     if (decision == FLIPPED) discount (solver);
     dec_level (solver);
@@ -1760,9 +1760,7 @@ static void restart (Solver * solver) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
     if (v->level == level) break;
-    const DecisionType decision = v->decision;
-    assert (decision != FLIPPED);
-    unassign (solver, lit);
+    const DecisionType decision = unassign (solver, lit);
     if (decision != UNDECIDED) dec_level (solver);
     (void) POP (solver->trail);
   }
