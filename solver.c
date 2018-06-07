@@ -544,10 +544,22 @@ static DecisionType decision_type (Solver * solver, int lit) {
   return var (solver, lit)->decision;
 }
 
+static Frame * frame_at_level (Solver * solver, int level) {
+  assert (0 <= level);
+  assert (level < (int) COUNT (solver->frames));
+  assert (level <= solver->level);
+  return solver->frames.start + level;
+}
+
 static Frame * last_frame (Solver * solver) {
-  assert (0 <= solver->level);
-  assert (solver->level < (int) COUNT (solver->frames));
-  return solver->frames.start + solver->level;
+  return frame_at_level (solver, solver->level);
+}
+
+static int last_decision (Solver * solver) {
+  assert (solver->last_decision_level > 0);
+  Frame * f = frame_at_level (solver, solver->last_decision_level);
+  assert (!f->flipped);
+  return f->decision;
 }
 
 /*------------------------------------------------------------------------*/
@@ -1340,13 +1352,13 @@ static void
 backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
   assert (solver->last_decision_level > 0);
   stats.back.tracked++;
-  SOG ("backtracking %ld to last non-flipped decision level %d",
-    stats.back.tracked, solver->last_decision_level);
-  while (!EMPTY (solver->trail)) {
-    const int lit = TOP (solver->trail);
+  int decision = last_decision (solver);
+  SOG ("backtracking %ld to decision %d at last non-flipped level %d",
+    stats.back.tracked, decision, solver->last_decision_level);
+  int lit;
+  while ((lit = TOP (solver->trail)) != decision) {
     Var * v = var (solver, lit);
     assert (v->level >= solver->last_decision_level);
-    if (v->level == solver->last_decision_level) break;
     if (unassign (solver, lit) == FLIPPED) dec_level (solver);
     (void) POP (solver->trail);
   }
