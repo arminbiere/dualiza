@@ -885,7 +885,7 @@ primal_report (Solver * solver, int verbosity, const char type) {
     type,
     process_time (),
     current_resident_set_size ()/(double)(1<<20),
-    stats.conflicts,
+    stats.conflicts.primal,
     solver->cnf.primal->redundant,
     solver->cnf.primal->irredundant,
     remaining_variables (solver),
@@ -900,24 +900,23 @@ static void dual_header (Solver * solver) {
     "  "
     "        "
     "        "
-    "          "
-    "  learned"
-    "   primal"
-    "   dual  "
+    "primal "
+    "   dual "
+    " learned"
+    " primal"
+    " dual "
     "variables"
-    "  log2"
-    "   log2");
+    " log2"
+    "  log2");
   msg (1,
     "  "
     "    time"
     "  memory"
-    " conflicts"
-    "  clauses"
-    "  clauses"
-    "  clauses"
+    "   conflicts    "
+    "       clauses  "
     "        "
-    " models"
-    "  count");
+    "    models"
+    " count");
   msg (1, "");
 }
 
@@ -931,19 +930,21 @@ dual_report (Solver * solver, int verbosity, const char type) {
   inc_model_report_limit (solver);
   msg (1,
     "%c"
-    " %8.2f"
+    " %7.2f"
     " %7.1f"
-    " %9ld"
-    " %8ld"
-    " %8ld"
-    " %8ld"
+    " %6ld"
     " %7ld"
     " %6ld"
-    " %6ld",
+    " %6ld"
+    " %6ld"
+    " %7ld"
+    " %6ld"
+    " %5ld",
     type,
     process_time (),
     current_resident_set_size ()/(double)(1<<20),
-    stats.conflicts,
+    stats.conflicts.primal,
+    stats.conflicts.dual,
     solver->cnf.primal->redundant,
     solver->cnf.primal->irredundant,
     solver->cnf.dual->irredundant,
@@ -1804,12 +1805,14 @@ static void restart (Solver * solver) {
 }
 
 static void solve (Solver * solver) {
+long tmp = solver->cnf.dual ? solver->cnf.dual->irredundant : 0;
   if (model_limit_reached (solver)) return;
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) { (void) new_model (solver); return; }
   if (!connect_dual_cnf (solver)) return;
   for (;;) {
+assert (tmp == (solver->cnf.dual ? solver->cnf.dual->irredundant : 0));
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze_primal (solver, conflict)) return;
