@@ -234,7 +234,7 @@ static void init_restart_limit (Solver * solver) {
 
 static void set_subsumed_limit (Solver * solver) {
   solver->limit.subsumed += solver->cnf.primal->irredundant/10;
-  SOG ("subsumed limit %ld", solver->limit.subsumed);
+  SOG ("new subsume limit %ld", solver->limit.subsumed);
 }
 
 static void init_limits (Solver * solver) {
@@ -1241,6 +1241,7 @@ static void flush_primal_garbage_occurrences (Solver * solver) {
 }
 
 static void subsume (Solver * solver, Clause * c) {
+  if (c->size <= 1) return;
   assert (!c->redundant);
   int limit = MAX (options.subsumelimit, 0);
   SOG ("trying to subsume at most %d clauses", limit);
@@ -1297,10 +1298,9 @@ static void add_decision_blocking_clause (Solver * solver) {
   int other;
   for (;;) {
     other = TOP (solver->trail);
-    const DecisionType decision = decision_type (solver, other);
     (void) POP (solver->trail);
     if (unassign (solver, other) != UNDECIDED) dec_level (solver);
-    if (other == decision) break;
+    if (other == first) break;
   }
   Clause * c = new_clause (solver->clause.start, size);
   assert (!c->glue), assert (!c->redundant);
