@@ -126,10 +126,14 @@ static int val (Solver * solver, int lit) {
   return res;
 }
 
+#ifndef NDEBUG
+
 static int level (Solver * solver, int lit) {
   assert (val (solver, lit));
   return var (solver, lit)->level;
 }
+
+#endif
 
 static Queue * queue (Solver * solver, Var * v) {
   if (v->type == RELEVANT_VARIABLE) return &solver->queue.relevant;
@@ -540,9 +544,13 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   dec_unassigned (solver, v);
 }
 
+#ifndef NDEBUG
+
 static DecisionType decision_type (Solver * solver, int lit) {
   return var (solver, lit)->decision;
 }
+
+#endif
 
 static Frame * frame_at_level (Solver * solver, int level) {
   assert (0 <= level);
@@ -661,7 +669,7 @@ static void dec_level (Solver * solver) {
   else dec_decision_levels (solver);
   solver->level--;
   SOG ("decremented solver level");
-  POP (solver->frames);
+  (void) POP (solver->frames);
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
@@ -1361,8 +1369,10 @@ backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
     stats.back.tracked, decision, solver->last_decision_level);
   int lit;
   while ((lit = TOP (solver->trail)) != decision) {
+#ifndef NDEBUG
     Var * v = var (solver, lit);
     assert (v->level >= solver->last_decision_level);
+#endif
     if (unassign (solver, lit) == FLIPPED) dec_level (solver);
     (void) POP (solver->trail);
   }
