@@ -23,11 +23,10 @@ void print_statistics () {
     long total = stats.conflicts.primal + stats.conflicts.dual;
     msg (1, "%ld conflicts (%.0f per second)",
       total, average (total, seconds));
-    if (stats.conflicts.primal)
+    if (stats.conflicts.primal && stats.conflicts.dual)
       msg (1, "%ld primal conflicts (%.0f per second)",
 	stats.conflicts.primal,
-	average (stats.conflicts.primal, seconds));
-    if (stats.conflicts.dual)
+	average (stats.conflicts.primal, seconds)),
       msg (1, "%ld dual conflicts (%.0f per second)",
 	stats.conflicts.dual,
 	average (stats.conflicts.dual, seconds));
@@ -45,11 +44,10 @@ void print_statistics () {
     total = stats.propagated.primal + stats.propagated.dual;
     msg (1, "%ld propagations (%.1f million per second)",
       total, average (total / 1e6, seconds));
-    if (stats.propagated.primal)
+    if (stats.propagated.primal && stats.propagated.dual)
       msg (1, "%ld primal propagations (%.1f million per second)",
 	stats.propagated.primal,
-	average (stats.propagated.primal / 1e6, seconds));
-    if (stats.propagated.dual)
+	average (stats.propagated.primal / 1e6, seconds)),
       msg (1, "%ld dual propagations (%.1f million per second)",
 	stats.propagated.dual,
 	average (stats.propagated.dual / 1e6, seconds));
