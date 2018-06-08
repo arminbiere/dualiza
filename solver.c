@@ -1838,7 +1838,6 @@ int primal_sat (Solver * solver) {
 }
 
 int dual_sat (Solver * solver) {
-  msg (1, "dual checking");
   assert (solver->dual_solving_enabled);
   limit_number_of_partial_models (solver, 1);
   solve (solver);
@@ -1846,28 +1845,24 @@ int dual_sat (Solver * solver) {
 }
 
 void primal_count (Number models, Solver * solver) {
-  msg (1, "primal counting");
   assert (!solver->dual_solving_enabled);
   solve (solver);
   copy_number (models, solver->count);
 }
 
 void dual_count (Number models, Solver * solver) {
-  msg (1, "dual counting");
   assert (solver->dual_solving_enabled);
   solve (solver);
   copy_number (models, solver->count);
 }
 
 void primal_enumerate (Solver * solver, Name name) {
-  msg (1, "primal enumeration");
   assert (!solver->dual_solving_enabled);
   enable_model_printing (solver, name);
   solve (solver);
 }
 
 void dual_enumerate (Solver * solver, Name name) {
-  msg (1, "dual enumeration");
   assert (solver->dual_solving_enabled);
   enable_model_printing (solver, name);
   solve (solver);

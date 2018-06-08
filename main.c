@@ -344,6 +344,7 @@ static int check () {
       primal_cnf = new_cnf (0);
       circuit = tautology ? dual_circuit : primal_circuit;
       encode_circuit (circuit, primal_cnf);
+      msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
     } else {
       msg (1, "checking with dual SAT engine");
       primal_cnf = new_cnf (0);
@@ -357,6 +358,8 @@ static int check () {
 	circuit = primal_circuit;
 	encode_circuits (circuit, dual_circuit, primal_cnf, dual_cnf);
       }
+      msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
+      msg (1, "dual CNF with %ld clauses", dual_cnf->irredundant);
     }
     IntStack inputs;
     INIT (inputs);
