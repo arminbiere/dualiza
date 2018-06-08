@@ -1,5 +1,8 @@
 #include "headers.h"
 
+int sat_competition_mode;
+
+#if 0
 static void usage () {
 fputs (
 "usage: dualiza [ <option> ... ] [ <file> ] [ <limit> ]\n"
@@ -60,7 +63,6 @@ fputs (
 , stdout);
 }
 
-int sat_competition_mode;
 static int formula, aiger, dimacs, negate;
 static int printing, checking, counting;
 static int sat, tautology, enumerate;
@@ -645,3 +647,25 @@ int main (int argc, char ** argv) {
   assert (!stats.bytes.current);
   return res;
 }
+#else
+int main () {
+  Number a;
+  init_number (a);
+  add_power_of_two_to_number (a, 32);
+  add_power_of_two_to_number (a, 64);
+  add_power_of_two_to_number (a, 96);
+  println_number (a);
+  Number b;
+  init_number (b);
+  copy_number (b, a);
+  sub_power_of_two_from_number (b, 64);
+  println_number (b);
+  sub_number (a, b);
+  println_number (a);
+  sub_number (a, a);
+  println_number (a);
+  clear_number (a);
+  clear_number (b);
+  return 0;
+}
+#endif

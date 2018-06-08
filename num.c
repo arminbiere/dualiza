@@ -226,9 +226,11 @@ void sub_number (Number res, const Number other) {
     carry >>= 32;
   }
   assert (!carry);
+  normalize_number (res);
 }
 
 void print_number_to_file (Number n, FILE * file) {
+  if (is_zero_number (n)) { fputc ('0', file); return; }
   CharStack stack;
   INIT (stack);
   print_number_to_stack (n, &stack);
