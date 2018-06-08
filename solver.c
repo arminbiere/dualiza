@@ -688,6 +688,7 @@ static void dec_level (Solver * solver) {
   SOG ("decremented solver level");
   if (f->counted2) {
     clear_number (f->count);
+    LOG ("TODO NEED TO DO ACCUMULATED DISCOUNTING!");
     // TODO add to which next flipped level?
   }
   (void) POP (solver->frames);
