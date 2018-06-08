@@ -660,9 +660,7 @@ int main () {
   copy_number (b, a);
   sub_power_of_two_from_number (b, 64);
   println_number (b);
-  sub_number (a, b);
-  println_number (a);
-  sub_number (a, a);
+  sub_number (b, a);
   println_number (a);
   clear_number (a);
   clear_number (b);
