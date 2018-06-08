@@ -503,6 +503,7 @@ static void count () {
     msg (1, "counting with primal SAT engine");
     CNF * cnf = new_cnf (0);
     encode_circuit (primal_circuit, cnf);
+    msg (1, "primal CNF with %ld clauses", cnf->irredundant);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
@@ -524,6 +525,8 @@ static void count () {
     CNF * primal_cnf = new_cnf (0);
     CNF * dual_cnf = new_cnf (1);
     encode_circuits (primal_circuit, dual_circuit, primal_cnf, dual_cnf);
+    msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
+    msg (1, "dual CNF with %ld clauses", dual_cnf->irredundant);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);

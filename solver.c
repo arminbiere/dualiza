@@ -1805,14 +1805,12 @@ static void restart (Solver * solver) {
 }
 
 static void solve (Solver * solver) {
-long tmp = solver->cnf.dual ? solver->cnf.dual->irredundant : 0;
   if (model_limit_reached (solver)) return;
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
   if (satisfied (solver)) { (void) new_model (solver); return; }
   if (!connect_dual_cnf (solver)) return;
   for (;;) {
-assert (tmp == (solver->cnf.dual ? solver->cnf.dual->irredundant : 0));
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze_primal (solver, conflict)) return;
