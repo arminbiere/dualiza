@@ -4,7 +4,7 @@
 #define OPTIONS_ALL \
  \
 OPTION (annotate,     0, "annotate generated") \
-OPTION (block,        1, "use blocking clauses") \
+OPTION (block,        0, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
 OPTION (blocklimit,   2, "blocking clause size limit") \
 OPTION (discount,     1, "discount models instead of backtracking") \

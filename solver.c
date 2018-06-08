@@ -3,10 +3,27 @@
 #ifdef NLOG
 #define SOG(...) do { } while (0)
 #define SOGCLS(...) do { } while (0)
+#define SOGNUM(...) do { } while (0)
 #else
 #define SOG(FMT,ARGS...) LOG ("%d " FMT, solver->level, ##ARGS)
 #define SOGCLS(C,FMT,ARGS...) LOGCLS (C, "%d " FMT, solver->level, ##ARGS)
+#define SOGNUM(N,FMT,ARGS...) LOGNUM (N, "%d " FMT, solver->level, ##ARGS)
 #endif
+
+/*------------------------------------------------------------------------*/
+
+#define COVER(COND) \
+do { \
+  if (!(COND)) break; \
+  fflush (stdout); \
+  fprintf (stderr, \
+    "dualiza: %s:%d: %s: Coverage target `%s' reached.\n", \
+    __FUNCTION__, __LINE__, __FILE__, # COND); \
+  fflush (stderr);  \
+  abort (); \
+} while (0)
+
+/*------------------------------------------------------------------------*/
 
 typedef struct Var Var;
 typedef struct Queue Queue;
@@ -53,9 +70,10 @@ struct Queue {			// VMTF decision queue
 struct Frame {
   char seen;			// seen during conflict analysis
   char flipped;			// already flipped
+  char counted2;		// count valid
   int decision;			// current decision literal
-  int counted;			// number of counted unassigned variables
   int prev;			// prev decision or flipped level
+  Number count;
 };
 
 struct Limit {
@@ -126,7 +144,7 @@ static int val (Solver * solver, int lit) {
   return res;
 }
 
-#ifndef NDEBUG
+#ifndef NLOG
 
 static int level (Solver * solver, int lit) {
   assert (val (solver, lit));
@@ -207,9 +225,8 @@ static void dequeue (Solver * solver, Var * v) {
 
 static Frame new_frame (Solver * solver, int decision) {
   Frame res;
-  res.seen = res.flipped = 0;
+  res.seen = res.flipped = res.counted2 = 0;
   res.decision = decision;
-  res.counted = -1;
   res.prev = 0;
   return res;
 }
@@ -669,11 +686,15 @@ static void dec_level (Solver * solver) {
   else dec_decision_levels (solver);
   solver->level--;
   SOG ("decremented solver level");
+  if (f->counted2) {
+    clear_number (f->count);
+    // TODO add to which next flipped level?
+  }
   (void) POP (solver->frames);
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
-static void flip_last_decision (Solver * solver) {
+static void flip_last_decision (Solver * solver, int counted) {
   stats.flipped++;
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
@@ -695,6 +716,12 @@ static void flip_last_decision (Solver * solver) {
   POKE (solver->trail, n, -decision);
   adjust_next (solver, n);
   v->val = -v->val;
+  if (counted < 0) return;
+  assert (!f->counted2);
+  f->counted2 = 1;
+  SOG ("saving count 2^%d", counted);
+  init_number (f->count);
+  add_power_of_two_to_number (f->count, counted);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1086,21 +1113,12 @@ static Clause * primal_propagate (Solver * solver) {
   return res;
 }
 
+#if 0
 static Frame * current_frame (Solver * solver) {
   assert (solver->level < COUNT (solver->frames));
   return solver->frames.start + solver->level;
 }
-
-static void save_count (Solver * solver, int counted) {
-  Frame * frame = current_frame (solver);
-  assert (frame->counted < 0);
-  if (frame->flipped) {
-    SOG ("saving count 2^%d", counted);
-    frame->counted = counted;
-  } else {
-    SOG ("not saving count 2^%d since not flipped", counted);
-  }
-}
+#endif
 
 static Clause * dual_propagate (Solver * solver) {
   if (!solver->dual_solving_enabled) return 0;
@@ -1370,19 +1388,13 @@ backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
     stats.back.tracked, decision, solver->last_decision_level);
   int lit;
   while ((lit = TOP (solver->trail)) != decision) {
-#ifndef NDEBUG
-    Var * v = var (solver, lit);
-    assert (v->level >= solver->last_decision_level);
-#endif
     if (unassign (solver, lit) == FLIPPED) dec_level (solver);
     (void) POP (solver->trail);
   }
   if (blocking (solver)) {
     add_decision_blocking_clause (solver);
   } else {
-    flip_last_decision (solver);
-    if (counted >= 0) save_count (solver, counted);
-    else assert (last_frame (solver)->counted < 0);
+    flip_last_decision (solver, counted);
     adjust_next_to_trail (solver);
   }
 }
@@ -1524,7 +1536,7 @@ static int jump_level (Solver * solver) {
   return res;
 }
 
-static Clause * learn_clause (Solver * solver, int glue, int level) {
+static Clause * learn_primal_clause (Solver * solver, int glue, int level) {
   stats.learned++;
   const int size = COUNT (solver->clause);
   SOG ("learning clause number %ld of size %zd", stats.learned, size);
@@ -1544,8 +1556,9 @@ static void discount (Solver * solver) {
   stats.models.discounted++;
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
-  SOG ("discounting 2^%d", f->counted);
-  sub_power_of_two_from_number (solver->count, f->counted);
+  if (!f->counted2) return;
+  SOGNUM (f->count, "discounting");
+  sub_number (solver->count, f->count);
   report (solver, 3, 'd');
 }
 
@@ -1616,7 +1629,7 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
 	  solver->last_flipped_level);
 	stats.back.discounting++;
 	SOG ("discounting backtrack %ld", stats.back.discounting);
-	learn = 0;
+	learn = 1;
       } else {
 	SOG ("flipped frame %d forces backtracking without discounting",
 	  solver->last_flipped_level);
@@ -1624,14 +1637,14 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
 	stats.back.forced++;
 	learn = 0;
       }
-    }
+    } else learn = 1;
   } else {
     SOG ("learning disabled");
     level = solver->level - 1;
     learn = 0;
   }
   if (learn) {
-    Clause * c = learn_clause (solver, glue, level);
+    Clause * c = learn_primal_clause (solver, glue, level);
     return backjump_on_primal_conflict (solver, c, level);
   } else {
     CLEAR (solver->clause);

@@ -24,6 +24,7 @@ void add_power_of_two_to_number (Number, Exponent);
 void sub_power_of_two_from_number (Number, Exponent);
 
 void add_number (Number, const Number);
+void sub_number (Number, const Number);
 
 void print_number_to_file (Number, FILE *);
 void println_number_to_file (Number, FILE *);
