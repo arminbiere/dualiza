@@ -112,3 +112,9 @@ void print_statistics () {
     resident, resident / (double)(1<<20));
   msg (1, "process time %.2f seconds", seconds);
 }
+
+Rules rules;
+
+void print_rules () {
+  if (options.verbosity < 1) return;
+}
