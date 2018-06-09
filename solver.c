@@ -72,7 +72,11 @@ struct Frame {
   char flipped;			// already flipped
   char counted2;		// count valid
   int decision;			// current decision literal
-  int prev;			// prev decision or flipped level
+  struct {
+    int flipped;		// prev flipped level
+    int decision;		// prev decision level
+    int relevant;		// prev relevant level
+  } prev;
   Number count;
 };
 
@@ -102,6 +106,7 @@ struct Solver {
   struct { int primal, dual; } next;
   int last_flipped_level, num_flipped_levels;
   int last_decision_level, num_decision_levels;
+  int last_relevant_level, num_relevant_levels;
   int unassigned_primal_and_input_variables;
   int unassigned_input_variables;
   int primal_or_input_fixed;
@@ -227,7 +232,7 @@ static Frame new_frame (Solver * solver, int decision) {
   Frame res;
   res.seen = res.flipped = res.counted2 = 0;
   res.decision = decision;
-  res.prev = 0;
+  res.prev.flipped = res.prev.decision = res.prev.relevant = 0;
   return res;
 }
 
@@ -609,6 +614,9 @@ static void inc_solver_level (Solver * solver) {
 /*------------------------------------------------------------------------*/
 
 // Maintain a global count 'num_decision_levels' of actual decision levels.
+// Since we also need precise information about the last decision level with
+// a relevant variable as decision we have a separate linked list of
+// relevant decision levels, which is also updated here.
 
 static void inc_decision_levels (Solver * solver) {
   assert (solver->level > 0);
@@ -616,11 +624,19 @@ static void inc_decision_levels (Solver * solver) {
   assert (!f->flipped);
   assert (decision_type (solver, f->decision) == DECISION);
   solver->num_decision_levels++;
-  f->prev = solver->last_decision_level;
+  f->prev.decision = solver->last_decision_level;
   solver->last_decision_level = solver->level;
   SOG ("incremented number decision levels to %d",
     solver->num_decision_levels);
   SOG ("new last decision level %d", solver->last_decision_level);
+  if (is_relevant_var (var (solver, f->decision))) {
+    solver->num_relevant_levels++;
+    f->prev.relevant = solver->last_relevant_level;
+    solver->last_relevant_level = solver->level;
+    SOG ("incremented number relevant levels to %d",
+      solver->num_relevant_levels);
+    SOG ("new last relevant level %d", solver->last_relevant_level);
+  }
 }
 
 static void dec_decision_levels (Solver * solver) {
@@ -629,10 +645,18 @@ static void dec_decision_levels (Solver * solver) {
   assert (!f->flipped);
   assert (solver->num_decision_levels > 0);
   solver->num_decision_levels--;
-  solver->last_decision_level = f->prev;
+  solver->last_decision_level = f->prev.decision;
   SOG ("decremented number decision levels to %d",
     solver->num_decision_levels);
   SOG ("new last decision level %d", solver->last_decision_level);
+  if (is_relevant_var (var (solver, f->decision))) {
+    assert (solver->num_relevant_levels > 0);
+    solver->num_relevant_levels--;
+    solver->last_relevant_level = f->prev.relevant;
+    SOG ("decremented number relevant levels to %d",
+      solver->num_relevant_levels);
+    SOG ("new last relevant level %d", solver->last_decision_level);
+  }
 }
 
 /*------------------------------------------------------------------------*/
@@ -645,7 +669,7 @@ static void inc_flipped_levels (Solver * solver) {
   assert (f->flipped);
   assert (decision_type (solver, f->decision) == FLIPPED);
   solver->num_flipped_levels++;
-  f->prev = solver->last_flipped_level;
+  f->prev.flipped = solver->last_flipped_level;
   solver->last_flipped_level = solver->level;
   SOG ("incremented number flipped levels to %d",
     solver->num_flipped_levels);
@@ -658,7 +682,7 @@ static void dec_flipped_levels (Solver * solver) {
   assert (f->flipped);
   assert (solver->num_flipped_levels > 0);
   solver->num_flipped_levels--;
-  solver->last_flipped_level = f->prev;
+  solver->last_flipped_level = f->prev.flipped;
   SOG ("decremented number flipped levels to %d",
     solver->num_flipped_levels);
   SOG ("new last flipped level %d", solver->last_flipped_level);
