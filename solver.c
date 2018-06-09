@@ -1649,8 +1649,13 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
   assert (conflict);
   assert (!conflict->dual);
   if (!solver->last_decision_level) {
-    SOG ("primal conflict without any decisions");
+    SOG ("primal conflict without any decisions left");
     RULE (EP0);
+    return 0;
+  }
+  if (!solver->last_relevant_level) {
+    SOG ("primal conflict without any relevant decisions left");
+    RULE (AP0);
     return 0;
   }
   int glue = resolve_primal_conflict (solver, conflict), level, learn;
@@ -1698,7 +1703,7 @@ static int analyze_dual (Solver * solver, Clause * conflict) {
   int counted;
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_decision_level) {
-    SOG ("no more decisions left");
+    SOG ("dual conflict without any decisions left");
     RULE (EN0);
     return 0;
   }
