@@ -70,8 +70,9 @@ struct Queue {			// VMTF decision queue
 struct Frame {
   char seen;			// seen during conflict analysis
   char flipped;			// already flipped
-  char counted2;		// count valid
+  char counted;		// count valid
   int decision;			// current decision literal
+  int trail;			// trail position of decision
   struct {
     int flipped;		// prev flipped level
     int decision;		// prev decision level
@@ -232,7 +233,8 @@ static void dequeue (Solver * solver, Var * v) {
 static void push_frame (Solver * solver, int decision) {
   Frame f;
   f.decision = decision;
-  f.seen = f.flipped = f.counted2 = 0;
+  f.seen = f.flipped = f.counted = 0;
+  f.trail = COUNT (solver->trail);
   f.prev.flipped = f.prev.decision = f.prev.relevant = 0;
   PUSH (solver->frames, f);
 }
@@ -257,7 +259,7 @@ static int decision_at_level (Solver * solver, int level) {
 
 static void pop_frame (Solver * solver) {
   Frame f = POP (solver->frames);
-  if (f.counted2) clear_number (f.count);
+  if (f.counted) clear_number (f.count);
 }
 
 static Frame * frame (Solver * solver, int lit) {
@@ -729,20 +731,16 @@ static void dec_level (Solver * solver) {
   else dec_decision_levels (solver);
   solver->level--;
   SOG ("decremented solver level");
-  if (f->counted2) {
-    LOG ("TODO NEED TO DO ACCUMULATED DISCOUNTING!");
-    // TODO add to which next flipped level?
-  }
   pop_frame (solver);
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
-static void flip_last_decision (Solver * solver, int counted) {
+static void flip_decision (Solver * solver) {
   stats.flipped++;
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
   int decision = f->decision;
-  assert (TOP (solver->trail) == decision);
+  assert (PEEK (solver->trail, f->trail) == decision);
   assert (val (solver, decision) > 0);
   Var * v = var (solver, decision);
   assert (v->level == solver->level);
@@ -754,17 +752,9 @@ static void flip_last_decision (Solver * solver, int counted) {
   SOG ("%s flip %d", var_type (v), decision);
   inc_flipped_levels (solver);
   SOG ("%s assign %d", var_type (v), -decision);
-  int n = COUNT (solver->trail) - 1;
-  assert (PEEK (solver->trail, n) == decision);
-  POKE (solver->trail, n, -decision);
-  adjust_next (solver, n);
+  POKE (solver->trail, f->trail, -decision);
+  adjust_next (solver, f->trail);
   v->val = -v->val;
-  if (counted < 0) return;
-  assert (!f->counted2);
-  f->counted2 = 1;
-  SOG ("saving count 2^%d", counted);
-  init_number (f->count);
-  add_power_of_two_to_number (f->count, counted);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1434,6 +1424,42 @@ static int blocking (Solver * solver, int target_level) {
 
 /*------------------------------------------------------------------------*/
 
+static void
+check_no_relevant_decision_above_level (Solver * solver, int level) {
+#ifndef NDEBUG
+  for (int i = level + 1; i <= solver->level; i++) {
+    Frame * f = frame_at_level (solver, i);
+    if (f->flipped) continue;
+    const int decision = f->decision;
+    Var * v = var (solver, decision);
+    assert (!is_relevant_var (v));
+  }
+#endif
+}
+
+static void
+check_no_decision_above_level (Solver * solver, int level) {
+#ifndef NDEBUG
+  for (int i = level + 1; i <= solver->level; i++) {
+    Frame * f = frame_at_level (solver, i);
+    assert (f->flipped);
+  }
+#endif
+}
+
+static void
+check_is_relevant_decision_at_level (Solver * solver, int level) {
+#ifndef NDEBUG
+  assert (level > 0);
+  Frame * f = frame_at_level (solver, level);
+  assert (!f->flipped);
+  Var * v = var (solver, level);
+  assert (is_relevant_var (v));
+#endif
+}
+
+/*------------------------------------------------------------------------*/
+
 // Without the dual part we find models as in a standard CDCL solvers, i.e.,
 // if all variables are propagated in the primal part without getting a
 // conflict then the formula is supposed to be satisfied.
@@ -1445,6 +1471,8 @@ static int primal_satisfied (Solver * solver) {
   return res;
 }
 
+#ifndef NLOG
+
 static int last_relevant_decision (Solver * solver) {
   assert (solver->last_relevant_level > 0);
   Frame * f = frame_at_level (solver, solver->last_relevant_level);
@@ -1454,32 +1482,15 @@ static int last_relevant_decision (Solver * solver) {
   return res;
 }
 
-// Common backtracking.
-
-#if 0
-static void
-backtrack_to_last_non_flipped_decision (Solver * solver, int counted) {
-  assert (solver->last_relevant_level > 0);
-  stats.back.tracked++;
-  int decision = last_relevant_decision (solver);
-  SOG ("backtracking %ld to decision %d at last non-flipped level %d",
-    stats.back.tracked, decision, solver->last_decision_level);
-  int lit;
-  while ((lit = TOP (solver->trail)) != decision) {
-    if (unassign (solver, lit) == FLIPPED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
-  if (blocking (solver)) {
-    add_decision_blocking_clause (solver);
-  } else {
-    flip_last_decision (solver, counted);
-    adjust_next_to_trail (solver);
-  }
-}
 #endif
 
-static void backtrack_primal_blocking (Solver * solver, int level) {
+static void
+backtrack_primal_satisfied_learn (Solver * solver, int level) {
+  SOG ("applying primal satisfied learning rule");
   RULE (BP1L);
+  assert (primal_satisfied (solver));
+  check_is_relevant_decision_at_level (solver, level);
+  check_no_relevant_decision_above_level (solver, level);
   int lit, decision = decision_at_level (solver, level);
   while ((lit = TOP (solver->trail)) != decision) {
     if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
@@ -1488,14 +1499,43 @@ static void backtrack_primal_blocking (Solver * solver, int level) {
   add_decision_blocking_clause (solver);
 }
 
-static void backtrack_primal_flipping (Solver * solver, int level) {
+static void
+backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
+{
+  SOG ("applying primal satisfied flipping rule");
   RULE (BP1F);
+
+  assert (counted >= 0);
+  assert (primal_satisfied (solver));
+  check_is_relevant_decision_at_level (solver, level);
+  check_no_relevant_decision_above_level (solver, level);
+
   int lit, decision = decision_at_level (solver, level);
+  Frame * f = frame_at_level (solver, level);
+  assert (!f->counted);
+  f->counted = 1;
+  init_number (f->count);
+  add_power_of_two_to_number (f->count, counted);
+  SOGNUM (f->count, "initialized flipping count to 2^%d =", counted);
+
   while ((lit = TOP (solver->trail)) != decision) {
-    if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
+    const DecisionType type = unassign (solver, lit);
+    if (type == DECISION) dec_level (solver);
+    else if (type == FLIPPED) {
+      Frame * g = last_frame (solver);
+      assert (g->decision == lit);
+      if (counted) {
+	SOGNUM (g->count, "accumulating flipping count");
+	add_number (f->count, g->count);
+      }
+      dec_level (solver);
+    }
     (void) POP (solver->trail);
   }
-  flip_last_decision (solver, counted);
+  assert (f->counted);
+  SOGNUM (f->count, "final flipping count");
+
+  flip_decision (solver);
   adjust_next_to_trail (solver);
 }
 
@@ -1513,12 +1553,29 @@ static int backtrack_primal_satisfied (Solver * solver) {
   int level = solver->last_relevant_level;
   SOG ("backtracking to last relevant decision %d at level %d",
     last_relevant_decision (solver), level);
-  if (blocking (solver, level)) backtrack_primal_blocking (solver, level);
-  else backtrack_primal_flipping (solver, level);
+  if (blocking (solver, level))
+    backtrack_primal_satisfied_learn (solver, level);
+  else backtrack_primal_satisfied_flip (solver, level, counted);
   return 1;
 }
 
-static void backtrack_on_primal_conflict (Solver * solver) {
+/*------------------------------------------------------------------------*/
+
+static void
+backtrack_primal_conflict_learn (Solver * solver, int level) {
+  SOG ("applying primal conflict learning rule");
+  RULE (BP0L);
+  check_is_relevant_decision_at_level (solver, level);
+  check_no_decision_above_level (solver, level);
+  int lit, decision = decision_at_level (solver, level);
+  while ((lit = TOP (solver->trail)) != decision) {
+    if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
+    (void) POP (solver->trail);
+  }
+  add_decision_blocking_clause (solver);
+}
+
+static void backtrack_primal_conflict (Solver * solver) {
   SOG ("backtracking due to primal conflict");
   backtrack_to_last_non_flipped_decision (solver, -1);
 }
@@ -1662,14 +1719,14 @@ static void discount (Solver * solver) {
   stats.models.discounted++;
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
-  if (!f->counted2) return;
+  if (!f->counted) return;
   SOGNUM (f->count, "discounting");
   sub_number (solver->count, f->count);
   report (solver, 3, 'd');
 }
 
 static int
-backjump_on_primal_conflict (Solver * solver, Clause * c, int level) {
+backjump_primal_conflict (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   stats.back.jumped++;
@@ -1756,10 +1813,10 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
 
   if (learn) {
     Clause * c = learn_primal_clause (solver, glue, level);
-    return backjump_on_primal_conflict (solver, c, level);
+    return backjump_primal_conflict (solver, c, level);
   } else {
     CLEAR (solver->clause);
-    backtrack_on_primal_conflict (solver);
+    backtrack_primal_conflict (solver);
     return 1;
   }
 }
