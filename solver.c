@@ -1100,7 +1100,7 @@ static Clause * primal_propagate (Solver * solver) {
       } else if (!other_val) {
 	SOGCLS (c, "forcing %d", other);
 	assign (solver, other, c);
-        rules.UP++;
+        RULE (UP);
       } else {
 	assert (other_val < 0);
 	stats.conflicts.primal++;
@@ -1169,15 +1169,15 @@ static Clause * dual_propagate (Solver * solver) {
 	assume_decision (solver, -other);
 	SOGCLS (c, "conflict");
 	stats.conflicts.dual++;
-	if (is_relevant_var (var (solver, other))) rules.UNX++;
-	else rules.UNY++;
+	if            (is_relevant_var (var (solver, other)))   RULE (UNX);
+	else { assert (is_irrelevant_var (var (solver,other))); RULE (UNY); }
 	res = c;
       } else {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "dual unit %d", other);
 	assign (solver, other, c);
 	stats.dual_non_shared_units++;
-	rules.UNT++;
+	RULE (UNT);
       }
     }
     if (res) {
@@ -1222,9 +1222,9 @@ static Var * next_decision (Solver * solver) {
 
 static void decide (Solver * solver) {
   Var * v = next_decision (solver);
-  if (is_relevant_var (v)) rules.DX++;
-  else if (is_irrelevant_var (v)) rules.DY++;
-  else assert (is_primal_var (v)), rules.DS++;
+             if (is_relevant_var (v))   RULE (DX);
+  else       if (is_irrelevant_var (v)) RULE (DY);
+  else { assert (is_primal_var (v));    RULE (DS); }
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   SOG ("%s decide %d", var_type (v), lit);
@@ -1414,7 +1414,7 @@ static int backtrack_satisfied (Solver * solver) {
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_decision_level) {
     SOG ("no more decisions left");
-    rules.EP1++;
+    RULE (EP1);
     return 0;
   }
   backtrack_to_last_non_flipped_decision (solver, counted);
@@ -1626,7 +1626,7 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
   assert (!conflict->dual);
   if (!solver->last_decision_level) {
     SOG ("primal conflict without any decisions");
-    rules.EP0++;
+    RULE (EP0);
     return 0;
   }
   int glue = resolve_primal_conflict (solver, conflict), level, learn;

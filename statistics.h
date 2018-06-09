@@ -3,6 +3,12 @@ typedef struct Rules Rules;
 
 /*------------------------------------------------------------------------*/
 
+#define RULE(NAME) \
+do { \
+  rules.NAME++; \
+  LOG ("RULE %s %ld", #NAME, rules.NAME); \
+} while (0)
+
 struct Rules {
   long EP1, EP0,  EPN;
   long BP0, BN0F, BN0L;
