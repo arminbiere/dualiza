@@ -112,7 +112,7 @@ struct Solver {
   int unassigned_input_variables;
   int primal_or_input_fixed;
   int dual_non_input_fixed;
-  IntStack trail, clause, levels, * sorted;
+  IntStack trail, clause, levels, relevant;
   FrameStack frames;
   VarStack seen;
   Limit limit;
@@ -317,7 +317,6 @@ Solver * new_solver (CNF * primal,
     solver->cnf.dual = 0;
     solver->dual_solving_enabled = 0;
   }
-  solver->sorted = shared;
   int max_input_var = 0;
   for (const int * p = shared->start; p < shared->top; p++) {
     int input = abs (*p);
@@ -387,6 +386,7 @@ Solver * new_solver (CNF * primal,
     if (!relevant || v->type) {
       assert (!relevant || v->type == RELEVANT_VARIABLE);
       SOG ("relevant shared variable %d", idx);
+      PUSH (solver->relevant, idx);
       count_relevant++;
     } else {
       SOG ("irrelevant shared variable %d", idx);
@@ -487,6 +487,7 @@ void delete_solver (Solver * solver) {
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
+  RELEASE (solver->relevant);
   RELEASE (solver->clause);
   RELEASE (solver->levels);
   DEALLOC (solver->vars, solver->max_var+1);
@@ -843,12 +844,13 @@ static void connect_dual_clause (Solver * solver, Clause * c) {
 
 static void print_model (Solver * solver) {
   assert (solver->model_printing_enabled);
-  const int n = COUNT (*solver->sorted);
+  const int n = COUNT (solver->relevant);
   int first = 1;
   for (int i = 0; i < n; i++) {
-    const int lit = PEEK (*solver->sorted, i);
+    const int lit = PEEK (solver->relevant, i);
     const int tmp = val (solver, lit);
     if (!tmp) continue;
+    if (!is_relevant_var (var (solver, i))) continue;
     if (!first) fputc (' ', stdout);
     if (tmp < 0) fputc ('!', stdout);
     fputs (solver->name.get (solver->name.state, lit), stdout);
@@ -1030,9 +1032,9 @@ static void first_model (Solver * solver) {
 }
 
 static int new_model (Solver * solver) {
-  int unassigned = solver->unassigned_input_variables;
+  int unassigned = solver->unassigned_relevant_variables;
   stats.models.counted++;
-  SOG ("model %ld with %d unassigned shared variables",
+  SOG ("model %ld with %d unassigned shared relevant variables",
     stats.models, unassigned);
   if (stats.models.counted == 1) first_model (solver);
   if (solver->model_printing_enabled) print_model (solver);
