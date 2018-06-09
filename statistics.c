@@ -1,12 +1,26 @@
 #include "headers.h"
 
 Stats stats;
+Rules rules;
 
 static double average (double a, double b) { return b ? a / b : 0; }
 static double percent (double a, double b) { return b ? 100*a / b : 0; }
 
 void print_statistics () {
   if (options.verbosity < 1) return;
+  msg (1, "");
+  msg (1, "---- [rules] ---------------------------------------------");
+  msg (1, "");
+  msg (1, "%10ld EP0 %10ld EPN", rules.EP0, rules.EPN);
+  msg (1, "%10ld BP0 %10ld BN0F %10ld BN0L", rules.BP0, rules.BN0F, rules.BN0L);
+  msg (1, "%10ld AP0 %10ld AP0F %10ld AP0L", rules.AP0, rules.AP0F, rules.AP0L);
+  msg (1, "%10ld JP0 %10ld JN0F %10ld JN0L", rules.JP0, rules.JN0F, rules.JN0L);
+  msg (1, "%10ld DX  %10ld DYS", rules.DX, rules.DYS);
+  msg (1, "%10ld UP  %10ld UNXY", rules.UP, rules.UNT);
+  msg (1, "%10ld FP  %10ld FN", rules.FP, rules.FN);
+  msg (1, "");
+  msg (1, "---- [statistics] ----------------------------------------");
+  msg (1, "");
   long resident = maximum_resident_set_size ();
   double seconds = process_time ();
   if (stats.decisions ||
@@ -106,15 +120,12 @@ void print_statistics () {
       stats.symbol.lookups, stats.symbol.collisions,
       stats.symbol.lookups ?
         stats.symbol.collisions/(double) stats.symbol.lookups : 0.0);
+  msg (1, "");
+  msg (1, "---- [resources] -----------------------------------------");
+  msg (1, "");
   msg (1, "maximum allocated %ld bytes (%.1f MB)",
     stats.bytes.max, stats.bytes.max / (double)(1<<20));
   msg (1, "maximum resident set size %ld bytes (%.1f MB)",
     resident, resident / (double)(1<<20));
   msg (1, "process time %.2f seconds", seconds);
-}
-
-Rules rules;
-
-void print_rules () {
-  if (options.verbosity < 1) return;
 }
