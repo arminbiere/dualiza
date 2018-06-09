@@ -108,6 +108,7 @@ struct Solver {
   int last_decision_level, num_decision_levels;
   int last_relevant_level, num_relevant_levels;
   int unassigned_primal_and_input_variables;
+  int unassigned_relevant_variables;
   int unassigned_input_variables;
   int primal_or_input_fixed;
   int dual_non_input_fixed;
@@ -397,6 +398,7 @@ Solver * new_solver (CNF * primal,
   SOG ("found %ld irrelevant shared variables", count_irrelevant);
   assert (count_relevant + count_irrelevant == COUNT (*shared));
   assert (!relevant || count_relevant == COUNT (*relevant));
+  solver->unassigned_relevant_variables = count_relevant;
   long count_primal = 0;
   for (int idx = max_input_var + 1; idx <= max_primal_var; idx++) {
     Var * v = var (solver, idx);
@@ -509,6 +511,10 @@ static void dec_unassigned (Solver * solver, Var * v) {
     assert (solver->unassigned_input_variables > 0);
     solver->unassigned_input_variables--;
   }
+  if (is_relevant_var (v)) {
+    assert (solver->unassigned_relevant_variables > 0);
+    solver->unassigned_relevant_variables--;
+  }
 }
 
 static void inc_unassigned (Solver * solver, Var * v) {
@@ -519,6 +525,10 @@ static void inc_unassigned (Solver * solver, Var * v) {
   if (is_input_var (v)) {
     solver->unassigned_input_variables++;
     assert (solver->unassigned_input_variables > 0);
+  }
+  if (is_relevant_var (v)) {
+    solver->unassigned_relevant_variables++;
+    assert (solver->unassigned_relevant_variables > 0);
   }
 }
 
