@@ -4,13 +4,13 @@ typedef struct Rules Rules;
 /*------------------------------------------------------------------------*/
 
 struct Rules {
-  long EP0, EPN;
+  long EP1, EP0,  EPN;
   long BP0, BN0F, BN0L;
   long AP0, AP0F, AP0L;
   long JP0, JN0F, JN0L;
-  long DX, DYS;
-  long UP, UNXY, UNT;
-  long FP, FN;
+  long DX,  DY,   DS;
+  long UP,  UNX,  UNY, UNT;
+  long FP,  FN;
 };
 
 /*------------------------------------------------------------------------*/

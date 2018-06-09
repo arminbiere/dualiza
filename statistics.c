@@ -11,12 +11,18 @@ void print_statistics () {
   msg (1, "");
   msg (1, "---- [rules] ---------------------------------------------");
   msg (1, "");
-  msg (1, "%10ld EP0 %10ld EPN", rules.EP0, rules.EPN);
-  msg (1, "%10ld BP0 %10ld BN0F %10ld BN0L", rules.BP0, rules.BN0F, rules.BN0L);
-  msg (1, "%10ld AP0 %10ld AP0F %10ld AP0L", rules.AP0, rules.AP0F, rules.AP0L);
-  msg (1, "%10ld JP0 %10ld JN0F %10ld JN0L", rules.JP0, rules.JN0F, rules.JN0L);
-  msg (1, "%10ld DX  %10ld DYS", rules.DX, rules.DYS);
-  msg (1, "%10ld UP  %10ld UNXY", rules.UP, rules.UNT);
+  msg (1, "%10ld EP1 %10ld EP0  %10ld EPN",
+           rules.EP1,rules.EP0, rules.EPN);
+  msg (1, "%10ld BP0 %10ld BN0F %10ld BN0L",
+           rules.BP0,rules.BN0F,rules.BN0L);
+  msg (1, "%10ld AP0 %10ld AP0F %10ld AP0L",
+           rules.AP0,rules.AP0F,rules.AP0L);
+  msg (1, "%10ld JP0 %10ld JN0F %10ld JN0L",
+           rules.JP0,rules.JN0F,rules.JN0L);
+  msg (1, "%10ld DX  %10ld DY   %10ld DS",
+           rules.DX, rules.DY,  rules.DS);
+  msg (1, "%10ld UP  %10ld UNX  %10ld UNY  %10ld UNT",
+	   rules.UP, rules.UNX, rules.UNY, rules.UNT);
   msg (1, "%10ld FP  %10ld FN", rules.FP, rules.FN);
   msg (1, "");
   msg (1, "---- [statistics] ----------------------------------------");
