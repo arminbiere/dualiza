@@ -11,8 +11,8 @@ void print_statistics () {
   msg (1, "");
   msg (1, "---- [rules] ---------------------------------------------");
   msg (1, "");
-  msg (1, "%10ld EP1 %10ld EP0  %10ld EPN",
-           rules.EP1,rules.EP0, rules.EPN);
+  msg (1, "%10ld EP1 %10ld EP0  %10ld EN0",
+           rules.EP1,rules.EP0, rules.EN0);
   msg (1, "%10ld BP0 %10ld BN0F %10ld BN0L",
            rules.BP0,rules.BN0F,rules.BN0L);
   msg (1, "%10ld AP0 %10ld AP0F %10ld AP0L",

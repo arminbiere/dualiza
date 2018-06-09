@@ -1675,6 +1675,7 @@ static int analyze_dual (Solver * solver, Clause * conflict) {
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_decision_level) {
     SOG ("no more decisions left");
+    RULE (EN0);
     return 0;
   }
   backtrack_to_last_non_flipped_decision (solver, counted);
