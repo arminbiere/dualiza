@@ -1619,6 +1619,7 @@ backjump_on_primal_conflict (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   stats.back.jumped++;
+  RULE (JP0);
   SOG ("back jump %ld to level %d", stats.back.jumped, level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
@@ -1677,7 +1678,9 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
     RULE (AP0);
     return 0;
   }
+
   int glue = resolve_primal_conflict (solver, conflict), level, learn;
+
   if (options.learn) {
     level = jump_level (solver);
     assert (solver->last_flipped_level <= solver->level);
@@ -1701,6 +1704,7 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
     level = solver->level - 1;
     learn = 0;
   }
+
   if (learn) {
     Clause * c = learn_primal_clause (solver, glue, level);
     return backjump_on_primal_conflict (solver, c, level);
