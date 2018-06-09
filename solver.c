@@ -229,12 +229,35 @@ static void dequeue (Solver * solver, Var * v) {
   v->next = v->prev = 0;
 }
 
-static Frame new_frame (Solver * solver, int decision) {
-  Frame res;
-  res.seen = res.flipped = res.counted2 = 0;
-  res.decision = decision;
-  res.prev.flipped = res.prev.decision = res.prev.relevant = 0;
-  return res;
+static void push_frame (Solver * solver, int decision) {
+  Frame f;
+  f.decision = decision;
+  f.seen = f.flipped = f.counted2 = 0;
+  f.prev.flipped = f.prev.decision = f.prev.relevant = 0;
+  PUSH (solver->frames, f);
+}
+
+static Frame * frame_at_level (Solver * solver, int level) {
+  assert (0 <= level);
+  assert (level < (int) COUNT (solver->frames));
+  assert (level <= solver->level);
+  return solver->frames.start + level;
+}
+
+static Frame * last_frame (Solver * solver) {
+  return frame_at_level (solver, solver->level);
+}
+
+static int last_decision (Solver * solver) {
+  assert (solver->last_decision_level > 0);
+  Frame * f = frame_at_level (solver, solver->last_decision_level);
+  assert (!f->flipped);
+  return f->decision;
+}
+
+static void pop_frame (Solver * solver) {
+  Frame f = POP (solver->frames);
+  if (f.counted2) clear_number (f.count);
 }
 
 static Frame * frame (Solver * solver, int lit) {
@@ -394,6 +417,8 @@ Solver * new_solver (CNF * primal,
       count_irrelevant++;
     }
   }
+  assert (count_relevant == COUNT (solver->relevant));
+  assert (count_irrelevant == max_input_var - count_relevant);
   SOG ("found %ld relevant shared variables", count_relevant);
   SOG ("found %ld irrelevant shared variables", count_irrelevant);
   assert (count_relevant + count_irrelevant == COUNT (*shared));
@@ -427,7 +452,7 @@ Solver * new_solver (CNF * primal,
   solver->phase = options.phaseinit ? 1 : -1;
   SOG ("default initial phase %d", solver->phase);
   init_limits (solver);
-  PUSH (solver->frames, new_frame (solver, 0));
+  push_frame (solver, 0);
   assert (COUNT (solver->frames) == solver->level + 1);
   init_number (solver->count);
   if (options.relevant) force_splitting_on_relevant_first (solver);
@@ -484,6 +509,7 @@ void delete_solver (Solver * solver) {
   DEALLOC (solver->occs.primal, solver->max_lit + 1);
   if (solver->dual_solving_enabled)
     DEALLOC (solver->occs.dual, solver->max_lit + 1);
+  while (!EMPTY (solver->frames))
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
@@ -584,24 +610,6 @@ static DecisionType decision_type (Solver * solver, int lit) {
 }
 
 #endif
-
-static Frame * frame_at_level (Solver * solver, int level) {
-  assert (0 <= level);
-  assert (level < (int) COUNT (solver->frames));
-  assert (level <= solver->level);
-  return solver->frames.start + level;
-}
-
-static Frame * last_frame (Solver * solver) {
-  return frame_at_level (solver, solver->level);
-}
-
-static int last_decision (Solver * solver) {
-  assert (solver->last_decision_level > 0);
-  Frame * f = frame_at_level (solver, solver->last_decision_level);
-  assert (!f->flipped);
-  return f->decision;
-}
 
 /*------------------------------------------------------------------------*/
 
@@ -705,7 +713,7 @@ static void assume_decision (Solver * solver, int lit) {
   inc_solver_level (solver);
   SOG ("assume decision %d", lit);
   stats.decisions++;
-  PUSH (solver->frames, new_frame (solver, lit));
+  push_frame (solver, lit);
   Var * v = var (solver, lit);
   assert (!v->decision);
   assert (v->decision == UNDECIDED);
@@ -722,11 +730,10 @@ static void dec_level (Solver * solver) {
   solver->level--;
   SOG ("decremented solver level");
   if (f->counted2) {
-    clear_number (f->count);
     LOG ("TODO NEED TO DO ACCUMULATED DISCOUNTING!");
     // TODO add to which next flipped level?
   }
-  (void) POP (solver->frames);
+  pop_frame (solver);
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
