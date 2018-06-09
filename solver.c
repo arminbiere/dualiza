@@ -1766,6 +1766,7 @@ static void reduce (Solver * solver) {
     if (c->garbage) continue;
     SOGCLS (c, "marking garbage");
     c->garbage = 1;
+    RULE (FP);
     marked++;
   }
   RELEASE (candidates);
