@@ -1527,11 +1527,13 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
   check_is_relevant_decision_at_level (solver, level);
   check_no_relevant_decision_above_level (solver, level);
 
-  int lit, decision = decision_at_level (solver, level);
   Frame * f = frame_at_level (solver, level);
   add_power_of_two_to_number (f->count, counted);
-  SOGNUM (f->count, "initialized flipping count to 2^%d =", counted);
+  SOGNUM (f->count,
+    "initialized level %d flipping count to 2^%d =",
+    level, counted);
 
+  int lit, decision = decision_at_level (solver, level);
   while ((lit = TOP (solver->trail)) != decision) {
     const Decision type = unassign (solver, lit);
     if (type == DECISION) dec_level (solver);
@@ -1539,14 +1541,15 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
       Frame * g = last_frame (solver);
       assert (g->decision == lit);
       if (counted) {
-	SOGNUM (g->count, "accumulating flipping count");
+	SOGNUM (g->count,
+	  "accumulating level %d flipping count", level);
 	add_number (f->count, g->count);
       }
       dec_level (solver);
     }
     (void) POP (solver->trail);
   }
-  SOGNUM (f->count, "final flipping count");
+  SOGNUM (f->count, "final level %d flipping count", level);
 
   flip_decision (solver);
   adjust_next_to_trail (solver);
@@ -1745,7 +1748,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   stats.back.jumped++;
   SOG ("back jump %ld to level %d", stats.back.jumped, level);
   if (level) RULE (JP0);
-  else       RULE (AP0), solver->found_new_fixed_variable = 1;
+  else     { RULE (AP0); solver->found_new_fixed_variable = 1; }
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -1760,6 +1763,21 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (solver->level == level);
   adjust_next_to_trail (solver);
   assign (solver, forced, c);
+}
+
+/*------------------------------------------------------------------------*/
+
+static void
+backtrack_primal_conflict_flip (Solver * solver, int level) {
+  assert (level);
+  assert (level == solver->last_decision_level);
+  stats.back.tracked++;
+#if !defined(NDEBUG) || !defined(NLOG)
+  Frame * f = frame_at_level (solver, level);
+  assert (!f->flipped);
+#endif
+  SOG ("backtracking to decision %d at level %d", f->decision, level);
+  RULE (BPF0);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1836,12 +1854,13 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 
   if (learn) {
     Clause * c = learn_primal_clause (solver, glue, level);
-    return backjump_primal_conflict_learn (solver, c, level);	// JP0/AP0
+    backjump_primal_conflict_learn (solver, c, level);
   } else {
     CLEAR (solver->clause);
-    backtrack_primal_conflict_flip (solver);			// BP0F
-    return 1;
+    backtrack_primal_conflict_flip (solver, level);
   }
+
+  return 1;
 }
 
 /*------------------------------------------------------------------------*/

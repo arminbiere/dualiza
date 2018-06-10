@@ -138,9 +138,9 @@ void parse_error (Reader * r, Char ch, const char * fmt, ...) {
   exit (1);
 }
 
-Info get_file_type (Reader * reader) {
+Info get_file_info (Reader * reader) {
   assert (reader);
-  msg (2, "trying to determine file type of input file '%s'", reader->name);
+  msg (2, "trying to determine file info of input file '%s'", reader->name);
   Info res = FORMULA;
   int ch = peek_char (reader);
   long count = 1;
@@ -170,7 +170,7 @@ Info get_file_type (Reader * reader) {
       }
     }
   }
-  msg (2, "assuming %s file type after peeking at %ld characters",
+  msg (2, "assuming %s file info after peeking at %ld characters",
     (res==AIGER ? "AIGER" : (res==DIMACS ? "DIMACS" : "formula")), count);
   reader->info = res;
   return res;
