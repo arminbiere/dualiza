@@ -14,7 +14,7 @@ struct Reader {
   Buffer * buffer;
   CharStack symbol;
   Coo coo;
-  Info type;
+  Info info;
 };
 
 Reader * new_reader_from_stdin ();
@@ -27,6 +27,6 @@ Char next_non_white_space_char (Reader *);
 void prev_char (Reader *, Char);
 int peek_char (Reader *);
 
-Info get_file_type (Reader *);
+Info get_file_info (Reader *);
 
 void parse_error (Reader *, Char ch, const char * fmt, ...);

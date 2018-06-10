@@ -28,12 +28,11 @@ do { \
 /*------------------------------------------------------------------------*/
 
 typedef struct Var Var;
+typedef enum Type Type;
 typedef struct Queue Queue;
 typedef struct Frame Frame;
 typedef struct Limit Limit;
-typedef enum Type Type;
 typedef enum Decision Decision;
-typedef enum Mode Mode;
 
 typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
@@ -172,7 +171,7 @@ static Queue * queue (Solver * solver, Var * v) {
 
 #ifndef NLOG
 
-static const char * var_type (Var * v) {
+static const char * type (Var * v) {
   assert (v);
   if (v->type == PRIMAL_VARIABLE) return "primal";
   if (v->type == RELEVANT_VARIABLE ) return "relevant";
@@ -197,7 +196,7 @@ static void update_queue (Solver * solver, Queue * q, Var * v) {
 #ifndef NLOG
   if (v) {
     SOG ("updating to search %s variable %d next in %s queue",
-      var_type (v), (int)(long)(v - solver->vars), queue_type (solver, q));
+      type (v), (int)(long)(v - solver->vars), queue_type (solver, q));
   } else SOG ("empty %s queue", queue_type (solver, q));
 #endif
 }
@@ -208,7 +207,7 @@ static void enqueue (Solver * solver, Var * v) {
   assert (!v->prev);
   v->stamp = ++solver->queue.stamp;
   SOG ("%s enqueue variable %d stamp %ld",
-    var_type (v), var2idx (solver, v), v->stamp);
+    type (v), var2idx (solver, v), v->stamp);
   if (!q->first) q->first = v;
   if (q->last) q->last->next = v;
   v->prev = q->last;
@@ -219,7 +218,7 @@ static void enqueue (Solver * solver, Var * v) {
 static void dequeue (Solver * solver, Var * v) {
   Queue * q = queue (solver, v);
   SOG ("%s dequeue variable %d stamp %ld",
-    var_type (v), var2idx (solver, v), v->stamp);
+    type (v), var2idx (solver, v), v->stamp);
   if (v->prev) assert (v->prev->next == v), v->prev->next = v->next;
   else assert (q->first == v), q->first = v->next;
   if (v->next) assert (v->next->prev == v), v->next->prev = v->prev;
@@ -587,9 +586,9 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   Var * v = solver->vars + idx;
   if (!reason) {
     assert (v->decision == DECISION || v->decision == FLIPPED);
-    SOG ("%s assign %d %s", var_type (v), lit,
+    SOG ("%s assign %d %s", type (v), lit,
       v->decision == FLIPPED ? "flipped" : "decision"); 
-  } else SOGCLS (reason, "%s assign %d reason", var_type (v), lit);
+  } else SOGCLS (reason, "%s assign %d reason", type (v), lit);
   assert (!v->val);
   if (lit < 0) v->val = v->phase = -1;
   else v->val = v->phase = 1;
@@ -751,9 +750,9 @@ static void flip_decision (Solver * solver) {
   dec_decision_levels (solver);
   v->decision = FLIPPED;
   f->flipped = 1;
-  SOG ("%s flip %d", var_type (v), decision);
+  SOG ("%s flip %d", type (v), decision);
   inc_flipped_levels (solver);
-  SOG ("%s assign %d", var_type (v), -decision);
+  SOG ("%s assign %d", type (v), -decision);
   POKE (solver->trail, f->trail, -decision);
   adjust_next (solver, f->trail);
   v->val = -v->val;
@@ -764,7 +763,7 @@ static void flip_decision (Solver * solver) {
 static Decision unassign (Solver * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
-  SOG ("%s unassign %d", var_type (v), lit);
+  SOG ("%s unassign %d", type (v), lit);
   assert (v->val);
   v->val = 0;
   const Decision res = v->decision;
@@ -1251,7 +1250,7 @@ static Var * next_decision (Solver * solver) {
   }
   assert (res);
   SOG ("next %s decision %d stamped %ld",
-    var_type (res), var2idx (solver, res), res->stamp);
+    type (res), var2idx (solver, res), res->stamp);
   return res;
 }
 
@@ -1262,7 +1261,7 @@ static void decide (Solver * solver) {
   else { assert (is_primal_var (v));    RULE (DS); }
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
-  SOG ("%s decide %d", var_type (v), lit);
+  SOG ("%s decide %d", type (v), lit);
   assume_decision (solver, lit);
 }
 
@@ -1375,7 +1374,7 @@ static void add_decision_blocking_clause (Solver * solver) {
     PUSH (solver->clause, -decision);
     SOG ("adding %s %s literal %d from decision level %d",
       f->flipped ? "flipped" : "decision",
-      var_type (var (solver, decision)), -decision, level);
+      type (var (solver, decision)), -decision, level);
   }
   const int size = COUNT (solver->clause);
   stats.blocked.literals += size;
@@ -1579,7 +1578,7 @@ backtrack_primal_conflict_learn (Solver * solver, int level) {
 
 static void backtrack_primal_conflict (Solver * solver) {
   SOG ("backtracking due to primal conflict");
-  backtrack_to_last_non_flipped_decision (solver, -1);
+  // backtrack_to_last_non_flipped_decision (solver, -1);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1590,7 +1589,7 @@ static int resolve_literal (Solver * solver, int lit) {
   if (v->seen) return 0;
   v->seen = 1;
   PUSH (solver->seen, v);
-  SOG ("%s seen literal %d", var_type (v), lit);
+  SOG ("%s seen literal %d", type (v), lit);
   assert (val (solver, lit) < 0);
   Frame * f = frame (solver, lit);
   if (!f->seen) {
@@ -1599,7 +1598,7 @@ static int resolve_literal (Solver * solver, int lit) {
     f->seen = 1;
   }
   if (v->level == solver->level) return 1;
-  SOG ("%s adding literal %d", var_type (v), lit);
+  SOG ("%s adding literal %d", type (v), lit);
   PUSH (solver->clause, lit);
   return 0;
 }
@@ -1628,7 +1627,7 @@ static void sort_seen (Solver * solver) {
 
 static void bump_variable (Solver * solver, Var * v) {
   stats.bumped++;
-  SOG ("%s bump variable %d", var_type (v), var2idx (solver, v));
+  SOG ("%s bump variable %d", type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
 }
@@ -1640,7 +1639,7 @@ static void bump_reason_clause_literals (Solver * solver, Clause * c) {
     Var * v = var (solver, idx);
     if (v->seen) continue;
     if (!v->level) continue;
-    SOG ("also marking %s reason variable %d as seen", var_type (v), idx);
+    SOG ("also marking %s reason variable %d as seen", type (v), idx);
     PUSH (solver->seen, v);
     v->seen = 1;
   }
@@ -1767,10 +1766,10 @@ static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
     while (!var (solver, (uip = *--p))->seen)
       ;
     if (!--unresolved) break;
-    SOG ("%s resolving literal %d", var_type (var (solver, uip)), uip);
+    SOG ("%s resolving literal %d", type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
   }
-  SOG ("%s first UIP literal %d", var_type (var (solver, uip)), uip);
+  SOG ("%s first UIP literal %d", type (var (solver, uip)), uip);
   PUSH (solver->clause, -uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);
@@ -1826,7 +1825,7 @@ static int resolve_literal (Solver * solver, int lit) {
   if (v->seen) return 0;
   v->seen = 1;
   PUSH (solver->seen, v);
-  SOG ("%s seen literal %d", var_type (v), lit);
+  SOG ("%s seen literal %d", type (v), lit);
   assert (val (solver, lit) < 0);
   Frame * f = frame (solver, lit);
   if (!f->seen) {
@@ -1835,7 +1834,7 @@ static int resolve_literal (Solver * solver, int lit) {
     f->seen = 1;
   }
   if (v->level == solver->level) return 1;
-  SOG ("%s adding literal %d", var_type (v), lit);
+  SOG ("%s adding literal %d", type (v), lit);
   PUSH (solver->clause, lit);
   return 0;
 }
@@ -1864,7 +1863,7 @@ static void sort_seen (Solver * solver) {
 
 static void bump_variable (Solver * solver, Var * v) {
   stats.bumped++;
-  SOG ("%s bump variable %d", var_type (v), var2idx (solver, v));
+  SOG ("%s bump variable %d", type (v), var2idx (solver, v));
   dequeue (solver, v);
   enqueue (solver, v);
 }
@@ -1876,7 +1875,7 @@ static void bump_reason_clause_literals (Solver * solver, Clause * c) {
     Var * v = var (solver, idx);
     if (v->seen) continue;
     if (!v->level) continue;
-    SOG ("also marking %s reason variable %d as seen", var_type (v), idx);
+    SOG ("also marking %s reason variable %d as seen", type (v), idx);
     PUSH (solver->seen, v);
     v->seen = 1;
   }
@@ -2003,10 +2002,10 @@ static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
     while (!var (solver, (uip = *--p))->seen)
       ;
     if (!--unresolved) break;
-    SOG ("%s resolving literal %d", var_type (var (solver, uip)), uip);
+    SOG ("%s resolving literal %d", type (var (solver, uip)), uip);
     c = var (solver, uip)->reason;
   }
-  SOG ("%s first UIP literal %d", var_type (var (solver, uip)), uip);
+  SOG ("%s first UIP literal %d", type (var (solver, uip)), uip);
   PUSH (solver->clause, -uip);
   if (options.bump) bump_seen (solver);
   reset_seen (solver);

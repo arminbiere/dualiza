@@ -183,11 +183,11 @@ static void parse (const char * input_name) {
   setup_input (input_name);
   assert (input);
   symbols = new_symbols ();
-  Type type = get_file_type (input);
-  if (type == FORMULA) {
+  Info info = get_file_info (input);
+  if (info == FORMULA) {
     msg (1, "parsing input as formula");
     primal_circuit = parse_formula (input, symbols);
-  } else if (type == DIMACS) {
+  } else if (info == DIMACS) {
     if (checking) {
       msg (1, "switching to SAT solver competition mode");
       sat_competition_mode = 1;
@@ -195,7 +195,7 @@ static void parse (const char * input_name) {
     msg (1, "parsing input as DIMACS file");
     primal_circuit = parse_dimacs (input, symbols);
   } else {
-    assert (type == AIGER);
+    assert (info == AIGER);
     msg (1, "parsing input as AIGER file");
     primal_circuit = parse_aiger (input, symbols);
   }

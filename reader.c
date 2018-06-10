@@ -89,15 +89,15 @@ Char next_non_white_space_char (Reader * r) {
   for (;;) {
     while (is_space_character ((ch = next_char (r)).code))
       ;
-    if (ch.code == 'c' && r->type == DIMACS) goto SKIP_REST_OF_LINE;
-    else if (ch.code == '-' && r->type == FORMULA) {
+    if (ch.code == 'c' && r->info == DIMACS) goto SKIP_REST_OF_LINE;
+    else if (ch.code == '-' && r->info == FORMULA) {
       if ((ch = next_char (r)).code == '-') goto SKIP_REST_OF_LINE;
       if (ch.code == '>') {
 	ch.code = IMPLIES;
 	break;
       }
       else parse_error (r, ch, "expected '-' or '>' after '-'");
-    } else if (ch.code == '<' && r->type == FORMULA) {
+    } else if (ch.code == '<' && r->info == FORMULA) {
       if ((ch = next_char (r)).code != '-')
 	parse_error (r, ch, "expected '-' after '<'");
       if ((ch = next_char (r)).code != '>')
@@ -138,10 +138,10 @@ void parse_error (Reader * r, Char ch, const char * fmt, ...) {
   exit (1);
 }
 
-Type get_file_type (Reader * reader) {
+Info get_file_type (Reader * reader) {
   assert (reader);
   msg (2, "trying to determine file type of input file '%s'", reader->name);
-  Type res = FORMULA;
+  Info res = FORMULA;
   int ch = peek_char (reader);
   long count = 1;
   if (ch == 'a') {
@@ -172,6 +172,6 @@ Type get_file_type (Reader * reader) {
   }
   msg (2, "assuming %s file type after peeking at %ld characters",
     (res==AIGER ? "AIGER" : (res==DIMACS ? "DIMACS" : "formula")), count);
-  reader->type = res;
+  reader->info = res;
   return res;
 }
