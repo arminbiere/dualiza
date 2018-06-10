@@ -1,5 +1,7 @@
 #include "headers.h"
 
+/*------------------------------------------------------------------------*/
+
 #ifdef NLOG
 #define SOG(...) do { } while (0)
 #define SOGCLS(...) do { } while (0)
@@ -29,32 +31,32 @@ typedef struct Var Var;
 typedef struct Queue Queue;
 typedef struct Frame Frame;
 typedef struct Limit Limit;
-typedef enum VarType VarType;
-typedef enum DecisionType DecisionType;
+typedef enum Type Type;
+typedef enum Decision Decision;
 typedef enum Mode Mode;
 
 typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
 
-enum VarType {
+enum Type {
   RELEVANT_VARIABLE = 0,
   IRRELEVANT_VARIABLE = 1,
   PRIMAL_VARIABLE = 2,
   DUAL_VARIABLE = 3,
 };
 
-enum DecisionType {
+enum Decision {
   UNDECIDED = 0,
   DECISION = 1,
   FLIPPED = 2,
 };
 
 struct Var {
-  VarType type;
+  Type type;
   signed int val : 2;		// -1 = false, 0 = unassigned, 1 = true
   signed int phase : 2;		// saved value of previous assignment
   signed int first : 2;		// value in first model
-  unsigned decision : 2;	// actually of type 'DecisionType'
+  unsigned decision : 2;	// actually of type 'Decision'
   signed int seen : 2;		// signed mark flag
   int level;			// decision level
   Clause * reason;		// reason clause
@@ -607,7 +609,7 @@ static void assign (Solver * solver, int lit, Clause * reason) {
 
 #ifndef NDEBUG
 
-static DecisionType decision_type (Solver * solver, int lit) {
+static Decision decision_type (Solver * solver, int lit) {
   return var (solver, lit)->decision;
 }
 
@@ -759,13 +761,13 @@ static void flip_decision (Solver * solver) {
 
 /*------------------------------------------------------------------------*/
 
-static DecisionType unassign (Solver * solver, int lit) {
+static Decision unassign (Solver * solver, int lit) {
   Var * v = var (solver, lit);
   assert (solver->level == v->level);
   SOG ("%s unassign %d", var_type (v), lit);
   assert (v->val);
   v->val = 0;
-  const DecisionType res = v->decision;
+  const Decision res = v->decision;
   v->decision = UNDECIDED;
   if (v->reason)
     mark_clause_inactive (v->reason, cnf (solver, v->reason));
@@ -1519,7 +1521,7 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
   SOGNUM (f->count, "initialized flipping count to 2^%d =", counted);
 
   while ((lit = TOP (solver->trail)) != decision) {
-    const DecisionType type = unassign (solver, lit);
+    const Decision type = unassign (solver, lit);
     if (type == DECISION) dec_level (solver);
     else if (type == FLIPPED) {
       Frame * g = last_frame (solver);
@@ -1737,7 +1739,7 @@ backjump_primal_conflict (Solver * solver, Clause * c, int level) {
     Var * v = var (solver, lit);
     if (v->level == level) break;
     (void) POP (solver->trail);
-    const DecisionType decision = unassign (solver, lit);
+    const Decision decision = unassign (solver, lit);
     if (decision == UNDECIDED) continue;
     if (decision == FLIPPED) discount (solver);
     dec_level (solver);
@@ -1973,7 +1975,7 @@ backjump_primal_conflict (Solver * solver, Clause * c, int level) {
     Var * v = var (solver, lit);
     if (v->level == level) break;
     (void) POP (solver->trail);
-    const DecisionType decision = unassign (solver, lit);
+    const Decision decision = unassign (solver, lit);
     if (decision == UNDECIDED) continue;
     if (decision == FLIPPED) discount (solver);
     dec_level (solver);
@@ -2217,7 +2219,7 @@ static void restart (Solver * solver) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
     if (v->level == level) break;
-    const DecisionType decision = unassign (solver, lit);
+    const Decision decision = unassign (solver, lit);
     if (decision != UNDECIDED) dec_level (solver);
     (void) POP (solver->trail);
   }
