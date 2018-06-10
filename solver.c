@@ -71,7 +71,6 @@ struct Queue {			// VMTF decision queue
 struct Frame {
   char seen;			// seen during conflict analysis
   char flipped;			// already flipped
-  char counted;		// count valid
   int decision;			// current decision literal
   int trail;			// trail position of decision
   struct {
@@ -234,9 +233,10 @@ static void dequeue (Solver * solver, Var * v) {
 static void push_frame (Solver * solver, int decision) {
   Frame f;
   f.decision = decision;
-  f.seen = f.flipped = f.counted = 0;
+  f.seen = f.flipped = 0;
   f.trail = COUNT (solver->trail);
   f.prev.flipped = f.prev.decision = f.prev.relevant = 0;
+  init_number (f.count);
   PUSH (solver->frames, f);
 }
 
@@ -260,7 +260,7 @@ static int decision_at_level (Solver * solver, int level) {
 
 static void pop_frame (Solver * solver) {
   Frame f = POP (solver->frames);
-  if (f.counted) clear_number (f.count);
+  clear_number (f.count);
 }
 
 static Frame * frame (Solver * solver, int lit) {
@@ -1513,9 +1513,6 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
 
   int lit, decision = decision_at_level (solver, level);
   Frame * f = frame_at_level (solver, level);
-  assert (!f->counted);
-  f->counted = 1;
-  init_number (f->count);
   add_power_of_two_to_number (f->count, counted);
   SOGNUM (f->count, "initialized flipping count to 2^%d =", counted);
 
@@ -1533,7 +1530,6 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
     }
     (void) POP (solver->trail);
   }
-  assert (f->counted);
   SOGNUM (f->count, "final flipping count");
 
   flip_decision (solver);
@@ -1720,243 +1716,7 @@ static void discount (Solver * solver) {
   stats.models.discounted++;
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
-  if (!f->counted) return;
-  SOGNUM (f->count, "discounting");
-  sub_number (solver->count, f->count);
-  report (solver, 3, 'd');
-}
-
-static int
-backjump_primal_conflict (Solver * solver, Clause * c, int level) {
-  assert (c->size > 0);
-  const int forced = c->literals[0];
-  stats.back.jumped++;
-  RULE (JP0);
-  SOG ("back jump %ld to level %d", stats.back.jumped, level);
-  while (!EMPTY (solver->trail)) {
-    const int lit = TOP (solver->trail);
-    Var * v = var (solver, lit);
-    if (v->level == level) break;
-    (void) POP (solver->trail);
-    const Decision decision = unassign (solver, lit);
-    if (decision == UNDECIDED) continue;
-    if (decision == FLIPPED) discount (solver);
-    dec_level (solver);
-  }
-  assert (!val (solver, forced));
-  assert (solver->level == level);
-  adjust_next_to_trail (solver);
-  assign (solver, forced, c);
-  if (!level) solver->found_new_fixed_variable = 1;
-  return 1;
-}
-
-/*------------------------------------------------------------------------*/
-
-static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
-  assert (EMPTY (solver->seen));
-  assert (EMPTY (solver->clause));
-  assert (EMPTY (solver->levels));
-  Clause * c = conflict;
-  const int * p = solver->trail.top;
-  int unresolved = 0, uip = 0;
-  for (;;) {
-    unresolved += resolve_clause (solver, c);
-    SOG ("unresolved literals %d", unresolved);
-    while (!var (solver, (uip = *--p))->seen)
-      ;
-    if (!--unresolved) break;
-    SOG ("%s resolving literal %d", type (var (solver, uip)), uip);
-    c = var (solver, uip)->reason;
-  }
-  SOG ("%s first UIP literal %d", type (var (solver, uip)), uip);
-  PUSH (solver->clause, -uip);
-  if (options.bump) bump_seen (solver);
-  reset_seen (solver);
-  return reset_levels (solver);
-}
-
-static int analyze_primal (Solver * solver, Clause * conflict) {
-  SOG ("analyze primal");
-  assert (conflict);
-  assert (!conflict->dual);
-  if (!solver->last_relevant_level) {
-    SOG ("primal conflict without any relevant decisions on the trail");
-    check_no_relevant_decision_above_level (solver, 0);
-    RULE (EP1);
-    return 0;
-  }
-  stats.back.tracked++;
-  int level = solver->last_relevant_level;
-  SOG ("backtracking to last relevant decision %d at level %d",
-    last_relevant_decision (solver), level);
-  if (blocking (solver, level))
-    backtrack_primal_satisfied_learn (solver, level);
-  else backtrack_primal_satisfied_flip (solver, level, counted);
-  return 1;
-}
-
-/*------------------------------------------------------------------------*/
-
-static void
-backtrack_primal_conflict_learn (Solver * solver, int level) {
-  SOG ("applying primal conflict learning rule");
-  RULE (BP0L);
-  check_is_relevant_decision_at_level (solver, level);
-  check_no_decision_above_level (solver, level);
-  int lit, decision = decision_at_level (solver, level);
-  while ((lit = TOP (solver->trail)) != decision) {
-    if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
-  add_decision_blocking_clause (solver);
-}
-
-static void backtrack_primal_conflict (Solver * solver) {
-  SOG ("backtracking due to primal conflict");
-  backtrack_to_last_non_flipped_decision (solver, -1);
-}
-
-/*------------------------------------------------------------------------*/
-
-static int resolve_literal (Solver * solver, int lit) {
-  Var * v = var (solver, lit);
-  if (!v->level) return 0;
-  if (v->seen) return 0;
-  v->seen = 1;
-  PUSH (solver->seen, v);
-  SOG ("%s seen literal %d", type (v), lit);
-  assert (val (solver, lit) < 0);
-  Frame * f = frame (solver, lit);
-  if (!f->seen) {
-    SOG ("seen level %d", v->level);
-    PUSH (solver->levels, v->level);
-    f->seen = 1;
-  }
-  if (v->level == solver->level) return 1;
-  SOG ("%s adding literal %d", type (v), lit);
-  PUSH (solver->clause, lit);
-  return 0;
-}
-
-static int resolve_clause (Solver * solver, Clause * c) {
-  assert (c);
-  SOGCLS (c, "resolving");
-  c->recent = 1;
-  int unresolved = 0;
-  for (int i = 0; i < c->size; i++)
-    unresolved += resolve_literal (solver, c->literals[i]);
-  return unresolved;
-}
-
-static int cmp_seen (const void * p, const void * q) {
-  Var * u = * (Var **) p, * v = * (Var **) q;
-  if (u->stamp < v->stamp) return -1;
-  if (u->stamp > v->stamp) return 1;
-  return 0;
-}
-
-static void sort_seen (Solver * solver) {
-  const int n = COUNT (solver->seen);
-  qsort (solver->seen.start, n, sizeof *solver->seen.start, cmp_seen);
-}
-
-static void bump_variable (Solver * solver, Var * v) {
-  stats.bumped++;
-  SOG ("%s bump variable %d", type (v), var2idx (solver, v));
-  dequeue (solver, v);
-  enqueue (solver, v);
-}
-
-static void bump_reason_clause_literals (Solver * solver, Clause * c) {
-  if (!c) return;
-  for (int i = 0; i < c->size; i++) {
-    const int idx = abs (c->literals[i]);
-    Var * v = var (solver, idx);
-    if (v->seen) continue;
-    if (!v->level) continue;
-    SOG ("also marking %s reason variable %d as seen", type (v), idx);
-    PUSH (solver->seen, v);
-    v->seen = 1;
-  }
-}
-
-static void bump_all_reason_literals (Solver * solver) {
-  for (Var ** p = solver->seen.start; p < solver->seen.top; p++)
-    bump_reason_clause_literals (solver, (*p)->reason);
-}
-
-static void bump_seen (Solver * solver) {
-  if (options.bump > 1) bump_all_reason_literals (solver);
-  sort_seen (solver);
-  for (Var ** p = solver->seen.start; p < solver->seen.top; p++)
-    bump_variable (solver, *p);
-}
-
-static void reset_seen (Solver * solver) {
-  while (!EMPTY (solver->seen))
-    POP (solver->seen)->seen = 0;
-}
-
-static void update_ema (Solver * solver, double * ema,
-                        double res, double n, double alpha) {
-  assert (n > 0);
-  *ema += MAX (1.0/n, alpha) * (res - *ema);
-}
-
-static int reset_levels (Solver * solver) {
-  int res = COUNT (solver->levels);
-  SOG ("seen %d levels", res);
-  while (!EMPTY (solver->levels)) {
-    int level = POP (solver->levels);
-    assert (0 <= level), assert (level < COUNT (solver->frames));
-    Frame * f = solver->frames.start + level;
-    assert (f->seen);
-    f->seen = 0;
-  }
-  const long n = stats.conflicts.primal;
-  update_ema (solver, &solver->limit.restart.fast, res, n, 3e-2);
-  update_ema (solver, &solver->limit.restart.slow, res, n, 1e-5);
-  SOG ("new fast moving glue average %.2f", solver->limit.restart.fast);
-  SOG ("new slow moving glue average %.2f", solver->limit.restart.slow);
-  return res;
-}
-
-static int jump_level (Solver * solver) {
-  sort_clause (solver);
-  const size_t size = COUNT (solver->clause);
-  int res;
-  if (size >= 2) {
-    const int * lits = solver->clause.start;
-    assert (var (solver, lits[0])->level == solver->level);
-    assert (var (solver, lits[1])->level < solver->level);
-    res = var (solver, lits[1])->level;
-  } else res = 0;
-  SOG ("jump level %d of learned clause of size %d", res, size);
-  return res;
-}
-
-static Clause * learn_primal_clause (Solver * solver, int glue, int level) {
-  stats.learned++;
-  const int size = COUNT (solver->clause);
-  SOG ("learning clause number %ld of size %zd", stats.learned, size);
-  Clause * res = new_clause (solver->clause.start, size);
-  res->glue = glue;
-  res->redundant = 1;
-  res->recent = 1;
-  SOGCLS (res, "learned new");
-  add_clause_to_cnf (res, solver->cnf.primal);
-  if (size > 1) connect_primal_clause (solver, res);
-  CLEAR (solver->clause);
-  return res;
-}
-
-static void discount (Solver * solver) {
-  assert (options.discount);
-  stats.models.discounted++;
-  Frame * f = solver->frames.start + solver->level;
-  assert (f->flipped);
-  if (!f->counted) return;
+  if (is_zero_number (f->count)) return;
   SOGNUM (f->count, "discounting");
   sub_number (solver->count, f->count);
   report (solver, 3, 'd');
