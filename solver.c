@@ -1813,7 +1813,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   int learn;	// Learn a clause or just backtrack and flip.
 
   if (!options.learn) {
-    SOG ("learning disabled");
+    SOG ("since learning disabled just backtrack and flip");
     level = solver->last_decision_level;
     learn = 0;
   } else if (solver->last_flipped_level <= level) {
@@ -1821,28 +1821,26 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
       solver->last_flipped_level, level);
     learn = 1;
   } else if (options.discount) {
-    SOG ("expecting to discount at least flipped frame %d "
-      "bigger than back-jump level %d",
+    SOG ("discount at least flipped frame %d above back-jump level %d",
       solver->last_flipped_level, level);
     stats.back.discounting++;
-    SOG ("learn with discounting backtrack %ld", stats.back.discounting);
+    SOG ("learn and back-jump with discounting");
     learn = 1;
   } else {
-    SOG ("flipped frame %d bigger than back-jump level %d "
-      "forces backtracking without discounting",
+    SOG ("flipped frame %d bigger than back-jump level %d",
       solver->last_flipped_level, level);
     stats.back.forced++;
-    SOG ("forced backtrack %ld", stats.back.forced);
+    SOG ("forces backtracking and flipping since discounting is disabled");
     level = solver->last_decision_level;
     learn = 0;
   }
 
   if (learn) {
     Clause * c = learn_primal_clause (solver, glue, level);
-    return backjump_primal_conflict_learn (solver, c, level);
+    return backjump_primal_conflict_learn (solver, c, level);	// JP0
   } else {
     CLEAR (solver->clause);
-    backtrack_primal_conflict_flip (solver);
+    backtrack_primal_conflict_flip (solver);			// BP0F
     return 1;
   }
 }
