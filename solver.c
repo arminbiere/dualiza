@@ -462,10 +462,21 @@ Solver * new_solver (CNF * primal,
   return solver;
 }
 
-static int is_primal_var (Var * v) { return v->type == PRIMAL_VARIABLE; }
-static int is_relevant_var (Var * v) { return v->type == RELEVANT_VARIABLE; }
-static int is_irrelevant_var (Var * v) { return v->type == IRRELEVANT_VARIABLE; }
-static int is_dual_var (Var * v) { return v->type == DUAL_VARIABLE; }
+static int is_primal_var (Var * v) {
+  return v->type == PRIMAL_VARIABLE;
+}
+
+static int is_relevant_var (Var * v) {
+  return v->type == RELEVANT_VARIABLE;
+}
+
+static int is_irrelevant_var (Var * v) {
+  return v->type == IRRELEVANT_VARIABLE;
+}
+
+static int is_dual_var (Var * v) {
+  return v->type == DUAL_VARIABLE;
+}
 
 static int is_shared_var (Var * v) {
   return is_relevant_var (v) || is_irrelevant_var (v);
@@ -1325,6 +1336,11 @@ static void flush_primal_garbage_occurrences (Solver * solver) {
   SOG ("flushed %ld primal garbage occurrences", flushed);
 }
 
+// If a new blocking clause is added, then try to subsume a limited number
+// of previously added clauses.  This removes some redundant blocking
+// clause, but should probably eventually be replaced by a scheme which
+// eagerly and in a more controlled way removes blocking clauses.
+
 static void subsume (Solver * solver, Clause * c) {
   if (c->size <= 1) return;
   assert (!c->redundant);
@@ -1772,10 +1788,13 @@ static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
   return reset_levels (solver);
 }
 
-static int analyze_primal (Solver * solver, Clause * conflict) {
+static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
+
   SOG ("analyze primal");
+
   assert (conflict);
   assert (!conflict->dual);
+
   if (!solver->last_relevant_level) {
     SOG ("primal conflict without any relevant decisions on the trail");
     check_no_relevant_decision_above_level (solver, 0);
@@ -1783,26 +1802,37 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
     return 0;
   }
 
-  int glue = resolve_primal_conflict (solver, conflict), level, learn;
+  // Resolve conflict in any case, since this also bumps variables.
+  //
+  int glue = resolve_primal_conflict (solver, conflict);
 
-  if (options.learn) {
+  int level;	// back-track or back-jump level
+  int learn;	// learn a clause or just backtrack and flip
+
+  if (!options.learn) {
+    SOG ("learning disabled");
+    level = solver->last_decision_level;
+    learn = 0;
+  } else {
     level = jump_level (solver);
-    assert (solver->last_flipped_level <= solver->level);
-    if (solver->last_flipped_level > level) {
-      if (options.discount) {
-	SOG ("expecting to discount at least flipped frame %d",
-	  solver->last_flipped_level);
-	stats.back.discounting++;
-	SOG ("discounting backtrack %ld", stats.back.discounting);
-	learn = 1;
-      } else {
-	SOG ("flipped frame %d forces backtracking without discounting",
-	  solver->last_flipped_level);
-	SOG ("forced backtrack %ld", stats.back.forced);
-	stats.back.forced++;
-	learn = 0;
-      }
-    } else learn = 1;
+    if (solver->last_flipped_level <= level) {
+      LOG ("learn since flipped level %d less equal back-jump level %d",
+        solver->last_flipped_level, level);
+      learn = 1;
+    } else if (options.discount) {
+      SOG ("expecting to discount at least flipped frame %d",
+	solver->last_flipped_level);
+      stats.back.discounting++;
+      SOG ("discounting backtrack %ld", stats.back.discounting);
+      learn = 1;
+    } else {
+      SOG ("flipped frame %d forces backtracking without discounting",
+	solver->last_flipped_level);
+      stats.back.forced++;
+      SOG ("forced backtrack %ld", stats.back.forced);
+      level = solver->last_decision_level;
+      learn = 0;
+    }
   } else {
     SOG ("learning disabled");
     level = solver->level - 1;
@@ -1823,7 +1853,7 @@ static int analyze_primal (Solver * solver, Clause * conflict) {
 
 // Basic version without actual analysis part yet.
 
-static int analyze_dual (Solver * solver, Clause * conflict) {
+static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
   SOG ("analyze dual");
   assert (conflict);
   assert (conflict->dual);
@@ -1835,7 +1865,7 @@ static int analyze_dual (Solver * solver, Clause * conflict) {
     RULE (EN0);
     return 0;
   }
-  backtrack_to_last_non_flipped_decision (solver, counted);
+  // TODO: backtrack_to_last_non_flipped_decision (solver, counted);
   return 1;
 }
 
@@ -1995,13 +2025,13 @@ static void solve (Solver * solver) {
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
-      if (!analyze_primal (solver, conflict)) return;
+      if (!analyze_primal_conflict (solver, conflict)) return;
     } else if (primal_satisfied (solver)) {
       if (!backtrack_primal_satisfied (solver)) return;
     } else {
       conflict = dual_propagate (solver);
       if (conflict) {
-	if (!analyze_dual (solver, conflict)) return;
+	if (!analyze_dual_conflict (solver, conflict)) return;
       } else if (reducing (solver)) reduce (solver);
       else if (restarting (solver)) restart (solver);
       else decide (solver);
