@@ -1739,7 +1739,7 @@ static void discount (Solver * solver) {
 }
 
 static int
-backjump_primal_conflict (Solver * solver, Clause * c, int level) {
+backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   stats.back.jumped++;
@@ -1796,8 +1796,8 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   assert (!conflict->dual);
 
   if (!solver->last_relevant_level) {
-    SOG ("primal conflict without any relevant decisions on the trail");
-    check_no_relevant_decision_above_level (solver, 0);
+    SOG ("primal conflict without any decisions on the trail");
+    check_no_decision_above_level (solver, 0);
     RULE (EP0);
     return 0;
   }
