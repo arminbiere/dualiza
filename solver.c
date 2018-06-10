@@ -1806,45 +1806,43 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   //
   int glue = resolve_primal_conflict (solver, conflict);
 
-  int level;	// back-track or back-jump level
-  int learn;	// learn a clause or just backtrack and flip
+  // Also determine back-jump level even if at we only backtrack.
+  //
+  int level = jump_level (solver);
+
+  int learn;	// Learn a clause or just backtrack and flip.
 
   if (!options.learn) {
     SOG ("learning disabled");
     level = solver->last_decision_level;
     learn = 0;
+  } else if (solver->last_flipped_level <= level) {
+    LOG ("learn since flipped level %d less equal back-jump level %d",
+      solver->last_flipped_level, level);
+    learn = 1;
+  } else if (options.discount) {
+    SOG ("expecting to discount at least flipped frame %d "
+      "bigger than back-jump level %d",
+      solver->last_flipped_level, level);
+    stats.back.discounting++;
+    SOG ("learn with discounting backtrack %ld", stats.back.discounting);
+    learn = 1;
   } else {
-    level = jump_level (solver);
-    if (solver->last_flipped_level <= level) {
-      LOG ("learn since flipped level %d less equal back-jump level %d",
-        solver->last_flipped_level, level);
-      learn = 1;
-    } else if (options.discount) {
-      SOG ("expecting to discount at least flipped frame %d",
-	solver->last_flipped_level);
-      stats.back.discounting++;
-      SOG ("discounting backtrack %ld", stats.back.discounting);
-      learn = 1;
-    } else {
-      SOG ("flipped frame %d forces backtracking without discounting",
-	solver->last_flipped_level);
-      stats.back.forced++;
-      SOG ("forced backtrack %ld", stats.back.forced);
-      level = solver->last_decision_level;
-      learn = 0;
-    }
-  } else {
-    SOG ("learning disabled");
-    level = solver->level - 1;
+    SOG ("flipped frame %d bigger than back-jump level %d "
+      "forces backtracking without discounting",
+      solver->last_flipped_level, level);
+    stats.back.forced++;
+    SOG ("forced backtrack %ld", stats.back.forced);
+    level = solver->last_decision_level;
     learn = 0;
   }
 
   if (learn) {
     Clause * c = learn_primal_clause (solver, glue, level);
-    return backjump_primal_conflict (solver, c, level);
+    return backjump_primal_conflict_learn (solver, c, level);
   } else {
     CLEAR (solver->clause);
-    backtrack_primal_conflict (solver);
+    backtrack_primal_conflict_flip (solver);
     return 1;
   }
 }
