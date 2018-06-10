@@ -1738,13 +1738,14 @@ static void discount (Solver * solver) {
   report (solver, 3, 'd');
 }
 
-static int
+static void
 backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   stats.back.jumped++;
-  RULE (JP0);
   SOG ("back jump %ld to level %d", stats.back.jumped, level);
+  if (level) RULE (JP0);
+  else       RULE (AP0), solver->found_new_fixed_variable = 1;
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -1759,8 +1760,6 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (solver->level == level);
   adjust_next_to_trail (solver);
   assign (solver, forced, c);
-  if (!level) solver->found_new_fixed_variable = 1;
-  return 1;
 }
 
 /*------------------------------------------------------------------------*/
@@ -1806,7 +1805,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   //
   int glue = resolve_primal_conflict (solver, conflict);
 
-  // Also determine back-jump level even if at we only backtrack.
+  // Also determine back-jump level even if we only backtrack.
   //
   int level = jump_level (solver);
 
@@ -1837,7 +1836,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 
   if (learn) {
     Clause * c = learn_primal_clause (solver, glue, level);
-    return backjump_primal_conflict_learn (solver, c, level);	// JP0
+    return backjump_primal_conflict_learn (solver, c, level);	// JP0/AP0
   } else {
     CLEAR (solver->clause);
     backtrack_primal_conflict_flip (solver);			// BP0F
