@@ -1031,16 +1031,19 @@ static void report (Solver * solver, int verbosity, const char type) {
   else primal_report (solver, verbosity, type);
 }
 
-static void force_splitting_on_relevant_first (Solver *);
+static int
+restart_after_first_model_to_split_on_relevant_first (Solver * solver) {
+  if (stats.models.counted) return 0;
+  if (solver->split_on_relevant_first) return 0;
+  return solver->require_to_split_on_relevant_first_after_first_model;
+}
 
 static void first_model (Solver * solver) {
+  SOG ("saving first model");
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = var (solver, idx);
     v->first = v->val;
   }
-  if (!solver->split_on_relevant_first &&
-      solver->require_to_split_on_relevant_first_after_first_model)
-    force_splitting_on_relevant_first (solver);
 }
 
 static int new_model (Solver * solver) {
@@ -1086,7 +1089,8 @@ static int connect_dual_cnf (Solver * solver) {
       }
       if (tmp < 0) {
 	SOG ("found already falsified unit %d in dual CNF", unit);
-        new_model (solver);
+        (void) new_model (solver);
+	// TODO: really ignore result of 'new_model'?
 	return 0;
       }
       if (is_shared_var (var (solver, unit))) {
@@ -1509,6 +1513,8 @@ static int last_relevant_decision (Solver * solver) {
 
 #endif
 
+static void force_splitting_on_relevant_first (Solver *);
+
 static void
 backtrack_primal_satisfied_learn (Solver * solver, int level) {
   SOG ("applying primal satisfied learning rule");
@@ -1561,6 +1567,10 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
 }
 
 static int backtrack_primal_satisfied (Solver * solver) {
+  if (restart_after_first_model_to_split_on_relevant_first (solver)) {
+    force_splitting_on_relevant_first (solver);
+    return 1;
+  }
   SOG ("backtrack primal satisfied");
   check_primal_satisfied (solver);
   int counted;
@@ -1894,6 +1904,10 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 // Basic version without actual analysis part yet.
 
 static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
+  if (restart_after_first_model_to_split_on_relevant_first (solver)) {
+    force_splitting_on_relevant_first (solver);
+    return 1;
+  }
   SOG ("analyze dual");
   assert (conflict);
   assert (conflict->dual);
@@ -2061,7 +2075,7 @@ static void force_splitting_on_relevant_first (Solver * solver) {
   while (level + 1 <= solver->level &&
          is_relevant_decision_level (solver, level))
     level++;
-  if (level > 0) backtrack (solver, level);
+  if (level < solver->level) backtrack (solver, level);
 }
 
 static void restart (Solver * solver) {
@@ -2147,21 +2161,23 @@ int deref (Solver * solver, int lit) {
 }
 
 #ifndef NDEBUG
+
 void print_trail (Solver * solver) {
-  int prev = 0;
-  for (const int * p = solver->trail.start; p < solver->trail.top; p++) {
-    int lit = *p;
-    Var * v = var (solver, lit);
-    if (p > solver->trail.start) {
-      if (v->level > prev) fputs (" | ", stdout);
-      else fputc (' ', stdout);
+  for (int level = 0; level <= solver->level; level++) {
+    int start = frame_at_level (solver, level)->trail, end;
+    if (level == solver->level) end = (int) COUNT (solver->trail);
+    else end = frame_at_level (solver, level+1)->trail;
+    printf ("frame %d :", level);
+    for (int i = start; i < end; i++) {
+      int lit = PEEK (solver->trail, i);
+      printf (" %d", lit);
+      Var * v = var (solver, lit);
+      if (v->decision == UNDECIDED) fputc ('p', stdout);
+      if (v->decision == DECISION) fputc ('d', stdout);
+      if (v->decision == FLIPPED) fputc ('f', stdout);
     }
-    prev = v->level;
-    printf ("%d", lit);
-    if (v->decision == UNDECIDED) fputc ('p', stdout);
-    if (v->decision == DECISION) fputc ('d', stdout);
-    if (v->decision == FLIPPED) fputc ('f', stdout);
+    fputc ('\n', stdout);
   }
-  fputc ('\n', stdout);
 }
+
 #endif
