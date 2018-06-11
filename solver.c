@@ -300,11 +300,13 @@ static void enable_model_printing (Solver * solver, Name name) {
   msg (1, "enabled printing of partial models");
 }
 
+static void backtrack (Solver * solver, int level);
+
 static void force_splitting_on_relevant_first (Solver * solver) {
-  // TODO backtrack to decision level zero?
   assert (!solver->split_on_relevant_first);
   msg (2, "forcing to split on relevant shared variables first");
   solver->split_on_relevant_first = 1;
+  if (solver->level > 0) backtrack (solver, 0);
 }
 
 Solver * new_solver (CNF * primal,
@@ -2022,10 +2024,8 @@ static int reuse_trail (Solver * solver) {
   return res;
 }
 
-static void restart (Solver * solver) {
-  const int level = reuse_trail (solver);
-  stats.restarts++;
-  SOG ("restart %d", stats.restarts);
+static void backtrack (Solver * solver, int level) {
+  SOG ("backtrack to level %d", level);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -2035,6 +2035,13 @@ static void restart (Solver * solver) {
     (void) POP (solver->trail);
   }
   adjust_next_to_trail (solver);
+}
+
+static void restart (Solver * solver) {
+  const int level = reuse_trail (solver);
+  stats.restarts++;
+  SOG ("restart %d", stats.restarts);
+  backtrack (solver, level);
   report (solver, 2, 'r');
 }
 
