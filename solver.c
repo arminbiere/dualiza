@@ -1562,6 +1562,7 @@ static int backtrack_primal_satisfied (Solver * solver) {
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_relevant_level) {
     SOG ("satisfied without any relevant decisions on the trail");
+    check_no_decision_above_level (level, 0);
     RULE (EP1);
     return 0;
   }
@@ -1577,6 +1578,8 @@ static int backtrack_primal_satisfied (Solver * solver) {
 
 /*------------------------------------------------------------------------*/
 
+// TODO how and when to use this?
+
 static void
 backtrack_primal_conflict_learn (Solver * solver, int level) {
   SOG ("applying primal conflict learning rule");
@@ -1589,11 +1592,6 @@ backtrack_primal_conflict_learn (Solver * solver, int level) {
     (void) POP (solver->trail);
   }
   add_decision_blocking_clause (solver);
-}
-
-static void backtrack_primal_conflict (Solver * solver) {
-  SOG ("backtracking due to primal conflict");
-  // backtrack_to_last_non_flipped_decision (solver, -1);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1777,7 +1775,7 @@ backtrack_primal_conflict_flip (Solver * solver, int level) {
   assert (!f->flipped);
 #endif
   SOG ("backtracking to decision %d at level %d", f->decision, level);
-  RULE (BPF0);
+  RULE (BP0F);
 }
 
 /*------------------------------------------------------------------------*/
