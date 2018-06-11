@@ -523,7 +523,8 @@ void delete_solver (Solver * solver) {
   DEALLOC (solver->occs.primal, solver->max_lit + 1);
   if (solver->dual_solving_enabled)
     DEALLOC (solver->occs.dual, solver->max_lit + 1);
-  while (!EMPTY (solver->frames))
+  for (Frame * f = solver->frames.start; f != solver->frames.top; f++)
+    clear_number (f->count);
   RELEASE (solver->frames);
   RELEASE (solver->trail);
   RELEASE (solver->seen);
@@ -752,6 +753,7 @@ static void flip_decision (Solver * solver) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
   int decision = f->decision;
+  f->decision = -decision;
   assert (PEEK (solver->trail, f->trail) == decision);
   assert (val (solver, decision) > 0);
   Var * v = var (solver, decision);
