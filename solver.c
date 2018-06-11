@@ -1848,7 +1848,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   assert (conflict);
   assert (!conflict->dual);
 
-  if (!solver->last_relevant_level) {
+  if (!solver->last_decision_level) {
     SOG ("primal conflict without any decisions on the trail");
     check_no_decision_above_level (solver, 0);
     RULE (EP0);
