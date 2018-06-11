@@ -77,6 +77,10 @@ static int parse_option_aux (char * arg) {
 }
 
 int parse_option (const char * arg) {
+  {
+    int REMOVE;
+    if (!strcmp (arg, "--dual")) return 1;
+  }
   if (arg[0] != '-') return 0;
   if (arg[1] != '-') return 0;
   if (arg[2] == 'n' && arg[3] == 'o' && arg[4] == '-') {
