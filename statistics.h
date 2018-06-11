@@ -11,13 +11,14 @@ do { \
 
 struct Rules {
   long EP1,  EP0,  EN0;
-  long BP0,  BP0F, BP0L;
+  long BP0F, JP0;
   long BP1F, BP1L;
+#if 0
   long BN0F, BN0L;
-  // long AP0,  AP0F, AP0L;
-  long JP0,  JN0F, JN0L;
+  long JN0F, JN0L;
+#endif
   long DX,   DY,   DS;
-  long UP,   UNX,  UNY, UNT;
+  long UP,   UNX,  UNY,  UNT;
   long FP,   FN;
 };
 
