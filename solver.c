@@ -1562,7 +1562,7 @@ static int backtrack_primal_satisfied (Solver * solver) {
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_relevant_level) {
     SOG ("satisfied without any relevant decisions on the trail");
-    check_no_decision_above_level (level, 0);
+    check_no_decision_above_level (solver, 0);
     RULE (EP1);
     return 0;
   }
@@ -1745,8 +1745,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   const int forced = c->literals[0];
   stats.back.jumped++;
   SOG ("back jump %ld to level %d", stats.back.jumped, level);
-  if (level) RULE (JP0);
-  else     { RULE (AP0); solver->found_new_fixed_variable = 1; }
+  RULE (JP0);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -1761,6 +1760,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (solver->level == level);
   adjust_next_to_trail (solver);
   assign (solver, forced, c);
+  if (!level) solver->found_new_fixed_variable = 1;
 }
 
 /*------------------------------------------------------------------------*/

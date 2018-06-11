@@ -14,7 +14,7 @@ struct Rules {
   long BP0,  BP0F, BP0L;
   long BP1F, BP1L;
   long BN0F, BN0L;
-  long AP0,  AP0F, AP0L;
+  // long AP0,  AP0F, AP0L;
   long JP0,  JN0F, JN0L;
   long DX,   DY,   DS;
   long UP,   UNX,  UNY, UNT;

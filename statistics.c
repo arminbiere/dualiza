@@ -19,8 +19,10 @@ void print_statistics () {
            rules.BP1F,rules.BP1L);
   msg (1, "%10ld BN0F %10ld BN0L",
            rules.BN0F,rules.BN0L);
+#if  0
   msg (1, "%10ld AP0  %10ld AP0F %10ld AP0L",
            rules.AP0, rules.AP0F,rules.AP0L);
+#endif
   msg (1, "%10ld JP0  %10ld JN0F %10ld JN0L",
            rules.JP0, rules.JN0F,rules.JN0L);
   msg (1, "%10ld DX   %10ld DY   %10ld DS",
