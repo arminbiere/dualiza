@@ -1213,7 +1213,7 @@ static Clause * dual_propagate (Solver * solver) {
 	res = c;
       } else if (is_shared_var (var (solver, other))) {
 	SOGCLS (c, "shared unit %d", other);
-	stats.dual_shared_units++;
+	stats.units.dual.shared++;
 	assume_decision (solver, -other);
 	SOGCLS (c, "conflict");
 	stats.conflicts.dual++;
@@ -1225,7 +1225,6 @@ static Clause * dual_propagate (Solver * solver) {
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "dual unit %d", other);
 	assign (solver, other, c);
-	stats.dual_non_shared_units++;
 	RULE (UNT);
       }
     }

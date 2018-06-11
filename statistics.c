@@ -54,15 +54,10 @@ void print_statistics () {
       msg (1, "%ld dual conflicts (%.0f per second)",
 	stats.conflicts.dual,
 	average (stats.conflicts.dual, seconds));
-    if (stats.dual_shared_units)
+    if (stats.units.dual.shared)
       msg (1, "%ld dual shared units (%.0f%% dual conflicts)",
-	stats.dual_shared_units,
-	percent (stats.dual_shared_units, stats.conflicts.dual));
-    if (stats.dual_non_shared_units)
-      total = stats.dual_shared_units + stats.dual_non_shared_units,
-      msg (1, "%ld dual non-shared units (%.0f%% dual units)",
-	stats.dual_non_shared_units,
-	percent (stats.dual_non_shared_units, total));
+	stats.units.dual.shared,
+	percent (stats.units.dual.shared, stats.conflicts.dual));
     msg (1, "%ld decisions (%.0f per second)",
       stats.decisions, average (stats.decisions, seconds));
     total = stats.propagated.primal + stats.propagated.dual;
