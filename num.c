@@ -254,8 +254,11 @@ void println_number (Number n) {
   println_number_to_file (n, stdout);
 }
 
+#ifndef NLOG
+
 void log_number (Number n, const char * fmt, ...) {
   va_list ap;
+  fputs ("c LOG ", stdout);
   va_start (ap, fmt);
   vprintf (fmt, ap);
   va_end (ap);
@@ -265,3 +268,4 @@ void log_number (Number n, const char * fmt, ...) {
   fflush (stdout);
 }
 
+#endif

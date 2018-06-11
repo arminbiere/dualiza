@@ -83,23 +83,31 @@ struct Limit {
 };
 
 struct Solver {
+
   Var * vars;
+
   char found_new_fixed_variable;
   char dual_solving_enabled;
   char model_printing_enabled;
   char split_on_relevant_first;
+  char require_to_split_on_relevant_first_after_first_model;
+
   int max_var, max_lit;
   int max_shared_var, max_primal_or_shared_var;
   int level, phase;
   struct { int primal, dual; } next;
+
   int last_flipped_level, num_flipped_levels;
   int last_decision_level, num_decision_levels;
   int last_relevant_level, num_relevant_levels;
+
   int unassigned_primal_and_shared_variables;
   int unassigned_relevant_variables;
   int unassigned_shared_variables;
+
   int primal_or_shared_fixed;
   int dual_non_shared_fixed;
+
   IntStack trail, clause, levels, relevant;
   FrameStack frames;
   VarStack seen;
@@ -300,8 +308,6 @@ static void enable_model_printing (Solver * solver, Name name) {
   msg (1, "enabled printing of partial models");
 }
 
-static void force_splitting_on_relevant_first (Solver *);
-
 Solver * new_solver (CNF * primal,
                      IntStack * shared, IntStack * relevant,
 		     CNF * dual) {
@@ -441,7 +447,16 @@ Solver * new_solver (CNF * primal,
   push_frame (solver, 0);
   assert (COUNT (solver->frames) == solver->level + 1);
   init_number (solver->count);
-  if (options.relevant) force_splitting_on_relevant_first (solver);
+  if (options.relevant) {
+    SOG ("always forcing to split on relevant variables first");
+    solver->split_on_relevant_first = 1;
+  } else {
+    assert (!solver->split_on_relevant_first);
+    if (count_irrelevant || count_primal) {
+      SOG ("will split on relevant variables first after first model");
+      solver->require_to_split_on_relevant_first_after_first_model = 1;
+    }
+  }
   return solver;
 }
 
@@ -1016,12 +1031,15 @@ static void report (Solver * solver, int verbosity, const char type) {
   else primal_report (solver, verbosity, type);
 }
 
+static void force_splitting_on_relevant_first (Solver *);
+
 static void first_model (Solver * solver) {
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = var (solver, idx);
     v->first = v->val;
   }
-  if (solver->dual_solving_enabled && !solver->split_on_relevant_first)
+  if (!solver->split_on_relevant_first &&
+      solver->require_to_split_on_relevant_first_after_first_model)
     force_splitting_on_relevant_first (solver);
 }
 
@@ -1842,7 +1860,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
     level = solver->last_decision_level;
     learn = 0;
   } else if (solver->last_flipped_level <= level) {
-    LOG ("learn since flipped level %d less equal back-jump level %d",
+    SOG ("learn since flipped level %d less equal back-jump level %d",
       solver->last_flipped_level, level);
     learn = 1;
   } else if (options.discount) {
@@ -2037,7 +2055,7 @@ static void backtrack (Solver * solver, int level) {
 
 static void force_splitting_on_relevant_first (Solver * solver) {
   assert (!solver->split_on_relevant_first);
-  msg (2, "forcing to split on relevant shared variables first");
+  SOG ("forcing to split on relevant shared variables first");
   solver->split_on_relevant_first = 1;
   int level = 0;
   while (level + 1 <= solver->level &&

@@ -96,7 +96,7 @@ filter () {
 }
 execute () {
   erase
-  echo -n "$*"
+  echo -n "$* "
   $* > $tmp
   firstline="`head -1 $tmp`"
   lastline="`tail -1 $tmp`"
