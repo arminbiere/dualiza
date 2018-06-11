@@ -300,14 +300,7 @@ static void enable_model_printing (Solver * solver, Name name) {
   msg (1, "enabled printing of partial models");
 }
 
-static void backtrack (Solver * solver, int level);
-
-static void force_splitting_on_relevant_first (Solver * solver) {
-  assert (!solver->split_on_relevant_first);
-  msg (2, "forcing to split on relevant shared variables first");
-  solver->split_on_relevant_first = 1;
-  if (solver->level > 0) backtrack (solver, 0);
-}
+static void force_splitting_on_relevant_first (Solver *);
 
 Solver * new_solver (CNF * primal,
                      IntStack * shared, IntStack * relevant,
@@ -1456,15 +1449,12 @@ check_no_decision_above_level (Solver * solver, int level) {
 #endif
 }
 
-static void
-check_is_relevant_decision_at_level (Solver * solver, int level) {
-#ifndef NDEBUG
-  assert (level > 0);
+static int is_relevant_decision_level (Solver * solver, int level) {
+  if (!level) return 0;
   Frame * f = frame_at_level (solver, level);
-  assert (!f->flipped);
+  if (f->flipped) return 0;
   Var * v = var (solver, level);
-  assert (is_relevant_var (v));
-#endif
+  return is_relevant_var (v);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1473,9 +1463,17 @@ check_is_relevant_decision_at_level (Solver * solver, int level) {
 // if all variables are propagated in the primal part without getting a
 // conflict then the formula is supposed to be satisfied.
 
-static int primal_satisfied (Solver * solver) {
+static int is_primal_satisfied_no_log (Solver * solver) {
   assert (solver->next.primal == COUNT (solver->trail));
-  int res = !solver->unassigned_primal_and_shared_variables;
+  return !solver->unassigned_primal_and_shared_variables;
+}
+
+static void check_primal_satisfied (Solver * solver) {
+  assert (is_primal_satisfied_no_log (solver));
+}
+
+static int is_primal_satisfied (Solver * solver) {
+  int res = is_primal_satisfied_no_log (solver);
   if (res) SOG ("all primal and shared variables assigned");
   return res;
 }
@@ -1497,8 +1495,8 @@ static void
 backtrack_primal_satisfied_learn (Solver * solver, int level) {
   SOG ("applying primal satisfied learning rule");
   RULE (BP1L);
-  assert (primal_satisfied (solver));
-  check_is_relevant_decision_at_level (solver, level);
+  check_primal_satisfied (solver);
+  assert (is_relevant_decision_level (solver, level));
   check_no_relevant_decision_above_level (solver, level);
   int lit, decision = decision_at_level (solver, level);
   while ((lit = TOP (solver->trail)) != decision) {
@@ -1515,8 +1513,8 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
   RULE (BP1F);
 
   assert (counted >= 0);
-  assert (primal_satisfied (solver));
-  check_is_relevant_decision_at_level (solver, level);
+  check_primal_satisfied (solver);
+  assert (is_relevant_decision_level (solver, level));
   check_no_relevant_decision_above_level (solver, level);
 
   Frame * f = frame_at_level (solver, level);
@@ -1546,7 +1544,7 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
 
 static int backtrack_primal_satisfied (Solver * solver) {
   SOG ("backtrack primal satisfied");
-  assert (primal_satisfied (solver));
+  check_primal_satisfied (solver);
   int counted;
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_relevant_level) {
@@ -1574,7 +1572,7 @@ static void
 backtrack_primal_conflict_learn (Solver * solver, int level) {
   SOG ("applying primal conflict learning rule");
   RULE (BP0L);
-  check_is_relevant_decision_at_level (solver, level);
+  assert (is_relevant_decision_level (solver, level));
   check_no_decision_above_level (solver, level);
   int lit, decision = decision_at_level (solver, level);
   while ((lit = TOP (solver->trail)) != decision) {
@@ -2037,6 +2035,17 @@ static void backtrack (Solver * solver, int level) {
   adjust_next_to_trail (solver);
 }
 
+static void force_splitting_on_relevant_first (Solver * solver) {
+  assert (!solver->split_on_relevant_first);
+  msg (2, "forcing to split on relevant shared variables first");
+  solver->split_on_relevant_first = 1;
+  int level = 0;
+  while (level + 1 <= solver->level &&
+         is_relevant_decision_level (solver, level))
+    level++;
+  if (level > 0) backtrack (solver, level);
+}
+
 static void restart (Solver * solver) {
   const int level = reuse_trail (solver);
   stats.restarts++;
@@ -2049,13 +2058,13 @@ static void solve (Solver * solver) {
   if (model_limit_reached (solver)) return;
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
-  if (primal_satisfied (solver)) { (void) new_model (solver); return; }
+  if (is_primal_satisfied (solver)) { (void) new_model (solver); return; }
   if (!connect_dual_cnf (solver)) return;
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {
       if (!analyze_primal_conflict (solver, conflict)) return;
-    } else if (primal_satisfied (solver)) {
+    } else if (is_primal_satisfied (solver)) {
       if (!backtrack_primal_satisfied (solver)) return;
     } else {
       conflict = dual_propagate (solver);
