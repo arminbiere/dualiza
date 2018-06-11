@@ -1043,7 +1043,7 @@ static void first_model (Solver * solver) {
 static int new_model (Solver * solver) {
   int unassigned = solver->unassigned_relevant_variables;
   stats.models.counted++;
-  SOG ("model %ld with %d unassigned shared relevant variables",
+  SOG ("model %ld with %d unassigned relevant variables",
     stats.models, unassigned);
   if (stats.models.counted == 1) first_model (solver);
   if (solver->model_printing_enabled) print_model (solver);
