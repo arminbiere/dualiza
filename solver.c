@@ -1540,11 +1540,8 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
     else if (type == FLIPPED) {
       Frame * g = last_frame (solver);
       assert (g->decision == lit);
-      if (counted) {
-	SOGNUM (g->count,
-	  "accumulating level %d flipping count", level);
-	add_number (f->count, g->count);
-      }
+      SOGNUM (g->count, "accumulating level %d flipping count", level);
+      add_number (f->count, g->count);
       dec_level (solver);
     }
     (void) POP (solver->trail);
@@ -1577,6 +1574,7 @@ static int backtrack_primal_satisfied (Solver * solver) {
 }
 
 /*------------------------------------------------------------------------*/
+#if 0
 
 // TODO how and when to use this?
 
@@ -1594,6 +1592,7 @@ backtrack_primal_conflict_learn (Solver * solver, int level) {
   add_decision_blocking_clause (solver);
 }
 
+#endif
 /*------------------------------------------------------------------------*/
 
 static int resolve_literal (Solver * solver, int lit) {
@@ -1767,15 +1766,36 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
 
 static void
 backtrack_primal_conflict_flip (Solver * solver, int level) {
+
+  SOG ("applying primal conflict flipping rule at level %d", level);
+  RULE (BP0F);
+
   assert (level);
   assert (level == solver->last_decision_level);
+
+  check_no_decision_above_level (solver, level);
+
   stats.back.tracked++;
-#if !defined(NDEBUG) || !defined(NLOG)
   Frame * f = frame_at_level (solver, level);
   assert (!f->flipped);
-#endif
-  SOG ("backtracking to decision %d at level %d", f->decision, level);
-  RULE (BP0F);
+
+  int lit, decision = decision_at_level (solver, level);
+  while ((lit = TOP (solver->trail)) != decision) {
+    const Decision type = unassign (solver, lit);
+    if (type == DECISION) dec_level (solver);
+    else if (type == FLIPPED) {
+      Frame * g = last_frame (solver);
+      assert (g->decision == lit);
+      SOGNUM (g->count, "accumulating level %d flipping count", level);
+      add_number (f->count, g->count);
+      dec_level (solver);
+    }
+    (void) POP (solver->trail);
+  }
+  SOGNUM (f->count, "final level %d flipping count", level);
+
+  flip_decision (solver);
+  adjust_next_to_trail (solver);
 }
 
 /*------------------------------------------------------------------------*/
