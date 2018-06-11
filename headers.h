@@ -11,6 +11,7 @@
 #include "aiger.h"
 #include "bdd.h"
 #include "buffer.h"
+#include "cover.h"
 #include "circuit.h"
 #include "clause.h"
 #include "cnf.h"
