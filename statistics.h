@@ -6,7 +6,7 @@ typedef struct Rules Rules;
 #define RULE(NAME) \
 do { \
   rules.NAME++; \
-  LOG ("RULE %s %ld", #NAME, rules.NAME); \
+  SOG ("RULE %s %ld", #NAME, rules.NAME); \
 } while (0)
 
 struct Rules {

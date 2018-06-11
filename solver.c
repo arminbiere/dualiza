@@ -314,6 +314,7 @@ static void enable_model_printing (Solver * solver, Name name) {
 }
 
 static void force_splitting_on_relevant_first (Solver * solver) {
+  // TODO backtrack to decision level zero?
   assert (!solver->split_on_relevant_first);
   msg (2, "forcing to split on relevant shared variables first");
   solver->split_on_relevant_first = 1;
