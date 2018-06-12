@@ -313,7 +313,7 @@ static Unary ** find_unary (BDD * a) {
   stats.bdd.cache.lookups++;
   unsigned h = hash_unary (a) & (unary_size - 1);
   Unary ** res, * l;
-  for (res = unary_table + h; (l = *res) && l->a != a; res = &l->next);
+  for (res = unary_table + h; (l = *res) && l->a != a; res = &l->next)
     stats.bdd.cache.collisions++;
   return res;
 }
@@ -434,7 +434,7 @@ static Binary ** find_binary (BDD * a, BDD * b) {
   Binary ** res, * l;
   for (res = binary_table + h;
        (l = *res) && (l->a != a || l->b != b);
-       res = &l->next);
+       res = &l->next)
     stats.bdd.cache.collisions++;
   return res;
 }
@@ -653,7 +653,7 @@ static Ternary ** find_ternary (BDD * a, BDD * b, BDD * c) {
   Ternary ** res, * l;
   for (res = ternary_table + h;
        (l = *res) && (l->a != a || l->b != b || l->c != c);
-       res = &l->next);
+       res = &l->next)
     stats.bdd.cache.collisions++;
   return res;
 }
@@ -793,7 +793,7 @@ static Count ** find_count (BDD * a) {
   stats.bdd.cache.lookups++;
   unsigned h = hash_count (a) & (count_size - 1);
   Count ** res, * l;
-  for (res = count_table + h; (l = *res) && l->a != a; res = &l->next);
+  for (res = count_table + h; (l = *res) && l->a != a; res = &l->next)
     stats.bdd.cache.collisions++;
   return res;
 }

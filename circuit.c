@@ -78,7 +78,7 @@ void connect_gates (Gate * input, Gate * output) {
   Gate * stripped_output = STRIP (output);
   assert (input);
   assert (output);
-  assert (stripped_input->circuit = stripped_output->circuit);
+  assert (stripped_input->circuit == stripped_output->circuit);
   assert (stripped_output->op != FALSE_OPERATOR);
   assert (stripped_output->op != INPUT_OPERATOR);
   PUSH (stripped_input->outputs, output);
