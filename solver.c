@@ -1225,7 +1225,6 @@ static Clause * dual_propagate (Solver * solver) {
 	else { assert (is_irrelevant_var (var (solver,other))); RULE (UNY); }
 	res = c;
       } else {
-	COVER (is_dual_var (var (solver, other)));
 	assert (is_dual_var (var (solver, other)));
 	SOGCLS (c, "dual unit %d", other);
 	assign (solver, other, c);
