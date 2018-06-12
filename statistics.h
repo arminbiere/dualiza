@@ -13,9 +13,8 @@ struct Rules {
   long EP1,  EP0,  EN0;
   long BP0F, JP0;
   long BP1F, BP1L;
-  long BN0F;
+  long BN0F, BN0L;
 #if 0
-  long BN0L;
   long JN0F, JN0L;
 #endif
   long DX,   DY,   DS;

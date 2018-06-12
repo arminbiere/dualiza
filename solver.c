@@ -1514,18 +1514,29 @@ static int last_relevant_decision (Solver * solver) {
 
 static void force_splitting_on_relevant_first (Solver *);
 
+static void backtrack (Solver * solver, int level) {
+  SOG ("backtrack to level %d", level);
+  while (!EMPTY (solver->trail)) {
+    const int lit = TOP (solver->trail);
+    Var * v = var (solver, lit);
+    if (v->level == level) break;
+    const Decision decision = unassign (solver, lit);
+    if (decision != UNDECIDED) dec_level (solver);
+    (void) POP (solver->trail);
+  }
+  adjust_next_to_trail (solver);
+}
+
 static void
 backtrack_primal_satisfied_learn (Solver * solver, int level) {
   SOG ("applying primal satisfied learning rule");
   RULE (BP1L);
+
   check_primal_satisfied (solver);
   assert (is_relevant_decision_level (solver, level));
   check_no_relevant_decision_above_level (solver, level);
-  int lit, decision = decision_at_level (solver, level);
-  while ((lit = TOP (solver->trail)) != decision) {
-    if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
+
+  backtrack (solver, level);
   add_decision_blocking_clause (solver);
 }
 
@@ -1903,6 +1914,18 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 /*------------------------------------------------------------------------*/
 
 static void
+backtrack_dual_conflict_learn (Solver * solver, int level) {
+  SOG ("applying dual conflict learning rule");
+  RULE (BN0L);
+
+  assert (is_relevant_decision_level (solver, level));
+  check_no_relevant_decision_above_level (solver, level);
+
+  backtrack (solver, level);
+  add_decision_blocking_clause (solver);
+}
+
+static void
 backtrack_dual_conflict_flip (Solver * solver, int level, int counted)
 {
   SOG ("applying dual conflict flipping rule");
@@ -1939,8 +1962,13 @@ static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
     RULE (EN0);
     return 0;
   }
+  stats.back.tracked++;
   int level = solver->last_relevant_level;
-  backtrack_dual_conflict_flip (solver, level, counted);
+  SOG ("backtracking to last relevant decision at level %d",
+    last_relevant_decision (solver), level);
+  if (blocking (solver, level))
+    backtrack_dual_conflict_learn (solver, level);
+  else backtrack_dual_conflict_flip (solver, level, counted);
   return 1;
 }
 
@@ -2073,19 +2101,6 @@ static int reuse_trail (Solver * solver) {
   SOG ("reuse trail level %d", res);
   if (res) stats.reused++;
   return res;
-}
-
-static void backtrack (Solver * solver, int level) {
-  SOG ("backtrack to level %d", level);
-  while (!EMPTY (solver->trail)) {
-    const int lit = TOP (solver->trail);
-    Var * v = var (solver, lit);
-    if (v->level == level) break;
-    const Decision decision = unassign (solver, lit);
-    if (decision != UNDECIDED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
-  adjust_next_to_trail (solver);
 }
 
 static void force_splitting_on_relevant_first (Solver * solver) {
