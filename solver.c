@@ -72,6 +72,7 @@ struct Limit {
   struct {
     long learned, interval, increment;
     int primal_or_shared_fixed;
+    int dual_or_shared_fixed;
   } reduce;
   struct {
     long conflicts;
@@ -105,8 +106,8 @@ struct Solver {
   int unassigned_relevant_variables;
   int unassigned_shared_variables;
 
+  int dual_or_shared_fixed;
   int primal_or_shared_fixed;
-  int dual_non_shared_fixed;
 
   IntStack trail, clause, levels, relevant;
   FrameStack frames;
@@ -608,8 +609,8 @@ static void assign (Solver * solver, int lit, Clause * reason) {
     if (reason)
       mark_clause_active (v->reason, cnf (solver, v->reason));
   } else {
-    if (is_dual_var (v)) solver->dual_non_shared_fixed++;
-    else solver->primal_or_shared_fixed++;
+    if (is_primal_or_shared_var (v)) solver->primal_or_shared_fixed++;
+    if (is_dual_or_shared_var (v)) solver->dual_or_shared_fixed++;
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
@@ -1992,12 +1993,23 @@ static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
 
 /*------------------------------------------------------------------------*/
 
-static int reducing (Solver * solver) {
+static int primal_reducing (Solver * solver) {
+  if (solver->primal_or_shared_fixed >
+      solver->limit.reduce.primal_or_shared_fixed) return 1;
   if (!options.reduce) return 0;
-  if (!stats.conflicts.primal &&
-      solver->primal_or_shared_fixed >
-        solver->limit.reduce.primal_or_shared_fixed) return 1;
   return stats.learned > solver->limit.reduce.learned;
+}
+
+static int dual_reducing (Solver * solver) {
+  if (!solver->cnf.dual) return 0;
+  if (solver->dual_or_shared_fixed >
+      solver->limit.reduce.dual_or_shared_fixed) return 1;
+  if (!options.reduce) return 0;
+  return stats.learned > solver->limit.reduce.learned;
+}
+
+static int reducing (Solver * solver) {
+  return primal_reducing (solver) || dual_reducing (solver);
 }
 
 static void inc_reduce_limit (Solver * solver) {
@@ -2040,15 +2052,21 @@ static int mark_satisfied_as_garbage (Solver * solver, Clause * c) {
   return 0;
 }
 
-static void reduce (Solver * solver) {
-  stats.reductions++;
-  SOG ("reduction %ld", stats.reductions);
-  Clauses candidates;
-  INIT (candidates);
-  CNF * primal = solver->cnf.primal;
+static void reduce_primal (Solver * solver)
+{
+  if (!primal_reducing (solver)) return;
+
   const int simplify =
     solver->primal_or_shared_fixed >
       solver->limit.reduce.primal_or_shared_fixed;
+
+  SOG ("primal %sreduction", simplify ? "simplifying " : "");
+
+  Clauses candidates;
+  INIT (candidates);
+
+  CNF * primal = solver->cnf.primal;
+
   for (Clause ** p = primal->clauses.start; p < primal->clauses.top; p++) {
     Clause * c = *p;
     if (c->garbage) continue;
@@ -2062,8 +2080,6 @@ static void reduce (Solver * solver) {
     if (recent) continue;
     PUSH (candidates, c);
   }
-  solver->limit.reduce.primal_or_shared_fixed =
-    solver->primal_or_shared_fixed;
   long n = COUNT (candidates);
   SOG ("found %ld reduce candidates out of %ld", n, primal->redundant);
   qsort (candidates.start, n, sizeof (Clause*), cmp_reduce);
@@ -2077,22 +2093,52 @@ static void reduce (Solver * solver) {
     RULE (FP);
     marked++;
   }
+
   RELEASE (candidates);
-  SOG ("marked %ld clauses as garbage", marked);
+  SOG ("marked %ld primal clauses as garbage", marked);
+
   flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (primal);
+
+  solver->limit.reduce.primal_or_shared_fixed =
+    solver->primal_or_shared_fixed;
+}
+
+static void reduce_dual (Solver * solver)
+{
+  if (!dual_reducing (solver)) return;
+
   CNF * dual = solver->cnf.dual;
-  if (dual && simplify) {
-    for (Clause ** p = dual->clauses.start;
-         p < dual->clauses.top;
-	 p++) {
-      Clause * c = *p;
-      if (c->garbage) continue;
-      (void) mark_satisfied_as_garbage (solver, c);
-    }
-    flush_dual_garbage_occurrences (solver);
-    collect_garbage_clauses (dual);
+  assert (dual);
+
+  const int simplify =
+    solver->dual_or_shared_fixed >
+      solver->limit.reduce.dual_or_shared_fixed;
+
+  COVER (!simplify);		// TODO remove
+  if (!simplify) return;
+
+  SOG ("dual simplifying reduction");
+
+  for (Clause ** p = dual->clauses.start;
+       p < dual->clauses.top;
+       p++) {
+    Clause * c = *p;
+    if (c->garbage) continue;
+    (void) mark_satisfied_as_garbage (solver, c);
   }
+
+  flush_dual_garbage_occurrences (solver);
+  collect_garbage_clauses (dual);
+}
+
+static void reduce (Solver * solver) {
+  stats.reductions++;
+  SOG ("reduction %ld", stats.reductions);
+
+  reduce_primal (solver);
+  reduce_dual (solver);
+
   inc_reduce_limit (solver);
   report (solver, 1, '-');
 }
