@@ -1345,7 +1345,8 @@ static void flush_primal_garbage_occurrences (Solver * solver) {
 
 static void flush_dual_garbage_occurrences (Solver * solver) {
   long flushed = 0;
-  for (int idx = 1; idx <= solver->max_var; idx++)
+  for (int idx = 1; idx <= solver->max_var; idx++) {
+    if (!is_dual_or_shared_var (var (solver, idx))) continue;
     for (int sign = -1; sign <= 1; sign += 2) {
       int lit = sign * idx;
       Clauses * o = dual_occs (solver, lit);
@@ -1358,6 +1359,7 @@ static void flush_dual_garbage_occurrences (Solver * solver) {
       o->top = q;
       if (EMPTY (*o)) RELEASE (*o);
     }
+  }
   SOG ("flushed %ld dual garbage occurrences", flushed);
 }
 
@@ -2004,8 +2006,7 @@ static int dual_reducing (Solver * solver) {
   if (!solver->cnf.dual) return 0;
   if (solver->dual_or_shared_fixed >
       solver->limit.reduce.dual_or_shared_fixed) return 1;
-  if (!options.reduce) return 0;
-  return stats.learned > solver->limit.reduce.learned;
+  return 0;
 }
 
 static int reducing (Solver * solver) {
@@ -2130,6 +2131,9 @@ static void reduce_dual (Solver * solver)
 
   flush_dual_garbage_occurrences (solver);
   collect_garbage_clauses (dual);
+
+  solver->limit.reduce.dual_or_shared_fixed =
+    solver->dual_or_shared_fixed;
 }
 
 static void reduce (Solver * solver) {
