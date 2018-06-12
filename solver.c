@@ -1873,19 +1873,19 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
     SOG ("learn since flipped level %d less equal back-jump level %d",
       solver->last_flipped_level, level);
     learn = 1;
-  } else if (options.discount) {
-    SOG ("discount at least flipped frame %d above back-jump level %d",
-      solver->last_flipped_level, level);
-    stats.back.discounting++;
-    SOG ("learn and back-jump with discounting");
-    learn = 1;
-  } else {
+  } else if (!options.discount) {
     SOG ("flipped frame %d bigger than back-jump level %d",
       solver->last_flipped_level, level);
     stats.back.forced++;
     SOG ("forces backtracking and flipping since discounting is disabled");
     level = solver->last_decision_level;
     learn = 0;
+  } else {
+    SOG ("discount at least flipped frame %d above back-jump level %d",
+      solver->last_flipped_level, level);
+    stats.back.discounting++;
+    SOG ("learn and back-jump with discounting");
+    learn = 1;
   }
 
   if (learn) {

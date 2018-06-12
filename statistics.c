@@ -41,9 +41,13 @@ void print_statistics () {
         stats.models.counted,
 	average (stats.decisions, stats.models.counted));
     if (stats.models.discounted)
-      msg (1, "%ld discounted models (%.1f%% per counted model)",
+      msg (1, "%ld discounted models (%.1f per counted model)",
         stats.models.discounted,
-	percent (stats.models.discounted, stats.models.counted));
+	average (stats.models.discounted, stats.models.counted));
+    if (stats.back.discounting)
+      msg (1, "%ld back-jumps with discounting (%.0f%% of all back-jumps)",
+	stats.back.discounting,
+	percent (stats.back.discounting, stats.back.jumped));
     long total = stats.conflicts.primal + stats.conflicts.dual;
     msg (1, "%ld conflicts (%.0f per second)",
       total, average (total, seconds));
