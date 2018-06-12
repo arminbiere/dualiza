@@ -17,9 +17,9 @@ void print_statistics () {
            rules.BP0F,rules.JP0);
   msg (1, "%12ld BP1F %12ld BP1L",
            rules.BP1F,rules.BP1L);
+  msg (1, "%12ld BN0F", rules.BN0F);
 #if  0
-  msg (1, "%12ld BN0F %12ld BN0L",
-           rules.BN0F,rules.BN0L);
+  msg (1, "%12ld BN0L", rules.BN0L);
   msg (1, "%12ld JN0F %12ld JN0L",
            rules.JN0F,rules.JN0L);
 #endif
