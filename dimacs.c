@@ -2,23 +2,21 @@
 
 extern int sat_competition_mode;
 
-Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
+Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
   Circuit * res = new_circuit ();
   CharStack comment;
-  IntStack relevant;
   INIT (comment);
-  INIT (relevant);
   Char ch;
   while ((ch = next_char (r)).code == 'c') {
     while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
 	parse_error (r, ch,
 	  "unexpected end-of-file in header comment");
-      if (!EMPTY (relevant)) continue;
+      if (!relevant || !EMPTY (*relevant)) continue;
       if (!EMPTY (comment) || ch.code != ' ')
 	PUSH (comment, ch.code);
     }
-    if (EMPTY (relevant) && !EMPTY (comment)) {
+    if (relevant && EMPTY (*relevant) && !EMPTY (comment)) {
       PUSH (comment, 0);
       LOG ("parsing comment for relevant: %s", comment.start);
       const char * err = 0;
@@ -39,33 +37,34 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	  if (err) break;
 	  if (dh == ',' || !dh) {
 	    if (dh) p++;
-	    PUSH (relevant, idx);
+	    LOG ("found relevant variable index %d", idx);
+	    PUSH (*relevant, idx);
 	  } else err = "expected ',' or digit";
 	} else err = "expected digit";
       }
       if (!err) {
-	assert (!EMPTY (relevant));
+	assert (!EMPTY (*relevant));
 	int cmp (const void * p, const void * q) {
 	  int l = * (int*) p, k = * (int*) q, res = abs (l) - abs (k);
 	  return res ? res : l - k;
 	}
-	qsort (relevant.start, COUNT (relevant), sizeof (int), cmp);
-	const size_t n = COUNT (relevant);
+	const size_t n = COUNT (*relevant);
+	qsort (relevant->start, n, sizeof (int), cmp);
 	for (size_t i = 1; !err && i < n; i++) {
-	  int prev = PEEK (relevant, i-1);
-	  int current = PEEK (relevant, i);
+	  int prev = PEEK (*relevant, i-1);
+	  int current = PEEK (*relevant, i);
 	  if (prev == current) err = "duplicated variable";
 	}
       }
       if (err) {
-	if (EMPTY (relevant))
+	if (EMPTY (*relevant))
 	  LOG ("parse error relevant variable line: %s", err);
 	else msg (2, "parse error relevant variable line: %s", err);
-	CLEAR (relevant);
+	CLEAR (*relevant);
       } else {
-	const size_t n = COUNT (relevant);
+	const size_t n = COUNT (*relevant);
 	assert (n > 0);
-	msg (1, "found relevant variables with %zd variables", n);
+	msg (2, "found relevant variable line with %zd variables", n);
       }
     }
     CLEAR (comment);
@@ -119,10 +118,21 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols) {
 	"non-space character before newline after 'p cnf %d %d'", s, t);
     else ch = next_char (r);
   msg (1, "parsed 'p cnf %d %d' header", s, t);
-  if (!EMPTY (relevant)) {
-    // TODO
+  if (relevant && !EMPTY (*relevant)) {
+    const size_t n = COUNT (*relevant);
+    size_t j = 0;
+    for (size_t i = 0; i < n; i++) {
+      const int idx = PEEK (*relevant, i);
+      if (idx > s) msg (0, "ignoring too large relevant index %d", idx);
+      else {
+	POKE (*relevant, j, idx);
+	j++;
+      }
+    }
+    relevant->top = relevant->start + j;
+    msg (1, "found %zd relevant variables", j);
   }
-  RELEASE (relevant);
+  if (relevant) RELEASE (*relevant);
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];

@@ -171,6 +171,7 @@ static Reader * input;
 static Symbols * symbols;
 static Circuit * primal_circuit;
 static Circuit * dual_circuit;
+static IntStack relevant;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -192,7 +193,7 @@ static void parse (const char * input_name) {
       sat_competition_mode = 1;
     }
     msg (1, "parsing input as DIMACS file");
-    primal_circuit = parse_dimacs (input, symbols);
+    primal_circuit = parse_dimacs (input, symbols, &relevant);
   } else {
     assert (type == AIGER);
     msg (1, "parsing input as AIGER file");
@@ -552,6 +553,7 @@ static void reset () {
   if (primal_circuit)  delete_circuit (primal_circuit);
   if (dual_circuit)    delete_circuit (dual_circuit);
   if (symbols)         delete_symbols (symbols);
+  RELEASE (relevant);
 }
 
 static void setup_messages (const char * output_name) {
