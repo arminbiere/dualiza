@@ -42,6 +42,10 @@ void add_number (Number res, const Number other) {
   mpz_add (res, res, other);
 }
 
+void sub_number (Number res, const Number other) {
+  mpz_sub (res, res, other);
+}
+
 void print_number_to_file (Number n, FILE * file) {
   mpz_out_str (file, 10, n);
 }
@@ -209,7 +213,24 @@ void add_number (Number res, const Number other) {
   if (carry) PUSH (res[0], (unsigned) carry);
 }
 
+void sub_number (Number res, const Number other) {
+  const unsigned res_count = COUNT (res[0]);
+  const unsigned other_count = COUNT (other[0]);
+  unsigned long carry = 0;
+  for (unsigned i = 0; i < other_count; i++) {
+    carry += other[0].start[i];
+    if (i < res_count) {
+      carry = res[0].start[i] - carry;
+      res[0].start[i] = (unsigned) carry;
+    } else assert (!carry);
+    carry >>= 32;
+  }
+  assert (!carry);
+  normalize_number (res);
+}
+
 void print_number_to_file (Number n, FILE * file) {
+  if (is_zero_number (n)) { fputc ('0', file); return; }
   CharStack stack;
   INIT (stack);
   print_number_to_stack (n, &stack);
@@ -232,3 +253,19 @@ void println_number_to_file (Number n, FILE * file) {
 void println_number (Number n) {
   println_number_to_file (n, stdout);
 }
+
+#ifndef NLOG
+
+void log_number (Number n, const char * fmt, ...) {
+  va_list ap;
+  fputs ("c LOG ", stdout);
+  va_start (ap, fmt);
+  vprintf (fmt, ap);
+  va_end (ap);
+  fputc (' ', stdout);
+  print_number_to_file (n, stdout);
+  fputc ('\n', stdout);
+  fflush (stdout);
+}
+
+#endif

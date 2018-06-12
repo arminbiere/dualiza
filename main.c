@@ -1,5 +1,7 @@
 #include "headers.h"
 
+int sat_competition_mode;
+
 static void usage () {
 fputs (
 "usage: dualiza [ <option> ... ] [ <file> ] [ <limit> ]\n"
@@ -60,7 +62,6 @@ fputs (
 , stdout);
 }
 
-int sat_competition_mode;
 static int formula, aiger, dimacs, negate;
 static int printing, checking, counting;
 static int sat, tautology, enumerate;
@@ -183,11 +184,11 @@ static void parse (const char * input_name) {
   setup_input (input_name);
   assert (input);
   symbols = new_symbols ();
-  Type type = get_file_type (input);
-  if (type == FORMULA) {
+  Info info = get_file_info (input);
+  if (info == FORMULA) {
     msg (1, "parsing input as formula");
     primal_circuit = parse_formula (input, symbols);
-  } else if (type == DIMACS) {
+  } else if (info == DIMACS) {
     if (checking) {
       msg (1, "switching to SAT solver competition mode");
       sat_competition_mode = 1;
@@ -195,7 +196,7 @@ static void parse (const char * input_name) {
     msg (1, "parsing input as DIMACS file");
     primal_circuit = parse_dimacs (input, symbols, &relevant);
   } else {
-    assert (type == AIGER);
+    assert (info == AIGER);
     msg (1, "parsing input as AIGER file");
     primal_circuit = parse_aiger (input, symbols);
   }
@@ -345,6 +346,7 @@ static int check () {
       primal_cnf = new_cnf (0);
       circuit = tautology ? dual_circuit : primal_circuit;
       encode_circuit (circuit, primal_cnf);
+      msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
     } else {
       msg (1, "checking with dual SAT engine");
       primal_cnf = new_cnf (0);
@@ -358,6 +360,8 @@ static int check () {
 	circuit = primal_circuit;
 	encode_circuits (circuit, dual_circuit, primal_cnf, dual_cnf);
       }
+      msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
+      msg (1, "dual CNF with %ld clauses", dual_cnf->irredundant);
     }
     IntStack inputs;
     INIT (inputs);
@@ -504,6 +508,7 @@ static void count () {
     msg (1, "counting with primal SAT engine");
     CNF * cnf = new_cnf (0);
     encode_circuit (primal_circuit, cnf);
+    msg (1, "primal CNF with %ld clauses", cnf->irredundant);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
@@ -525,6 +530,8 @@ static void count () {
     CNF * primal_cnf = new_cnf (0);
     CNF * dual_cnf = new_cnf (1);
     encode_circuits (primal_circuit, dual_circuit, primal_cnf, dual_cnf);
+    msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
+    msg (1, "dual CNF with %ld clauses", dual_cnf->irredundant);
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);

@@ -1,7 +1,7 @@
 typedef struct Reader Reader;
-typedef enum Type Type;
+typedef enum Info Info;
 
-enum Type { UNKNOWN, DIMACS, AIGER, FORMULA };
+enum Info { UNKNOWN, DIMACS, AIGER, FORMULA };
 
 #define IMPLIES 256	// '->' token for FORMULA
 #define IFF	257	// '<->' token for FORMULA
@@ -14,7 +14,7 @@ struct Reader {
   Buffer * buffer;
   CharStack symbol;
   Coo coo;
-  Type type;
+  Info info;
 };
 
 Reader * new_reader_from_stdin ();
@@ -27,6 +27,6 @@ Char next_non_white_space_char (Reader *);
 void prev_char (Reader *, Char);
 int peek_char (Reader *);
 
-Type get_file_type (Reader *);
+Info get_file_info (Reader *);
 
 void parse_error (Reader *, Char ch, const char * fmt, ...);
