@@ -41,10 +41,9 @@ void print_statistics () {
         stats.models.counted,
 	average (stats.decisions, stats.models.counted));
     if (stats.models.discounted)
-      msg (1, "%ld discounted models (%.1f per counted model)",
+      msg (1, "%ld discounted models (%.1f%% per counted model)",
         stats.models.discounted,
-	percent (stats.models.discounted,
-	         stats.models.counted - stats.models.discounted));
+	percent (stats.models.discounted, stats.models.counted));
     if (stats.back.discounting)
       msg (1, "%ld backjumps with discounting (%.0f%% of all backjumps)",
 	stats.back.discounting,
@@ -98,7 +97,7 @@ void print_statistics () {
         stats.restarts,
         average (stats.conflicts.primal, stats.restarts));
     if (stats.reused)
-      msg (1, "%ld reused (%.0f%% per restart)",
+      msg (1, "%ld reused trails (%.0f%% per restart)",
       stats.reused, percent (stats.reused, stats.restarts));
     if (stats.reductions)
       msg (1, "%ld reductions (%.0f primal conflicts per reduction)",
