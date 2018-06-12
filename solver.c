@@ -1842,7 +1842,6 @@ static int flipped_levels_above (Solver * solver, int level) {
 static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 
   SOG ("analyze primal");
-
   assert (conflict);
   assert (!conflict->dual);
 
