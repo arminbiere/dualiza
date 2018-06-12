@@ -132,7 +132,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
     relevant->top = relevant->start + j;
     msg (1, "found %zd relevant variables", j);
   }
-  if (relevant) RELEASE (*relevant);
+  // if (relevant) RELEASE (*relevant);
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];

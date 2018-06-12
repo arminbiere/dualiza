@@ -25,10 +25,11 @@ typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
 
 enum Type {
-  RELEVANT_VARIABLE = 0,
-  IRRELEVANT_VARIABLE = 1,
-  PRIMAL_VARIABLE = 2,
-  DUAL_VARIABLE = 3,
+  UNCLASSIFIED_VARIABLE = 0,
+  RELEVANT_VARIABLE = 1,
+  IRRELEVANT_VARIABLE = 2,
+  PRIMAL_VARIABLE = 3,
+  DUAL_VARIABLE = 4,
 };
 
 enum Decision {
@@ -385,6 +386,7 @@ Solver * new_solver (CNF * primal,
   for (int idx = 1; idx <= solver->max_var; idx++)
     solver->vars[idx].phase = solver->phase;
   assert (max_primal_var <= max_var);
+  long count_relevant = 0, count_irrelevant = 0;
   if (relevant) {
     for (const int * p = relevant->start; p < relevant->top; p++) {
       const int idx = * p;
@@ -395,13 +397,13 @@ Solver * new_solver (CNF * primal,
       v->type = RELEVANT_VARIABLE;
     }
   }
-  long count_relevant = 0, count_irrelevant = 0;
   for (int idx = 1; idx <= max_shared_var; idx++) {
     Var * v = var (solver, idx);
-    if (!relevant || v->type) {
+    if (!relevant || v->type == RELEVANT_VARIABLE) {
       assert (!relevant || v->type == RELEVANT_VARIABLE);
       SOG ("relevant shared variable %d", idx);
       PUSH (solver->relevant, idx);
+      v->type = RELEVANT_VARIABLE;
       count_relevant++;
     } else {
       SOG ("irrelevant shared variable %d", idx);
