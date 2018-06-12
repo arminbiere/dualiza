@@ -312,7 +312,6 @@ static void enable_model_printing (Solver * solver, Name name) {
 Solver * new_solver (CNF * primal,
                      IntStack * shared, IntStack * relevant,
 		     CNF * dual) {
-  assert (!relevant);
   assert (primal);
   Solver * solver;
   NEW (solver);

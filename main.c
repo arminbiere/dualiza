@@ -512,7 +512,8 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs, 0, 0);
+    IntStack * r = EMPTY (relevant) ? 0 : &relevant;
+    Solver * solver = new_solver (cnf, &inputs, r, 0);
     if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
@@ -535,7 +536,8 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
+    IntStack * r = EMPTY (relevant) ? 0 : &relevant;
+    Solver * solver = new_solver (primal_cnf, &inputs, r, dual_cnf);
     if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
