@@ -1761,7 +1761,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (c->size > 0);
   const int forced = c->literals[0];
   stats.back.jumped++;
-  SOG ("back jump %ld to level %d", stats.back.jumped, level);
+  SOG ("back-jump %ld to level %d", stats.back.jumped, level);
   RULE (JP0);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
@@ -1841,6 +1841,14 @@ static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
   return reset_levels (solver);
 }
 
+static int flipped_levels_above (Solver * solver, int level) {
+  int res = 0;
+  for (int i = level + 1; i <= solver->level; i++)
+    if (frame_at_level (solver, i)->flipped) res++;
+  SOG ("found %d flipped levels above %d", res, level);
+  return res;
+}
+
 static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 
   SOG ("analyze primal");
@@ -1862,6 +1870,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   // Also determine back-jump level even if we only backtrack.
   //
   int level = jump_level (solver);
+  int discount = flipped_levels_above (solver, level);
 
   int learn;	// Learn a clause or just backtrack and flip.
 
@@ -1870,21 +1879,24 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
     level = solver->last_decision_level;
     learn = 0;
   } else if (solver->last_flipped_level <= level) {
+    assert (!discount);
     SOG ("learn since flipped level %d less equal back-jump level %d",
       solver->last_flipped_level, level);
     learn = 1;
   } else if (!options.discount) {
-    SOG ("flipped frame %d bigger than back-jump level %d",
-      solver->last_flipped_level, level);
+    assert (discount > 0);
     stats.back.forced++;
     SOG ("forces backtracking and flipping since discounting is disabled");
     level = solver->last_decision_level;
     learn = 0;
+  } else if (discount > options.discountmax) {
+    level = solver->last_decision_level;
+    learn = 0;
   } else {
-    SOG ("discount at least flipped frame %d above back-jump level %d",
-      solver->last_flipped_level, level);
+    assert (0 < discount);
+    assert (discount <= options.discountmax);
+    SOG ("discounting %d levels above back-jump level %d", discount, level);
     stats.back.discounting++;
-    SOG ("learn and back-jump with discounting");
     learn = 1;
   }
 
