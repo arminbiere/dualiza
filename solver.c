@@ -1342,6 +1342,24 @@ static void flush_primal_garbage_occurrences (Solver * solver) {
   SOG ("flushed %ld primal garbage occurrences", flushed);
 }
 
+static void flush_dual_garbage_occurrences (Solver * solver) {
+  long flushed = 0;
+  for (int idx = 1; idx <= solver->max_var; idx++)
+    for (int sign = -1; sign <= 1; sign += 2) {
+      int lit = sign * idx;
+      Clauses * o = dual_occs (solver, lit);
+      Clause ** q = o->start, ** p = q;
+      while (p < o->top) {
+	Clause * c = *p++;
+	if (c->garbage) flushed++;
+	else *q++ = c;
+      }
+      o->top = q;
+      if (EMPTY (*o)) RELEASE (*o);
+    }
+  SOG ("flushed %ld dual garbage occurrences", flushed);
+}
+
 // If a new blocking clause is added, then try to subsume a limited number
 // of previously added clauses.  This removes some redundant blocking
 // clause, but should probably eventually be replaced by a scheme which
@@ -2063,6 +2081,18 @@ static void reduce (Solver * solver) {
   SOG ("marked %ld clauses as garbage", marked);
   flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (primal);
+  CNF * dual = solver->cnf.dual;
+  if (dual && simplify) {
+    for (Clause ** p = dual->clauses.start;
+         p < dual->clauses.top;
+	 p++) {
+      Clause * c = *p;
+      if (c->garbage) continue;
+      (void) mark_satisfied_as_garbage (solver, c);
+    }
+    flush_dual_garbage_occurrences (solver);
+    collect_garbage_clauses (dual);
+  }
   inc_reduce_limit (solver);
   report (solver, 1, '-');
 }
