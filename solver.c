@@ -452,7 +452,7 @@ Solver * new_solver (CNF * primal,
   push_frame (solver, 0);
   assert (COUNT (solver->frames) == solver->level + 1);
   init_number (solver->count);
-  if (options.relevant) {
+  if (options.relevantfirst) {
     SOG ("always forcing to split on relevant variables first");
     solver->split_on_relevant_first = 1;
   } else {

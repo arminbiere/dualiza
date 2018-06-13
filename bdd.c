@@ -889,7 +889,7 @@ count_bdd_recursive (Number res, BDD * a, int * vars, int * end)
   unsigned counted = 0, var = 0;
   assert (vars == end || bdd_import_var (*vars) >= a->var);
   while (vars != end && (var = bdd_import_var (*vars)) > a->var)
-    vars++, counted++, assert (vars != end);
+    vars++, counted++;
   if (a == true_bdd_node) {
     assert (is_zero_number (res));
     add_power_of_two_to_number (res, counted);

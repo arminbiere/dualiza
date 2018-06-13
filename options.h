@@ -19,7 +19,7 @@ OPTION (print,        1, "print model or number of all assignments") \
 OPTION (reduce,       1, "garbage collect useless learned clauses") \
 OPTION (reduceinc,  300, "reduce interval increment") \
 OPTION (reduceinit, 2e3, "initial reduce interval") \
-OPTION (relevant,     0, "always split on relevant variables first") \
+OPTION (relevantfirst,0, "always split on relevant variables first") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
 OPTION (reuse,        1, "reuse trail during restart") \
