@@ -19,6 +19,7 @@ BDD * xor_bdd (BDD *, BDD *);
 BDD * or_bdd (BDD *, BDD *);
 BDD * ite_bdd (BDD *, BDD *, BDD *);
 BDD * xnor_bdd (BDD *, BDD *);
+BDD * exists_bdd (BDD *, int);
 
 void print_bdd_to_file (BDD *, FILE *);
 void print_bdd (BDD *);

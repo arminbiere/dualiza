@@ -594,6 +594,32 @@ BDD * xnor_bdd (BDD * a, BDD * b) {
 
 /*------------------------------------------------------------------------*/
 
+static BDD * exists_bdd_recursive (BDD * a, int var) {
+  if (a == false_bdd_node || a == true_bdd_node) return inc (a);
+  BDD * res = cached_unary (a);
+  if (res) return res;
+  BDD * then = exists_bdd_recursive (a->then, var);
+  BDD * other = exists_bdd_recursive (a->other, var);
+  if (a->var == var) res = or_bdd_recursive (then, other);
+  else res = new_bdd_node (a->var, then, other);
+  cache_unary (a, res);
+  dec (other);
+  dec (then);
+  return res;
+}
+
+BDD * exists_bdd (BDD * a, int var) {
+  LOG ("exist_bdd (%lu, %lu)", a->idx);
+  init_unary ();
+  init_binary ();
+  BDD * res = exists_bdd_recursive (a, var);
+  reset_unary ();
+  reset_binary ();
+  return res;
+}
+
+/*------------------------------------------------------------------------*/
+
 typedef struct Ternary Ternary;
 struct Ternary { BDD * a, * b, * c, * res; Ternary * next; };
 
