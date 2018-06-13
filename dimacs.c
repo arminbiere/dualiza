@@ -16,7 +16,9 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
       if (parsed_relevant_variables) continue;
       if (!EMPTY (comment) || ch.code != ' ') PUSH (comment, ch.code);
     }
-    if (!parsed_relevant_variables && !EMPTY (comment)) {
+    if (options.relevant &&
+        !parsed_relevant_variables &&
+	!EMPTY (comment)) {
       PUSH (comment, 0);
       LOG ("parsing comment for relevant variables: %s", comment.start);
       const char * err = 0;
