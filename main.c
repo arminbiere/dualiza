@@ -283,12 +283,23 @@ name_circuit_input (Circuit * circuit, int i) {
 }
 
 static BDD * simulate_primal () {
-  double start = process_time ();
+  const double start = process_time ();
   assert (primal_circuit);
   BDD * res = simulate_circuit (primal_circuit);
-  double time = process_time ();
-  double delta = time - start;
-  msg (1, "BDD simulation of primal circuit in %.3f seconds", delta);
+  const double simulated = process_time ();
+  const double simulation_time = simulated - start;
+  msg (1, "BDD simulation of circuit in %.3f seconds", simulation_time);
+  if (!EMPTY (relevant)) {
+    BDD * tmp = project_bdd (res, &relevant);
+    delete_bdd (res);
+    res = tmp;
+    const double projected = process_time ();
+    const double projection_time = projected - simulated;
+    msg (1, "BDD projection on %d relevant variables in %.3f seconds",
+      (int) COUNT (relevant), projection_time);
+    const double total = projected - start;
+    msg (1, "total BDD computation time of %.3f seconds", total);
+  }
   if (visualize) {
     Name n = construct_name (primal_circuit, (GetName) name_circuit_input);
     visualize_bdd (res, n);
