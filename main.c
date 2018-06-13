@@ -504,7 +504,7 @@ static void count () {
       double start = process_time ();
       Number n;
       init_number (n);
-      count_bdd (n, b, num_inputs);
+      count_bdd (n, b, &relevant);
       double time = process_time ();
       double delta = time - start;
       msg (1,

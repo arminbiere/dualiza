@@ -887,9 +887,8 @@ count_bdd_recursive (Number res, BDD * a, int * vars, int * end)
 {
   if (a == false_bdd_node) return;
   unsigned counted = 0, var = 0;
-  assert (vars != end);
-  assert (bdd_import_var (*vars) >= a->var);
-  while ((var = bdd_import_var (*vars)) > a->var)
+  assert (vars == end || bdd_import_var (*vars) >= a->var);
+  while (vars != end && (var = bdd_import_var (*vars)) > a->var)
     vars++, counted++, assert (vars != end);
   if (a == true_bdd_node) {
     assert (is_zero_number (res));
