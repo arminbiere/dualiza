@@ -10,7 +10,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
   INIT (comment);
   Char ch;
   int parsed_relevant_variables = 0;
-  IntStack * relevant;
+  IntStack * relevant = 0;
   while ((ch = next_char (r)).code == 'c') {
     while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
