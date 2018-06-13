@@ -126,6 +126,10 @@ static void init_mode () {
     else          msg (1, "default counting mode"), counting = 1;
   }
   assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
+  if (checking && options.project) {
+    msg (1, "disabling projection due to%s", CHECKING);
+    options.project = 0;
+  }
 }
 
 # undef FORMULA
