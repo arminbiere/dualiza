@@ -239,7 +239,7 @@ static void push_frame (Solver * solver, int decision) {
 
 static Frame * frame_at_level (Solver * solver, int level) {
   assert (0 <= level);
-  assert (level < (int) COUNT (solver->frames));
+  assert ((size_t) level < COUNT (solver->frames));
   assert (level <= solver->level);
   return solver->frames.start + level;
 }
@@ -387,6 +387,9 @@ Solver * new_solver (CNF * primal,
     solver->vars[idx].phase = solver->phase;
   assert (max_primal_var <= max_var);
   long count_relevant = 0, count_irrelevant = 0;
+
+  // TODO remove this test and assume 'relevant' non zero instead.
+  
   if (relevant) {
     for (const int * p = relevant->start; p < relevant->top; p++) {
       const int idx = * p;

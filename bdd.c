@@ -611,7 +611,7 @@ static BDD * project_bdd_recursive (BDD * a, int * vars, int * end) {
 }
 
 BDD * project_bdd (BDD * a, IntStack * vars) {
-  LOG ("project_bdd (%lu, #%d)", a->idx, (int) COUNT (*vars));
+  LOG ("project_bdd (%lu, #%zd)", a->idx, COUNT (*vars));
   init_unary ();
   init_binary ();
   BDD * res = project_bdd_recursive (a, vars->start, vars->top);

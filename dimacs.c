@@ -7,18 +7,18 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
   CharStack comment;
   INIT (comment);
   Char ch;
+  int parsed_relevant_variables = 0;
   while ((ch = next_char (r)).code == 'c') {
     while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
 	parse_error (r, ch,
 	  "unexpected end-of-file in header comment");
-      if (!relevant || !EMPTY (*relevant)) continue;
-      if (!EMPTY (comment) || ch.code != ' ')
-	PUSH (comment, ch.code);
+      if (parsed_relevant_variables) continue;
+      if (!EMPTY (comment) || ch.code != ' ') PUSH (comment, ch.code);
     }
-    if (relevant && EMPTY (*relevant) && !EMPTY (comment)) {
+    if (!parsed_relevant_variables && !EMPTY (comment)) {
       PUSH (comment, 0);
-      LOG ("parsing comment for relevant: %s", comment.start);
+      LOG ("parsing comment for relevant variables: %s", comment.start);
       const char * err = 0;
       int dh;
       for (const char * p = comment.start; !err && (dh = *p); p++) {
@@ -65,6 +65,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
 	const size_t n = COUNT (*relevant);
 	assert (n > 0);
 	msg (2, "found relevant variable line with %zd variables", n);
+	parsed_relevant_variables = 1;
       }
     }
     CLEAR (comment);
@@ -118,7 +119,8 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
 	"non-space character before newline after 'p cnf %d %d'", s, t);
     else ch = next_char (r);
   msg (1, "parsed 'p cnf %d %d' header", s, t);
-  if (relevant && !EMPTY (*relevant)) {
+  if (parsed_relevant_variables) {
+    assert (!EMPTY (*relevant));
     const size_t n = COUNT (*relevant);
     size_t j = 0;
     for (size_t i = 0; i < n; i++) {
@@ -131,8 +133,11 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
     }
     relevant->top = relevant->start + j;
     msg (1, "found %zd relevant variables", j);
+  } else {
+    LOG ("all variables relevant since none explicitly specified");
+    for (int idx = 1; idx <= s; idx++)
+      PUSH (*relevant, idx);
   }
-  // if (relevant) RELEASE (*relevant);
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];

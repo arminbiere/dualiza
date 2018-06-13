@@ -295,8 +295,8 @@ static BDD * simulate_primal () {
     res = tmp;
     const double projected = process_time ();
     const double projection_time = projected - simulated;
-    msg (1, "BDD projection on %d relevant variables in %.3f seconds",
-      (int) COUNT (relevant), projection_time);
+    msg (1, "BDD projection on %zd relevant variables in %.3f seconds",
+      COUNT (relevant), projection_time);
     const double total = projected - start;
     msg (1, "total BDD computation time of %.3f seconds", total);
   }

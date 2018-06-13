@@ -295,8 +295,8 @@ static int encode_root (Encoder * encoder, Gate * g, int idx) {
   Gate * h = sign ? NOT (g) : g;
   if (h->root & bit) return idx;
   h->root |= bit;
-  LOG ("%sroot %d-ary %s gate",
-    sign ? "negated " : "", (int) COUNT (h->inputs), gate_name (h));
+  LOG ("%sroot %zd-ary %s gate",
+    sign ? "negated " : "", COUNT (h->inputs), gate_name (h));
   if (!h->code) idx = encode_gates (encoder, h, idx);
   encode_unary (encoder, map_gate (g, encoder));
   return idx;
