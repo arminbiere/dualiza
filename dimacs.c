@@ -67,10 +67,13 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
 	}
       }
       if (err) {
-	if (EMPTY (*relevant))
+	if (relevant && EMPTY (*relevant))
 	  LOG ("parse error relevant variable line: %s", err);
 	else msg (2, "parse error relevant variable line: %s", err);
-	CLEAR (*relevant);
+	if (relevant) {
+	  RELEASE (*relevant);
+	  *relevant_ptr = relevant = 0;
+	}
       } else {
 	const size_t n = COUNT (*relevant);
 	assert (n > 0);
@@ -144,10 +147,6 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
     }
     relevant->top = relevant->start + j;
     msg (1, "found %zd relevant variables", j);
-  } else {
-    LOG ("all variables relevant since none explicitly specified");
-    for (int idx = 1; idx <= s; idx++)
-      PUSH (*relevant, idx);
   }
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
