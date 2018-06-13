@@ -57,6 +57,7 @@ count () {
   fi
   case `basename $1 .cnf` in
     0000) ;; # sharpSAT gives wrong answer
+    2???) ;; # can not do projection with sharpSAT
     *)
       if [ "$sharpsat" ]
       then
