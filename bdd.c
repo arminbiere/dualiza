@@ -149,11 +149,22 @@ void reset_bdds () {
   true_bdd_node = 0;
 }
 
+static unsigned bdd_import_var (int evar) {
+  assert (evar > 0);
+  return 1u + (unsigned) evar;
+}
+
+static int bdd_export_var (unsigned ivar) {
+  assert (1 < ivar);
+  assert (ivar <= 1 + (unsigned) INT_MAX);
+  return ((int) ivar) - 1;
+}
+
 BDD * new_bdd (int var) {
   assert (var > 0);
   assert (true_bdd_node);
   assert (false_bdd_node);
-  unsigned internal = 1 + (unsigned) var;
+  unsigned internal = bdd_import_var (var);
   return new_bdd_node (internal, true_bdd_node, false_bdd_node);
 }
 
@@ -197,7 +208,7 @@ static void visualize_bdd_recursive (BDD * b, FILE * file, Name name) {
     visualize_bdd_recursive (b->other, file, name);
     assert (b->var > 1);
     fprintf (file, "b%lu [label=\"", b->idx);
-    unsigned var = b->var - 1;
+    int var = bdd_export_var (b->var);
     const char * s;
     s = name.get (name.state, var);
     fputs (s, file);
@@ -593,11 +604,16 @@ static BDD * project_bdd_recursive (BDD * a, int * vars, int * end) {
   if (a == false_bdd_node || a == true_bdd_node) return inc (a);
   BDD * res = cached_unary (a);
   if (res) return res;
-  while (vars != end && *vars > a->var)
+  assert (vars != end);
+  unsigned var;
+  assert (vars != end);
+  while ((var = bdd_import_var (*vars)) > a->var) {
     vars++;
+    assert (vars != end);
+  }
   BDD * then = project_bdd_recursive (a->then, vars, end);
   BDD * other = project_bdd_recursive (a->other, vars, end);
-  if (*vars == a->var) res = new_bdd_node (a->var, then, other);
+  if (var == a->var) res = new_bdd_node (a->var, then, other);
   else res = or_bdd_recursive (then, other);
   cache_unary (a, res);
   dec (other);
@@ -605,10 +621,15 @@ static BDD * project_bdd_recursive (BDD * a, int * vars, int * end) {
   return res;
 }
 
+static int cmp_ints (const void * p, const void * q) {
+  return *(int *) q - *(int *) p;
+}
+
 BDD * project_bdd (BDD * a, IntStack * vars) {
   LOG ("project_bdd (%lu, #%zd)", a->idx, COUNT (*vars));
   init_unary ();
   init_binary ();
+  qsort (vars->start, COUNT (*vars), sizeof *vars->start, cmp_ints);
   BDD * res = project_bdd_recursive (a, vars->start, vars->top);
   reset_binary ();
   reset_unary ();
@@ -864,7 +885,8 @@ static void reset_count () {
 static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
   assert (a);
   assert (0 < max_var);
-  assert (a->var <= max_var + 1);
+  assert (1 < a->var);
+  assert (a->var <= bdd_import_var (max_var));
   if (a == false_bdd_node) return;
   if (a == true_bdd_node) {
     assert (is_zero_number (res));
@@ -913,7 +935,7 @@ static void print_one_satisfying_cube_to_file_recursively (
   }
   if (c != a->then) fputc ((sat_competition_mode ? '-' : '!'), stdout);
   assert (a->var > 1);
-  fputs (name.get (name.state, a->var - 1), file);
+  fputs (name.get (name.state, bdd_export_var (a->var)), file);
 }
 
 static void
@@ -942,7 +964,7 @@ static void print_one_falsifying_cube_to_file_recursively (
   }
   if (c != a->then) fputc ('!', stdout);
   assert (a->var > 1);
-  fputs (name.get (name.state, a->var - 1), file);
+  fputs (name.get (name.state, bdd_export_var (a->var)), file);
 }
 
 void print_one_falsifying_cube (BDD * a, Name name) {
@@ -964,7 +986,7 @@ static void print_linked_bdd_cube (Link * l, FILE* file, Name name) {
   if (p->other == c) fputc ('!', file);
   else assert (p->then == c);
   assert (p->var > 1);
-  fputs (name.get (name.state, p->var - 1), file);
+  fputs (name.get (name.state, bdd_export_var (p->var)), file);
   print_linked_bdd_cube (k, file, name);
 }
 
