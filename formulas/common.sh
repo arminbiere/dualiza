@@ -14,7 +14,7 @@ if [ x"`which dualiza`" = x"$dualiza" ]
 then
   echo "$0: using '$dualiza'"
   dualiza=dualiza
-elif [ ! "`wchich dualiza`" = x -a x"`which dualiza|xargs readlink`" = x"$dualiza" ]
+elif [ ! "`which dualiza`" = x -a x"`which dualiza|xargs readlink`" = x"$dualiza" ]
 then
   echo "$0: using '$dualiza'"
   dualiza=dualiza
