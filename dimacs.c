@@ -2,12 +2,15 @@
 
 extern int sat_competition_mode;
 
-Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
+Circuit * parse_dimacs (Reader * r, Symbols * symbols,
+                        IntStack ** relevant_ptr) {
+  assert (relevant_ptr);
   Circuit * res = new_circuit ();
   CharStack comment;
   INIT (comment);
   Char ch;
   int parsed_relevant_variables = 0;
+  IntStack * relevant;
   while ((ch = next_char (r)).code == 'c') {
     while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
@@ -40,6 +43,11 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
 	  if (dh == ',' || !dh) {
 	    if (dh) p++;
 	    LOG ("found relevant variable index %d", idx);
+	    if (!relevant) {
+	      NEW (relevant);
+	      INIT (*relevant);
+	      *relevant_ptr = relevant;
+	    }
 	    PUSH (*relevant, idx);
 	  } else err = "expected ',' or digit";
 	} else err = "expected digit";
@@ -122,6 +130,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
     else ch = next_char (r);
   msg (1, "parsed 'p cnf %d %d' header", s, t);
   if (parsed_relevant_variables) {
+    assert (relevant);
     assert (!EMPTY (*relevant));
     const size_t n = COUNT (*relevant);
     size_t j = 0;

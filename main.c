@@ -172,7 +172,7 @@ static Reader * input;
 static Symbols * symbols;
 static Circuit * primal_circuit;
 static Circuit * dual_circuit;
-static IntStack relevant;
+static IntStack * relevant;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -289,14 +289,14 @@ static BDD * simulate_primal () {
   const double simulated = process_time ();
   const double simulation_time = simulated - start;
   msg (1, "BDD simulation of circuit in %.3f seconds", simulation_time);
-  if (!EMPTY (relevant)) {
-    BDD * tmp = project_bdd (res, &relevant);
+  if (relevant) {
+    BDD * tmp = project_bdd (res, relevant);
     delete_bdd (res);
     res = tmp;
     const double projected = process_time ();
     const double projection_time = projected - simulated;
     msg (1, "BDD projection on %zd relevant variables in %.3f seconds",
-      COUNT (relevant), projection_time);
+      COUNT (*relevant), projection_time);
     const double total = projected - start;
     msg (1, "total BDD computation time of %.3f seconds", total);
   }
@@ -504,7 +504,7 @@ static void count () {
       double start = process_time ();
       Number n;
       init_number (n);
-      count_bdd (n, b, &relevant);
+      count_bdd (n, b, relevant);
       double time = process_time ();
       double delta = time - start;
       msg (1,
@@ -523,8 +523,7 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    IntStack * r = EMPTY (relevant) ? 0 : &relevant;
-    Solver * solver = new_solver (cnf, &inputs, r, 0);
+    Solver * solver = new_solver (cnf, &inputs, relevant, 0);
     if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
@@ -547,8 +546,8 @@ static void count () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    IntStack * r = EMPTY (relevant) ? 0 : &relevant;
-    Solver * solver = new_solver (primal_cnf, &inputs, r, dual_cnf);
+    Solver * solver =
+      new_solver (primal_cnf, &inputs, relevant, dual_cnf);
     if (limited) limit_number_of_partial_models (solver, limit);
     Number n;
     init_number (n);
@@ -573,7 +572,7 @@ static void reset () {
   if (primal_circuit)  delete_circuit (primal_circuit);
   if (dual_circuit)    delete_circuit (dual_circuit);
   if (symbols)         delete_symbols (symbols);
-  RELEASE (relevant);
+  if (relevant) { RELEASE (*relevant); DELETE (relevant); }
 }
 
 static void setup_messages (const char * output_name) {
