@@ -68,8 +68,6 @@ static int sat, tautology, enumerate;
 static int bdd, limited, visualize;
 static long limit;
 
-static const char * first_solving_option;
- 
 # define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
 # define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
 # define DIMACS    (dimacs   >0?" '--dimacs'"   :(dimacs<0   ?" '-d'":""))
@@ -112,10 +110,6 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s and '%ld'", CHECKING, limit);
   if (printing && limited)
     die ("can not combine%s%s%s and '%ld'", PRINTING, limit);
-  if (printing && first_solving_option)
-    die ("can not combine%s%s%s and '%s'", PRINTING, first_solving_option);
-  if (bdd && first_solving_option)
-    die ("can not use%s and '%s'", BDD, first_solving_option);
   if (options.annotate && !dimacs)
     die ("can not use '--annotate' without DIMACS printing");
 }
@@ -377,7 +371,7 @@ static int check () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
+    Solver * solver = new_solver (primal_cnf, &inputs, relevant, dual_cnf);
     if (options.primal) res = primal_sat (solver);
     else res = dual_sat (solver);
     if (sat) {
@@ -463,7 +457,7 @@ static void all () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (cnf, &inputs, 0, 0);
+    Solver * solver = new_solver (cnf, &inputs, relevant, 0);
     if (limited) limit_number_of_partial_models (solver, limit);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
@@ -479,7 +473,7 @@ static void all () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (primal_circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
+    Solver * solver = new_solver (primal_cnf, &inputs, relevant, dual_cnf);
     if (limited) limit_number_of_partial_models (solver, limit);
     if (negate) printf ("ALL FALSIFYING ASSIGNMENTS\n");
     else printf ("ALL SATISFYING ASSIGNMENTS\n");
@@ -489,6 +483,13 @@ static void all () {
     delete_cnf (primal_cnf);
     delete_cnf (dual_cnf);
   }
+}
+
+static void init_relevant (unsigned num_inputs) {
+  NEW (relevant);
+  INIT (*relevant);
+  for (int i = 1; (unsigned) i <= num_inputs; i++)
+    PUSH (*relevant, i);
 }
 
 static void count () {
@@ -504,6 +505,7 @@ static void count () {
       double start = process_time ();
       Number n;
       init_number (n);
+      if (!relevant) init_relevant (num_inputs);
       count_bdd (n, b, relevant);
       double time = process_time ();
       double delta = time - start;
@@ -617,8 +619,6 @@ int main (int argc, char ** argv) {
     else if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
 	die ("invalid long option '%s'", argv[i]);
-      else if (!first_solving_option && solving_option_set)
-	first_solving_option = argv[i];
     } else if (!strcmp (argv[i], "-o")) {
       if (++i == argc) die ("output file argument to '-o' missing'");
       if (output_name)
