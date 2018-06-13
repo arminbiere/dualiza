@@ -33,4 +33,5 @@ void print_all_satisfying_cubes (BDD *, Name);
 void visualize_bdd (BDD *, Name);
 
 #include "num.h"
-void count_bdd (Number res, BDD *, int max_var_idx);
+
+void count_bdd (Number res, BDD *, IntStack * domain);

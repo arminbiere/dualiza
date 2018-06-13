@@ -882,38 +882,39 @@ static void reset_count () {
 #endif
 }
 
-static void count_bdd_recursive (Number res, BDD * a, unsigned max_var) {
-  assert (a);
-  assert (0 < max_var);
-  assert (1 < a->var);
-  assert (a->var <= bdd_import_var (max_var));
+static void
+count_bdd_recursive (Number res, BDD * a, int * vars, int * end)
+{
   if (a == false_bdd_node) return;
+  unsigned counted = 0, var = 0;
+  assert (vars != end);
+  assert (bdd_import_var (*vars) >= a->var);
+  while ((var = bdd_import_var (*vars)) > a->var)
+    vars++, counted++, assert (vars != end);
   if (a == true_bdd_node) {
     assert (is_zero_number (res));
-    add_power_of_two_to_number (res, max_var - 1);
+    add_power_of_two_to_number (res, counted);
     return;
   }
-  if (cached_count (res, a)) {
-    multiply_number_by_power_of_two (res, max_var - a->var);
-    return;
+  assert (var == a->var), (void) var;
+  if (!cached_count (res, a)) {
+    Number tmp;
+    init_number (tmp);
+    count_bdd_recursive (tmp, a->then, vars + 1, end);
+    count_bdd_recursive (res, a->other, vars + 1, end);
+    add_number (res, tmp);
+    clear_number (tmp);
+    cache_count (a, res);
   }
-  Number tmp;
-  init_number (tmp);
-  count_bdd_recursive (tmp, a->then, a->var - 1);
-  count_bdd_recursive (res, a->other, a->var - 1);
-  add_number (res, tmp);
-  clear_number (tmp);
-  cache_count (a, res);
-  multiply_number_by_power_of_two (res, max_var - a->var);
+  multiply_number_by_power_of_two (res, counted);
 }
 
-void count_bdd (Number res, BDD * b, int max_var) {
-  assert (max_var >= 0);
-  LOG ("count_bdd (%lu, %u)", b->idx, max_var);
+void count_bdd (Number res, BDD * b, IntStack * vars) {
+  LOG ("count_bdd (%lu, #%zd)", b->idx, COUNT (*vars));
   assert (b);
-  assert (b->var <= max_var + 1);
   init_count ();
-  count_bdd_recursive (res, b, max_var + 1);
+  qsort (vars->start, COUNT (*vars), sizeof *vars->start, cmp_ints);
+  count_bdd_recursive (res, b, vars->start, vars->top);
   reset_count ();
 }
 
