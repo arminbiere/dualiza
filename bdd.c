@@ -199,13 +199,8 @@ static void visualize_bdd_recursive (BDD * b, FILE * file, Name name) {
     fprintf (file, "b%lu [label=\"", b->idx);
     unsigned var = b->var - 1;
     const char * s;
-#if 0
-    if (name && (s = name (var))) fputs (s, file);
-    else fprintf (file, "%u", var);
-#else
     s = name.get (name.state, var);
     fputs (s, file);
-#endif
     fprintf (file, "\",shape=circle];\n");
     fprintf (file,
       "b%lu -> b%lu [style=solid];\n",
@@ -922,9 +917,8 @@ static void print_one_satisfying_cube_to_file_recursively (
 }
 
 static void
-print_one_satisfying_cube_to_file (BDD * a,
-				   FILE * file,
-				   Name name) {
+print_one_satisfying_cube_to_file (BDD * a, FILE * file, Name name)
+{
   print_one_satisfying_cube_to_file_recursively (a, file, name);
 }
 

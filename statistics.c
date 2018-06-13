@@ -26,8 +26,10 @@ void print_statistics () {
 #endif
   msg (1, "%12ld DX   %12ld DY   %12ld DS",
            rules.DX,  rules.DY,  rules.DS);
-  msg (1, "%12ld UP   %12ld UNX  %12ld UNY  %12ld UNT",
-	   rules.UP,  rules.UNX, rules.UNY, rules.UNT);
+  msg (1, "%12ld UP   %12ld UNT",
+	   rules.UP,  rules.UNT);
+  msg (1, "%12ld UNX  %12ld UNY",
+           rules.UNX, rules.UNY);
   msg (1, "%12ld FP   %12ld FN", rules.FP, rules.FN);
   msg (1, "");
   msg (1, "---- [statistics] ----------------------------------------");
