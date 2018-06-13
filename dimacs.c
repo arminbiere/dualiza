@@ -16,7 +16,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols, IntStack * relevant) {
       if (parsed_relevant_variables) continue;
       if (!EMPTY (comment) || ch.code != ' ') PUSH (comment, ch.code);
     }
-    if (options.relevant &&
+    if (options.project &&
         !parsed_relevant_variables &&
 	!EMPTY (comment)) {
       PUSH (comment, 0);
