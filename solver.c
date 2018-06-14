@@ -1230,11 +1230,17 @@ static Clause * dual_propagate_units (Solver * solver) {
   while (!res && !EMPTY (solver->units)) {
     Clause * c = POP (solver->units);
     assert (c->dual), assert (c->size == 1);
-    mark_clause_inactive (c, solver->cnf.dual);
     const int lit = c->literals[0];
     SOG ("propagating dual unit clause %d", lit);
     assert (!is_primal_var (var (solver, lit)));
     res = dual_force (solver, c, lit);
+    if (res) {
+      SOGCLS (c, "re-registering unit");
+      PUSH (solver->units, c);
+    } else {
+      assert (res == c);
+      mark_clause_inactive (c, solver->cnf.dual);
+    }
   }
   return res;
 }
