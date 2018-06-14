@@ -864,13 +864,18 @@ static void print_model (Solver * solver) {
     const int lit = PEEK (solver->relevant, i);
     const int tmp = val (solver, lit);
     if (!tmp) continue;
-    if (!is_relevant_var (var (solver, i))) continue;
+    if (!is_relevant_var (var (solver, lit))) continue;
     if (!first) fputc (' ', stdout);
     if (tmp < 0) fputc ('!', stdout);
     fputs (solver->name.get (solver->name.state, lit), stdout);
     first = 0;
   }
   fputc ('\n', stdout);
+}
+
+static void print_discount (Solver * solver) {
+  assert (solver->model_printing_enabled);
+  fputs ("<DISCOUNT>\n", stdout);
 }
 
 static int model_limit_reached (Solver * solver) {
@@ -1796,6 +1801,7 @@ static void discount (Solver * solver) {
   if (is_zero_number (f->count)) return;
   SOGNUM (f->count, "discounting");
   sub_number (solver->count, f->count);
+  if (solver->model_printing_enabled) print_discount (solver);
   report (solver, 3, 'd');
 }
 
