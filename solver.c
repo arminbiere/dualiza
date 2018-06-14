@@ -2110,7 +2110,7 @@ backtrack_dual_conflict_flip (Solver * solver, int level, int counted)
 
 /*------------------------------------------------------------------------*/
 
-// Basic version without actual analysis part yet.
+// Basic backtracking version without actual analysis part yet.
 
 static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
   if (restart_after_first_model_to_split_on_relevant_first (solver)) {
