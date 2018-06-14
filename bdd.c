@@ -604,7 +604,7 @@ static BDD * project_bdd_recursive (BDD * a, int * vars, int * end) {
   if (a == false_bdd_node || a == true_bdd_node) return inc (a);
   BDD * res = cached_unary (a);
   if (res) return res;
-  unsigned var;
+  unsigned var = 0;
   while (vars != end && (var = bdd_import_var (*vars)) > a->var)
     vars++;
   BDD * then = project_bdd_recursive (a->then, vars, end);
