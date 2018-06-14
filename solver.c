@@ -1937,7 +1937,7 @@ static void discount (Solver * solver) {
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
   if (is_zero_number (f->count)) return;
-  SOGNUM (f->count, "discounting");
+  SOGNUM (f->count, "discounted actual models");
   sub_number (solver->count, f->count);
   if (solver->model_printing_enabled) print_discount (solver);
   report (solver, 3, 'd');
@@ -1957,7 +1957,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
     (void) POP (solver->trail);
     const Decision decision = unassign (solver, lit);
     if (decision == UNDECIDED) continue;
-    COVER (decision == FLIPPED);
+    // COVER (decision == FLIPPED);
     if (decision == FLIPPED) discount (solver);
     dec_level (solver);
   }
@@ -2134,7 +2134,7 @@ static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
   }
   stats.back.tracked++;
   int level = solver->last_relevant_level;
-  SOG ("backtracking to last relevant decision at level %d",
+  SOG ("backtracking to last relevant decision %d at level %d",
     last_relevant_decision (solver), level);
   if (blocking (solver, level))
     backtrack_dual_conflict_learn (solver, level);

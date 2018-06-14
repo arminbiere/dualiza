@@ -158,6 +158,8 @@ for dual in "--dual" "--no-dual"
 do
 for block in "--block" "--no-block"
 do
+for discount in "--discount" "--no-discount"
+do
 if [ $block = "--block" ]
 then
   blocklimits="_--blocklimit=1 _--blocklimit=2 _--blocklimit=4 _--blocklimit=8"
@@ -167,7 +169,8 @@ fi
 for blocklimit in $blocklimits
 do
 configurations="$configurations
-${dual}_${block}${blocklimit}"
+${dual}_${block}_${discount}${blocklimit}"
+done
 done
 done
 done
