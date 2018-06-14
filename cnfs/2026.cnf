@@ -1,0 +1,5 @@
+c 1,2,3,4
+c model count: 9
+p cnf 4 2
+1 3 0
+2 4 0
