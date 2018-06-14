@@ -1957,6 +1957,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
     (void) POP (solver->trail);
     const Decision decision = unassign (solver, lit);
     if (decision == UNDECIDED) continue;
+    COVER (decision == FLIPPED);
     if (decision == FLIPPED) discount (solver);
     dec_level (solver);
   }
