@@ -125,6 +125,14 @@ execute () {
 	;;
     esac
   fi
+  case $status in
+    0|10|20) ;;
+    *)
+      [ -t 1 ] && echo
+      cat $tmp.err
+      exit 1
+      ;;
+  esac
 }
 enumerate () {
   for configuration in $configurations

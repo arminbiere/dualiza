@@ -1281,11 +1281,71 @@ static Var * next_decision (Solver * solver) {
   return res;
 }
 
+#ifndef NDEBUG
+static int is_unit_clause (Solver * solver, Clause * c) {
+  int unit = 0;
+  for (int i = 0; i < c->size; i++) {
+    const int lit = c->literals[i];
+    const int tmp = val (solver, lit);
+    if (tmp > 0) return 0;
+    if (tmp < 0) continue;
+    if (unit) return 0;
+    unit = lit;
+  }
+  return unit;
+}
+#endif
+
+static void check_no_empty_clause (Solver * solver) {
+#ifndef NDEBUG
+  if (!options.check) return;
+  for (int dual = 0; dual <= 1; dual++) {
+    CNF * cnf = dual ? solver->cnf.dual : solver->cnf.primal;
+    if (!cnf) continue;
+    for (Clause ** p = cnf->clauses.start; p != cnf->clauses.top; p++)
+      assert (!is_unit_clause (solver, *p));
+  }
+#endif
+}
+
+#ifndef NDEBUG
+static int is_empty_clause (Solver * solver, Clause * c) {
+  for (int i = 0; i < c->size; i++) {
+    const int lit = c->literals[i];
+    const int tmp = val (solver, lit);
+    if (tmp >= 0) return 0;
+  }
+  return 1;
+}
+#endif
+
+static void check_no_unit_clause (Solver * solver) {
+#ifndef NDEBUG
+  if (!options.check) return;
+  for (int dual = 0; dual <= 1; dual++) {
+    CNF * cnf = dual ? solver->cnf.dual : solver->cnf.primal;
+    if (!cnf) continue;
+    for (Clause ** p = cnf->clauses.start; p != cnf->clauses.top; p++)
+      assert (!is_empty_clause (solver, *p));
+  }
+#endif
+}
+
+#ifndef NDEBUG
+static int is_primal_satisfied_no_log (Solver *);
+#endif
+
 static void decide (Solver * solver) {
+  assert (!is_primal_satisfied_no_log (solver));
+  check_no_empty_clause (solver);
+  check_no_unit_clause (solver);
   Var * v = next_decision (solver);
-             if (is_relevant_var (v))   RULE (DX);
-  else       if (is_irrelevant_var (v)) RULE (DY);
-  else { assert (is_primal_var (v));    RULE (DS); }
+  if (is_relevant_var (v))   {
+    RULE (DX);
+  } else {
+     if (is_irrelevant_var (v)) RULE (DY);
+     else { assert (is_primal_var (v)); RULE (DS); }
+  }
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   SOG ("%s decide %d", type (v), lit);
@@ -1515,7 +1575,7 @@ static int is_relevant_decision_level (Solver * solver, int level) {
 // conflict then the formula is supposed to be satisfied.
 
 static int is_primal_satisfied_no_log (Solver * solver) {
-  assert (solver->next.primal == COUNT (solver->trail));
+  if (solver->next.primal < COUNT (solver->trail)) return 0;
   return !solver->unassigned_primal_and_shared_variables;
 }
 

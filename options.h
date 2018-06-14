@@ -7,6 +7,7 @@ OPTION (annotate,     0, "annotate generated") \
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
 OPTION (blocklimit,   2, "blocking clause size limit") \
+DBGOPT (check,        1, "enable expensive assertion checking") \
 OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  1, "maximum number of flipped levels discounted") \
 OPTION (dual,         0, "dual SAT engine too (opposite of '--primal')") \
@@ -35,6 +36,12 @@ OPTION (verbosity,    0, "verbose level") \
 OPTION (logging,	0, "logging level")
 #else
 #define OPTIONS_LOG /**/
+#endif
+/*------------------------------------------------------------------------*/
+#ifdef NDEBUG
+#define DBGOPT(ARGS...) /**/
+#else
+#define DBGOPT OPTION
 #endif
 /*------------------------------------------------------------------------*/
 
