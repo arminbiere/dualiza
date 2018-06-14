@@ -1282,6 +1282,7 @@ static Var * next_decision (Solver * solver) {
 }
 
 #ifndef NDEBUG
+
 static int is_unit_clause (Solver * solver, Clause * c) {
   int unit = 0;
   for (int i = 0; i < c->size; i++) {
@@ -1294,10 +1295,8 @@ static int is_unit_clause (Solver * solver, Clause * c) {
   }
   return unit;
 }
-#endif
 
 static void check_no_empty_clause (Solver * solver) {
-#ifndef NDEBUG
   if (!options.check) return;
   for (int dual = 0; dual <= 1; dual++) {
     CNF * cnf = dual ? solver->cnf.dual : solver->cnf.primal;
@@ -1305,10 +1304,8 @@ static void check_no_empty_clause (Solver * solver) {
     for (Clause ** p = cnf->clauses.start; p != cnf->clauses.top; p++)
       assert (!is_unit_clause (solver, *p));
   }
-#endif
 }
 
-#ifndef NDEBUG
 static int is_empty_clause (Solver * solver, Clause * c) {
   for (int i = 0; i < c->size; i++) {
     const int lit = c->literals[i];
@@ -1317,10 +1314,8 @@ static int is_empty_clause (Solver * solver, Clause * c) {
   }
   return 1;
 }
-#endif
 
 static void check_no_unit_clause (Solver * solver) {
-#ifndef NDEBUG
   if (!options.check) return;
   for (int dual = 0; dual <= 1; dual++) {
     CNF * cnf = dual ? solver->cnf.dual : solver->cnf.primal;
@@ -1328,23 +1323,46 @@ static void check_no_unit_clause (Solver * solver) {
     for (Clause ** p = cnf->clauses.start; p != cnf->clauses.top; p++)
       assert (!is_empty_clause (solver, *p));
   }
-#endif
 }
 
-#ifndef NDEBUG
 static int is_primal_satisfied_no_log (Solver *);
+
+static int check_primal_propagated (Solver * solver) {
+  return solver->next.primal == COUNT (solver->trail);
+}
+
+static int check_dual_propagated (Solver * solver) {
+  return solver->next.dual == COUNT (solver->trail);
+}
+
+static void check_all_relevant_variables_assigned (Solver * solver) {
+  for (int idx = 1; idx <= solver->max_var; idx++) {
+    Var * v = var (solver, idx);
+    if (!is_relevant_var (v)) continue;
+    assert (val (solver, idx));
+  }
+}
+
 #endif
 
 static void decide (Solver * solver) {
+#ifndef NDEBUG
+  check_dual_propagated (solver);
+  check_primal_propagated (solver);
   assert (!is_primal_satisfied_no_log (solver));
   check_no_empty_clause (solver);
   check_no_unit_clause (solver);
+#endif
   Var * v = next_decision (solver);
   if (is_relevant_var (v))   {
     RULE (DX);
   } else {
-     if (is_irrelevant_var (v)) RULE (DY);
-     else { assert (is_primal_var (v)); RULE (DS); }
+#ifndef NDEBUG
+    if (solver->split_on_relevant_first)
+      check_all_relevant_variables_assigned (solver);
+#endif
+    if (is_irrelevant_var (v)) RULE (DY);
+    else { assert (is_primal_var (v)); RULE (DS); }
   }
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
