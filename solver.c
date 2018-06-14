@@ -1643,7 +1643,7 @@ static int is_relevant_decision_level (Solver * solver, int level) {
   if (!level) return 0;
   Frame * f = frame_at_level (solver, level);
   if (f->flipped) return 0;
-  Var * v = var (solver, level);
+  Var * v = var (solver, f->decision);
   return is_relevant_var (v);
 }
 
