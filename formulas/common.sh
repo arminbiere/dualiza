@@ -130,7 +130,7 @@ enumerate () {
   for configuration in $configurations
   do
     args=`echo $configuration | sed -e 's,_, ,g'`
-    execute $dualiza $args $1
+    execute $dualiza -e $args $1
     if [ ! $status = 0 ]
     then 
       [ -t 1 ] && echo
