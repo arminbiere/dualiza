@@ -1194,6 +1194,14 @@ static void check_primal_propagated (Solver * solver) {
   assert (solver->next.primal == COUNT (solver->trail));
 }
 
+static void update_primal_propagated (Solver * solver) {
+  while (solver->next.primal < COUNT (solver->trail)) {
+    const int lit = PEEK (solver->trail, solver->next.primal);
+    if (is_primal_or_shared_var (var (solver, lit))) break;
+    solver->next.primal++;
+  }
+}
+
 static Clause * dual_force (Solver * solver, Clause * c, int lit) {
   assert (!is_primal_var (var (solver, lit)));
   const int tmp = val (solver, lit);
@@ -1240,6 +1248,7 @@ static Clause * dual_propagate_units (Solver * solver) {
       PUSH (solver->units, c);
     } else mark_clause_inactive (c, solver->cnf.dual);
   }
+  if (!res) update_primal_propagated (solver);
   return res;
 }
 
@@ -1379,14 +1388,6 @@ static void check_no_unit_clause (Solver * solver) {
 
 static int is_primal_satisfied_no_log (Solver *);
 
-static void check_dual_propagated (Solver * solver) {
-#ifndef NDEBUG
-  if (!solver->dual_solving_enabled) return;
-  if (!solver->level) assert (EMPTY (solver->units));
-  assert (solver->next.dual == COUNT (solver->trail));
-#endif
-}
-
 static void check_all_relevant_variables_assigned (Solver * solver) {
   for (int idx = 1; idx <= solver->max_var; idx++) {
     Var * v = var (solver, idx);
@@ -1397,12 +1398,10 @@ static void check_all_relevant_variables_assigned (Solver * solver) {
 
 #endif
 
-static void update_primal_propagated (Solver * solver) {
-  while (solver->next.primal < COUNT (solver->trail)) {
-    const int lit = PEEK (solver->trail, solver->next.primal);
-    if (is_primal_or_shared_var (var (solver, lit))) break;
-    solver->next.primal++;
-  }
+static void check_dual_propagated (Solver * solver) {
+  if (!solver->dual_solving_enabled) return;
+  if (!solver->level) assert (EMPTY (solver->units));
+  assert (solver->next.dual == COUNT (solver->trail));
 }
 
 static void decide (Solver * solver) {
