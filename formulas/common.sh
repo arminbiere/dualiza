@@ -4,7 +4,7 @@ cd ..
 tmp="/tmp/dualiza-formulas-test-$$"
 trap "rm -f $tmp*" 2
 die () {
-  echo "*** $0: $*" 1>&2
+  echo "$0: $*"
   rm -f $tmp*
   exit 1
 }
@@ -94,10 +94,15 @@ filter () {
   [ -t 1 ] || echo
   return $res
 }
+error () {
+  [ -t 1 ] && echo
+  die "$*"
+}
 execute () {
   erase
   echo -n "$* "
-  $* > $tmp
+  $* > $tmp 2>$tmp.err
+  status=$?
   firstline="`head -1 $tmp`"
   lastline="`tail -1 $tmp`"
   if [ ! -t 1 ]
@@ -121,27 +126,40 @@ execute () {
     esac
   fi
 }
-error () {
-  [ -t 1 ] && echo
-  die "$*"
+enumerate () {
+  for configuration in $configurations
+  do
+    args=`echo $configuration | sed -e 's,_, ,g'`
+    execute $dualiza $args $1
+    if [ ! $status = 0 ]
+    then 
+      [ -t 1 ] && echo
+      cat $tmp.err
+      exit 1
+    fi
+  done
 }
 run () {
   [ -t 1 ] || ( echo; echo )
   sat $1
   tautology $1
   count $1
+  enumerate $1
 }
-configurations="\
---no-dual_--no-block \
---no-dual_--block_--blocklimit=1 \
---no-dual_--block_--blocklimit=2 \
---no-dual_--block_--blocklimit=3 \
---no-dual_--block_--blocklimit=4 \
---no-dual_--block_--blocklimit=5 \
---dual_--no-block \
---dual_--block_--blocklimit=1 \
---dual_--block_--blocklimit=2 \
---dual_--block_--blocklimit=3 \
---dual_--block_--blocklimit=4 \
---dual_--block_--blocklimit=5 \
-"
+for dual in "--dual" "--no-dual"
+do
+for block in "--block" "--no-block"
+do
+if [ $block = "--block" ]
+then
+  blocklimits="_--blocklimit=1 _--blocklimit=2 _--blocklimit=4 _--blocklimit=8"
+else
+  blocklimits=""
+fi
+for blocklimit in $blocklimits
+do
+configurations="$configurations
+${dual}_${block}${blocklimit}"
+done
+done
+done

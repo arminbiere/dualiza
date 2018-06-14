@@ -1620,7 +1620,7 @@ static int backtrack_primal_satisfied (Solver * solver) {
   if (last_model (solver, &counted)) return 0;
   if (!solver->last_relevant_level) {
     SOG ("satisfied without any relevant decisions on the trail");
-    check_no_decision_above_level (solver, 0);
+    check_no_relevant_decision_above_level (solver, 0);
     RULE (EP1);
     return 0;
   }
