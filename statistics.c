@@ -40,11 +40,11 @@ void print_statistics () {
       stats.conflicts.primal || stats.conflicts.dual ||
       stats.propagated.primal || stats.propagated.dual) {
     if (stats.models.counted)
-      msg (1, "%ld counted models (%.1f decisions per model)",
+      msg (1, "%ld counted partial models (%.1f decisions per model)",
         stats.models.counted,
 	average (stats.decisions, stats.models.counted));
     if (stats.models.discounted)
-      msg (1, "%ld discounted models (%.1f%% per counted model)",
+      msg (1, "%ld discounted partial models (%.1f%% per counted model)",
         stats.models.discounted,
 	percent (stats.models.discounted, stats.models.counted));
     if (stats.back.discounting)
