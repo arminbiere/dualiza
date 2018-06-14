@@ -2122,9 +2122,9 @@ static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
   assert (conflict->dual);
   int counted;
   if (last_model (solver, &counted)) return 0;
-  if (!solver->last_decision_level) {
-    SOG ("dual conflict without any decisions left");
-    check_no_decision_above_level (solver, 0);
+  if (!solver->last_relevant_level) {
+    SOG ("dual conflict without any relevant decisions left");
+    check_no_relevant_decision_above_level (solver, 0);
     RULE (EN0);
     return 0;
   }
