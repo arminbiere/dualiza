@@ -97,6 +97,7 @@ struct Solver {
   int max_var, max_lit;
   int max_shared_var, max_primal_or_shared_var;
   int level, phase;
+
   struct { int primal, dual; } next;
 
   int last_flipped_level, num_flipped_levels;
@@ -109,6 +110,8 @@ struct Solver {
 
   int dual_or_shared_fixed;
   int primal_or_shared_fixed;
+
+  Clauses units;
 
   IntStack trail, clause, levels, relevant;
   FrameStack frames;
@@ -534,6 +537,7 @@ void delete_solver (Solver * solver) {
   RELEASE (solver->relevant);
   RELEASE (solver->clause);
   RELEASE (solver->levels);
+  RELEASE (solver->units);
   DEALLOC (solver->vars, solver->max_var+1);
   clear_number (solver->count);
   clear_number (solver->limit.count.report);
@@ -577,6 +581,7 @@ static void inc_unassigned (Solver * solver, Var * v) {
   }
 }
 
+#if 0
 static void assign_temporarily (Solver * solver, int lit) {
   int idx = abs (lit);
   assert (0 < idx), assert (idx <= solver->max_var);
@@ -594,6 +599,7 @@ static void unassign_temporarily (Solver * solver, int lit) {
   SOG ("unassign %d temporarily", lit);
   inc_unassigned (solver, v);
 }
+#endif
 
 static void assign (Solver * solver, int lit, Clause * reason) {
   int idx = abs (lit);
@@ -820,19 +826,22 @@ static int connect_primal_cnf (Solver * solver) {
     assert (c->dual == cnf->dual);
     if (c->size == 0) {
       SOG ("found empty clause in primal CNF");
+      RULE (EP0);
       return 0;
     } else if (c->size == 1) {
       int unit = c->literals[0];
       SOG ("found unit clause %d in primal CNF", unit);
       int tmp = val (solver, unit);
       if (tmp > 0) {
-	SOG ("ignoring already satisfied unit %d", unit);
-	continue;
+       SOG ("ignoring already satisfied unit %d", unit);
+       continue;
       }
       if (tmp < 0) {
-	SOG ("found already falsified unit %d in primal CNF", unit);
-	return 0;
+       SOG ("found already falsified unit %d in primal CNF", unit);
+       RULE (EP0);
+       return 0;
       }
+      RULE (UP);
       assign (solver, unit, c);
     } else {
       assert (c->size > 1);
@@ -1090,27 +1099,9 @@ static int connect_dual_cnf (Solver * solver) {
       SOG ("found empty clause in dual CNF");
       return 0;
     } else if (c->size == 1) {
-      int unit = c->literals[0];
-      SOG ("found unit clause %d in dual CNF", unit);
-      int tmp = val (solver, unit);
-      if (tmp > 0) {
-	SOG ("ignoring already satisfied unit %d", unit);
-	continue;
-      }
-      if (tmp < 0) {
-	SOG ("found already falsified unit %d in dual CNF", unit);
-        (void) new_model (solver);
-	// TODO: really ignore result of 'new_model'?
-	return 0;
-      }
-      if (is_shared_var (var (solver, unit))) {
-	assign_temporarily (solver, -unit);
-	int unassigned;
-	if (last_model (solver, &unassigned)) return 0;
-	unassign_temporarily (solver, -unit);
-	// TODO: nothing to do with 'unassigned'?
-      }
-      assign (solver, unit, c);
+      SOGCLS (c, "registering unit");
+      PUSH (solver->units, c);
+      mark_clause_active (c, cnf);
     } else {
       assert (c->size > 1);
       connect_dual_clause (solver, c);
@@ -1144,7 +1135,8 @@ static Clause * primal_propagate (Solver * solver) {
       if (c->literals[0] != -lit)
 	SWAP (int, c->literals[0], c->literals[1]);
       assert (c->literals[0] == -lit);
-      const int other = c->literals[1], other_val = val (solver, other);
+      const int other = c->literals[1];
+      const int other_val = val (solver, other);
       if (other_val > 0) continue;
       int i = 2, replacement_val = -1, replacement = 0;
       while (i < c->size) {
@@ -1182,16 +1174,82 @@ static Frame * current_frame (Solver * solver) {
   assert (solver->level < COUNT (solver->frames));
   return solver->frames.start + solver->level;
 }
+
+static int next_dual_literal (Solver * solver) {
+  if (!solver->level) {
+    if (!EMPTY (solver->units.dual)) {
+    }
+    if (next < COUNT (solver->dual_unit_clauses)) {
+      Clause * c = PEEK (solver->dual_unit_clauses, next);
+      assert (c->size == 1);
+    }
+  }
+  solver->next.dual < COUNT (solver->trail))
+  int lit = solver->trail.start[solver->next.dual++];
+  if (is_primal_var (var (solver, lit))) continue;
+}
 #endif
 
-static Clause * dual_propagate (Solver * solver) {
-  if (!solver->dual_solving_enabled) return 0;
+static void check_primal_propagated (Solver * solver) {
   assert (solver->next.primal == COUNT (solver->trail));
+}
+
+static Clause * dual_force (Solver * solver, Clause * c, int lit) {
+  assert (!is_primal_var (var (solver, lit)));
+  const int tmp = val (solver, lit);
+  if (tmp > 0) return 0;
+  if (tmp < 0) {
+    SOGCLS (c, "conflict");
+    stats.conflicts.dual++;
+    return c;
+  }
+  if (is_shared_var (var (solver, lit))) {
+    assert (!tmp);
+    SOGCLS (c, "shared unit %d", lit);
+    stats.units.dual.shared++;
+    assume_decision (solver, -lit);
+    SOGCLS (c, "conflict");
+    stats.conflicts.dual++;
+    if            (is_relevant_var (var (solver, lit)))   RULE (UNX);
+    else { assert (is_irrelevant_var (var (solver,lit))); RULE (UNY); }
+    return c;
+  }
+  assert (!tmp);
+  assert (is_dual_var (var (solver, lit)));
+  SOGCLS (c, "dual unit %d", lit);
+  assign (solver, lit, c);
+  RULE (UNT);
+  return 0;
+}
+
+// Propagate collected dual unit clauses on root level.
+
+static Clause * dual_propagate_units (Solver * solver) {
+  assert (!solver->level);
+  Clause * res = 0;
+  while (!res && !EMPTY (solver->units)) {
+    Clause * c = POP (solver->units);
+    assert (c->dual), assert (c->size == 1);
+    mark_clause_inactive (c, solver->cnf.dual);
+    const int lit = c->literals[0];
+    SOG ("propagating dual unit clause %d", lit);
+    assert (!is_primal_var (var (solver, lit)));
+    res = dual_force (solver, c, lit);
+  }
+  return res;
+}
+
+// Propagate assignments on trail through dual CNF.
+
+static Clause * dual_propagate_trail (Solver * solver) {
+  check_primal_propagated (solver);
+  assert (solver->next.dual <= solver->next.primal);
   Clause * res = 0;
   while (!res && solver->next.dual < COUNT (solver->trail)) {
-    int lit = solver->trail.start[solver->next.dual++];
-    if (is_primal_var (var (solver, lit))) continue;
+    const int lit = PEEK (solver->trail, solver->next.dual);
+    solver->next.dual++;
     assert (val (solver, lit) > 0);
+    if (is_primal_var (var (solver, lit))) continue;
     SOG ("dual propagating %d", lit);
     stats.propagated.dual++;
     Clauses * o = dual_occs (solver, -lit);
@@ -1220,26 +1278,7 @@ static Clause * dual_propagate (Solver * solver) {
 	c->literals[i] = -lit;
 	connect_dual_literal (solver, c, replacement);
 	q--;
-      } else if (other_val) {
-	assert (other_val < 0);
-	SOGCLS (c, "conflict");
-	stats.conflicts.dual++;
-	res = c;
-      } else if (is_shared_var (var (solver, other))) {
-	SOGCLS (c, "shared unit %d", other);
-	stats.units.dual.shared++;
-	assume_decision (solver, -other);
-	SOGCLS (c, "conflict");
-	stats.conflicts.dual++;
-	if            (is_relevant_var (var (solver, other)))   RULE (UNX);
-	else { assert (is_irrelevant_var (var (solver,other))); RULE (UNY); }
-	res = c;
-      } else {
-	assert (is_dual_var (var (solver, other)));
-	SOGCLS (c, "dual unit %d", other);
-	assign (solver, other, c);
-	RULE (UNT);
-      }
+      } else res = dual_force (solver, c, other);
     }
     if (res) {
       if (p < o->top) {
@@ -1250,6 +1289,15 @@ static Clause * dual_propagate (Solver * solver) {
     }
     o->top = q;
   }
+  return res;
+}
+
+static Clause * dual_propagate (Solver * solver) {
+  if (!solver->dual_solving_enabled) return 0;
+  check_primal_propagated (solver);
+  Clause * res = 0;
+  if (!solver->level) res = dual_propagate_units (solver);
+  if (!res) res = dual_propagate_trail (solver);
   report_iterating (solver);
   return res;
 }
@@ -1327,12 +1375,12 @@ static void check_no_unit_clause (Solver * solver) {
 
 static int is_primal_satisfied_no_log (Solver *);
 
-static int check_primal_propagated (Solver * solver) {
-  return solver->next.primal == COUNT (solver->trail);
-}
-
-static int check_dual_propagated (Solver * solver) {
-  return solver->next.dual == COUNT (solver->trail);
+static void check_dual_propagated (Solver * solver) {
+#ifndef NDEBUG
+  if (!solver->dual_solving_enabled) return;
+  if (!solver->level) assert (EMPTY (solver->units));
+  assert (solver->next.dual == COUNT (solver->trail));
+#endif
 }
 
 static void check_all_relevant_variables_assigned (Solver * solver) {
@@ -1345,11 +1393,20 @@ static void check_all_relevant_variables_assigned (Solver * solver) {
 
 #endif
 
+static void update_primal_propagated (Solver * solver) {
+  while (solver->next.primal < COUNT (solver->trail)) {
+    const int lit = PEEK (solver->trail, solver->next.primal);
+    if (is_primal_or_shared_var (var (solver, lit))) break;
+    solver->next.primal++;
+  }
+}
+
 static void decide (Solver * solver) {
-#ifndef NDEBUG
   check_dual_propagated (solver);
+  update_primal_propagated (solver);
   check_primal_propagated (solver);
   assert (!is_primal_satisfied_no_log (solver));
+#ifndef NDEBUG
   check_no_empty_clause (solver);
   check_no_unit_clause (solver);
 #endif
