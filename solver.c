@@ -1235,12 +1235,10 @@ static Clause * dual_propagate_units (Solver * solver) {
     assert (!is_primal_var (var (solver, lit)));
     res = dual_force (solver, c, lit);
     if (res) {
+      assert (res == c);
       SOGCLS (c, "re-registering unit");
       PUSH (solver->units, c);
-    } else {
-      assert (res == c);
-      mark_clause_inactive (c, solver->cnf.dual);
-    }
+    } else mark_clause_inactive (c, solver->cnf.dual);
   }
   return res;
 }
