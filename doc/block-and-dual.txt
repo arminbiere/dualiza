@@ -1,3 +1,7 @@
+biere@fmvi7ab:~/src/dualiza$ cat cnfs/1007.cnf 
+p cnf 4 2
+-1 2 0
+1 2 0
 biere@fmvi7ab:~/src/dualiza$ git show|head -1
 commit a46b13af9eb5da644d2fcb0a6e72576b43d58627
 biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1007.cnf -l|grep RULE
