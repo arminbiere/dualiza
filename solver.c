@@ -348,18 +348,18 @@ static void enable_model_printing (Solver * solver, Name name) {
 }
 
 static void check_options_fixed () {
-  assert (!options.block || !options.dual || options.blocklimit <= 1);
-  assert (!options.block || !options.discount || options.blocklimit <= 1);
+  assert (!options.block || !options.dual);
+  assert (!options.block || !options.discount);
 }
 
 void fix_options () {
-  if (options.block && options.dual && options.blocklimit > 1) {
-    msg (1, "dual propagation restricts blocking clause size to one");
-    options.blocklimit = 1;
+  if (options.block && options.dual) {
+    msg (1, "dual propagation disables blocking clause learning");
+    options.block = 0;
   } 
-  if (options.block && options.discount && options.blocklimit > 1) {
-    msg (1, "discounting restricts blocking clause size to one");
-    options.blocklimit = 1;
+  if (options.block && options.discount) {
+    msg (1, "discounting disables blocking clause learning");
+    options.block = 0;
   } 
   check_options_fixed ();
 }
