@@ -313,9 +313,27 @@ static void enable_model_printing (Solver * solver, Name name) {
   msg (1, "enabled printing of partial models");
 }
 
+static void check_options_fixed () {
+  assert (!options.block || !options.dual || options.blocklimit <= 1);
+  assert (!options.block || !options.discount || options.blocklimit <= 1);
+}
+
+void fix_options () {
+  if (options.block && options.dual && options.blocklimit > 1) {
+    msg (1, "dual propagation restricts blocking clause size to one");
+    options.blocklimit = 1;
+  } 
+  if (options.block && options.discount && options.blocklimit > 1) {
+    msg (1, "discounting restricts blocking clause size to one");
+    options.blocklimit = 1;
+  } 
+  check_options_fixed ();
+}
+
 Solver * new_solver (CNF * primal,
                      IntStack * shared, IntStack * relevant,
 		     CNF * dual) {
+  check_options_fixed ();
   assert (primal);
   Solver * solver;
   NEW (solver);
@@ -335,15 +353,6 @@ Solver * new_solver (CNF * primal,
       (long) COUNT (*shared));
     solver->cnf.dual = 0;
     solver->dual_solving_enabled = 0;
-  }
-  if (options.block && options.blocklimit > 1) {
-    if (solver->dual_solving_enabled) {
-      msg (1, "--blocklimit=1 (dual propagation enabled)");
-      options.blocklimit = 1;
-    } else if (options.discount) {
-      msg (1, "--blocklimit=1 (discounting enabled)");
-      options.blocklimit = 1;
-    }
   }
   int max_shared_var = 0;
   for (const int * p = shared->start; p < shared->top; p++) {

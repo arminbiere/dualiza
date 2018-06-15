@@ -52,6 +52,7 @@ OPTIONS_LOG
 void usage_options ();
 void print_options ();
 int parse_option (const char * arg);
+void fix_options ();
 
 #ifndef OPTION
 typedef struct Options Options;

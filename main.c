@@ -130,6 +130,7 @@ static void init_mode () {
     msg (1, "disabling projection due to%s", CHECKING);
     options.project = 0;
   }
+  fix_options ();
 }
 
 # undef FORMULA
