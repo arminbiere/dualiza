@@ -6,9 +6,9 @@
 OPTION (annotate,     0, "annotate generated") \
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
-OPTION (blocklimit,   3, "blocking clause size limit") \
+OPTION (blocklimit,   1, "blocking clause size limit") \
 DBGOPT (check,        0, "enable expensive assertion checking") \
-OPTION (discount,     0, "discount models instead of backtracking") \
+OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  1, "maximum number of flipped levels discounted") \
 OPTION (dual,         1, "dual SAT engine too (opposite of '--primal')") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
@@ -21,7 +21,7 @@ OPTION (reduce,       1, "garbage collect useless learned clauses") \
 OPTION (reduceinc,  300, "reduce interval increment") \
 OPTION (reduceinit, 2e3, "initial reduce interval") \
 OPTION (project,      1, "project on relevant variables") \
-OPTION (relevant,     1, "always split on relevant variables first") \
+OPTION (relevant,     0, "always split on relevant variables first") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
 OPTION (reuse,        1, "reuse trail during restart") \
