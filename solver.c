@@ -336,6 +336,15 @@ Solver * new_solver (CNF * primal,
     solver->cnf.dual = 0;
     solver->dual_solving_enabled = 0;
   }
+  if (options.block && options.blocklimit > 1) {
+    if (solver->dual_solving_enabled) {
+      msg (1, "--blocklimit=1 (dual propagation enabled)");
+      options.blocklimit = 1;
+    } else if (options.discount) {
+      msg (1, "--blocklimit=1 (discounting enabled)");
+      options.blocklimit = 1;
+    }
+  }
   int max_shared_var = 0;
   for (const int * p = shared->start; p < shared->top; p++) {
     int idx = abs (*p);
