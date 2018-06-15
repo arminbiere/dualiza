@@ -14,6 +14,38 @@
 
 /*------------------------------------------------------------------------*/
 
+#define RULE0(NAME) \
+do { \
+  rules.NAME++; \
+  SOG ("RULE %s %ld", #NAME, rules.NAME); \
+} while (0)
+
+#define RULE1(NAME,LIT) \
+do { \
+  rules.NAME++; \
+  SOG ("RULE %s %ld\t%d", #NAME, rules.NAME, LIT); \
+} while (0)
+
+#ifdef NLOG
+#define RULE2(NAME,LIT,C) do { rules.NAME++; } while (0)
+#else
+#define RULE2(NAME,LIT,C) \
+do { \
+  rules.NAME++; \
+  if (!options.logging) break; \
+  printf ("c LOG %d %s %ld\t%d", \
+    solver->level, #NAME, rules.NAME, LIT); \
+  for (int I = 0; I < C->size; I++) { \
+    fputc (I ? ' ' : '\t', stdout); \
+    printf ("%d", C->literals[I]); \
+  } \
+  fputc ('\n', stdout); \
+  fflush (stdout); \
+} while (0)
+#endif
+
+/*------------------------------------------------------------------------*/
+
 typedef struct Var Var;
 typedef enum Type Type;
 typedef struct Queue Queue;
@@ -779,7 +811,7 @@ static void dec_level (Solver * solver) {
   assert (COUNT (solver->frames) == solver->level + 1);
 }
 
-static void flip_decision (Solver * solver) {
+static void flip_decision (Solver * solver, long * rule) {
   stats.flipped++;
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
@@ -797,6 +829,10 @@ static void flip_decision (Solver * solver) {
   SOG ("%s flip %d", type (v), decision);
   inc_flipped_levels (solver);
   SOG ("%s assign %d", type (v), -decision);
+       if (rule == &rules.BP1F) RULE1 (BP1F, -decision);
+  else if (rule == &rules.BP0F) RULE1 (BP0F, -decision);
+  else if (rule == &rules.BN0F) RULE1 (BN0F, -decision);
+  else SOG ("WARNING UNMATCHED RULE in '%s'", __FUNCTION__);
   POKE (solver->trail, f->trail, -decision);
   adjust_next (solver, f->trail);
   v->val = -v->val;
@@ -848,7 +884,7 @@ static int connect_primal_cnf (Solver * solver) {
     assert (c->dual == cnf->dual);
     if (c->size == 0) {
       SOG ("found empty clause in primal CNF");
-      RULE (EP0);
+      RULE0 (EP0);
       return 0;
     } else if (c->size == 1) {
       int unit = c->literals[0];
@@ -860,10 +896,10 @@ static int connect_primal_cnf (Solver * solver) {
       }
       if (tmp < 0) {
        SOG ("found already falsified unit %d in primal CNF", unit);
-       RULE (EP0);
+       RULE0 (EP0);
        return 0;
       }
-      RULE (UP);
+      RULE1 (UP, unit);
       assign (solver, unit, c);
     } else {
       assert (c->size > 1);
@@ -1176,7 +1212,7 @@ static Clause * primal_propagate (Solver * solver) {
       } else if (!other_val) {
 	SOGCLS (c, "forcing %d", other);
 	assign (solver, other, c);
-        RULE (UP);
+        RULE1 (UP, other);
       } else {
 	assert (other_val < 0);
 	stats.conflicts.primal++;
@@ -1240,15 +1276,15 @@ static Clause * dual_force (Solver * solver, Clause * c, int lit) {
     assume_decision (solver, -lit);
     SOGCLS (c, "conflict");
     stats.conflicts.dual++;
-    if            (is_relevant_var (var (solver, lit)))   RULE (UNX);
-    else { assert (is_irrelevant_var (var (solver,lit))); RULE (UNY); }
+    if (is_relevant_var (var (solver, lit))) RULE1 (UNX, lit);
+    else 	                             RULE1 (UNY, lit);
     return c;
   }
   assert (!tmp);
   assert (is_dual_var (var (solver, lit)));
   SOGCLS (c, "dual unit %d", lit);
   assign (solver, lit, c);
-  RULE (UNT);
+  RULE1 (UNT, lit);
   return 0;
 }
 
@@ -1436,20 +1472,19 @@ static void decide (Solver * solver) {
   check_no_unit_clause (solver);
 #endif
   Var * v = next_decision (solver);
-  if (is_relevant_var (v))   {
-    RULE (DX);
-  } else {
-#ifndef NDEBUG
-    if (solver->split_on_relevant_first)
-      check_all_relevant_variables_assigned (solver);
-#endif
-    if (is_irrelevant_var (v)) RULE (DY);
-    else { assert (is_primal_var (v)); RULE (DS); }
-  }
   int lit = v - solver->vars;
   if (v->phase < 0) lit = -lit;
   SOG ("%s decide %d", type (v), lit);
   assume_decision (solver, lit);
+  if (is_relevant_var (v))     RULE1 (DX, lit);
+  else {
+#ifndef NDEBUG
+    if (solver->split_on_relevant_first)
+      check_all_relevant_variables_assigned (solver);
+#endif
+    if (is_irrelevant_var (v)) RULE1 (DY, lit);
+    else                       RULE1 (DS, lit);
+  }
 }
 
 static void mark_literal (Solver * solver, int lit) {
@@ -1570,7 +1605,7 @@ static void adjust_next_to_trail (Solver * solver) {
   adjust_next (solver, COUNT (solver->trail));
 }
 
-static void add_decision_blocking_clause (Solver * solver) {
+static void add_decision_blocking_clause (Solver * solver, long * rule) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
   int first = f->decision;
@@ -1607,6 +1642,9 @@ static void add_decision_blocking_clause (Solver * solver) {
   CLEAR (solver->clause);
   adjust_next_to_trail (solver);
   assign (solver, -first, c);
+       if (rule == &rules.BP1L) RULE2 (BP1L, -first, c);
+  else if (rule == &rules.BN0L) RULE2 (BN0L, -first, c);
+  else SOG ("WARNING UNMATCHED RULE in '%s'", __FUNCTION__);
   if (!solver->level) solver->found_new_fixed_variable = 1;
   if (options.subsume) subsume (solver, c);
 }
@@ -1720,14 +1758,13 @@ static void backtrack (Solver * solver, int level) {
 static void
 backtrack_primal_satisfied_learn (Solver * solver, int level) {
   SOG ("applying primal satisfied learning rule");
-  RULE (BP1L);
 
   check_primal_satisfied (solver);
   assert (is_relevant_decision_level (solver, level));
   check_no_relevant_decision_above_level (solver, level);
 
   backtrack (solver, level);
-  add_decision_blocking_clause (solver);
+  add_decision_blocking_clause (solver, &rules.BP1L);
 }
 
 static void initialize_count (Solver * solver, int level, int counted) {
@@ -1760,7 +1797,6 @@ static void
 backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
 {
   SOG ("applying primal satisfied flipping rule");
-  RULE (BP1F);
 
   assert (counted >= 0);
   check_primal_satisfied (solver);
@@ -1770,7 +1806,7 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
   initialize_count (solver, level, counted);
   backtrack_accumulating_flipped_counts (solver, level);
 
-  flip_decision (solver);
+  flip_decision (solver, &rules.BP1F);
   adjust_next_to_trail (solver);
 }
 
@@ -1786,7 +1822,7 @@ static int backtrack_primal_satisfied (Solver * solver) {
   if (!solver->last_relevant_level) {
     SOG ("satisfied without any relevant decisions on the trail");
     check_no_relevant_decision_above_level (solver, 0);
-    RULE (EP1);
+    RULE0 (EP1);
     return 0;
   }
   stats.back.tracked++;
@@ -1807,7 +1843,6 @@ static int backtrack_primal_satisfied (Solver * solver) {
 static void
 backtrack_primal_conflict_learn (Solver * solver, int level) {
   SOG ("applying primal conflict learning rule");
-  RULE (BP0L);
   assert (is_relevant_decision_level (solver, level));
   check_no_decision_above_level (solver, level);
   int lit, decision = decision_at_level (solver, level);
@@ -1815,7 +1850,7 @@ backtrack_primal_conflict_learn (Solver * solver, int level) {
     if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
     (void) POP (solver->trail);
   }
-  add_decision_blocking_clause (solver);
+  add_decision_blocking_clause (solver, &rules.BP0L);
 }
 
 #endif
@@ -1971,7 +2006,6 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   const int forced = c->literals[0];
   stats.back.jumped++;
   SOG ("back-jump %ld to level %d", stats.back.jumped, level);
-  RULE (JP0);
   while (!EMPTY (solver->trail)) {
     const int lit = TOP (solver->trail);
     Var * v = var (solver, lit);
@@ -1987,6 +2021,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   assert (solver->level == level);
   adjust_next_to_trail (solver);
   assign (solver, forced, c);
+  RULE2 (JP0, forced, c);
   if (!level) solver->found_new_fixed_variable = 1;
 }
 
@@ -1997,7 +2032,6 @@ backtrack_primal_conflict_flip (Solver * solver, int level) {
 
   SOG ("applying primal conflict flipping rule at level %d", level);
   stats.back.tracked++;
-  RULE (BP0F);
 
   assert (level);
   assert (level == solver->last_decision_level);
@@ -2005,7 +2039,7 @@ backtrack_primal_conflict_flip (Solver * solver, int level) {
 
   backtrack_accumulating_flipped_counts (solver, level);
 
-  flip_decision (solver);
+  flip_decision (solver, &rules.BP0F);
   adjust_next_to_trail (solver);
 }
 
@@ -2051,7 +2085,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   if (!solver->last_decision_level) {
     SOG ("primal conflict without any decisions on the trail");
     check_no_decision_above_level (solver, 0);
-    RULE (EP0);
+    RULE0 (EP0);
     return 0;
   }
 
@@ -2108,20 +2142,18 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
 static void
 backtrack_dual_conflict_learn (Solver * solver, int level) {
   SOG ("applying dual conflict learning rule");
-  RULE (BN0L);
 
   assert (is_relevant_decision_level (solver, level));
   check_no_relevant_decision_above_level (solver, level);
 
   backtrack (solver, level);
-  add_decision_blocking_clause (solver);
+  add_decision_blocking_clause (solver, &rules.BN0L);
 }
 
 static void
 backtrack_dual_conflict_flip (Solver * solver, int level, int counted)
 {
   SOG ("applying dual conflict flipping rule");
-  RULE (BN0F);
 
   assert (counted >= 0);
   assert (is_relevant_decision_level (solver, level));
@@ -2130,7 +2162,7 @@ backtrack_dual_conflict_flip (Solver * solver, int level, int counted)
   initialize_count (solver, level, counted);
   backtrack_accumulating_flipped_counts (solver, level);
 
-  flip_decision (solver);
+  flip_decision (solver, &rules.BN0F);
   adjust_next_to_trail (solver);
 }
 
@@ -2151,7 +2183,7 @@ static int analyze_dual_conflict (Solver * solver, Clause * conflict) {
   if (!solver->last_relevant_level) {
     SOG ("dual conflict without any relevant decisions left");
     check_no_relevant_decision_above_level (solver, 0);
-    RULE (EN0);
+    RULE0 (EN0);
     return 0;
   }
   stats.back.tracked++;
@@ -2262,7 +2294,7 @@ static void reduce_primal (Solver * solver)
     if (c->garbage) continue;
     SOGCLS (c, "marking garbage");
     c->garbage = 1;
-    RULE (FP);
+    RULE0 (FP);
     marked++;
   }
 
