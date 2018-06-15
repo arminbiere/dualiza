@@ -1,8 +1,8 @@
 c Dualiza #SAT Solver
 c Copyright (C) 2017-2018 Armin Biere Johannes Kepler University Linz
-c Version 008 fd2491936815cc861c7a131dcd7ee002220f630d
-c Released Fri Jun 15 08:10:33 2018 +0200
-c Compiled Fri Jun 15 09:56:52 CEST 2018
+c Version 008 e00aea0038033338e154a49f7b451085c083a81f
+c Released Fri Jun 15 10:02:22 2018 +0200
+c Compiled Fri Jun 15 10:38:47 CEST 2018
 c System Linux fmvi7ab 4.4.0-127-generic x86_64
 c Compiler gcc -Wall -g3
 c default counting mode
@@ -687,5 +687,5 @@ c
 c ---- [resources] -----------------------------------------
 c 
 c maximum allocated 6128 bytes (0.0 MB)
-c maximum resident set size 5181440 bytes (4.9 MB)
+c maximum resident set size 5173248 bytes (4.9 MB)
 c process time 0.00 seconds

@@ -1,21 +1,24 @@
-biere@fmvi7ab:~/src/dualiza$ cat cnfs/1008.cnf 
+biere@fmvi7ab:~/src/dualiza$ git show|head -1
+commit 8db12663f8a3c39797e5b12de3d9fbda0864041e
+biere@fmvi7ab:~/src/dualiza$ cat cnfs/1008.cnf
 p cnf 5 3
 1 -2 0
 1 -3 0
 -1 -2 0
-biere@fmvi7ab:~/src/dualiza$ git show|head -1
-commit fd2491936815cc861c7a131dcd7ee002220f630d
-biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1008.cnf  -l|grep RULE
+biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1008.cnf -e -l|egrep 'RULE|^[^c]'
+ALL SATISFYING ASSIGNMENTS
 c LOG 1 RULE DX 1	5
 c LOG 2 RULE DX 2	4
 c LOG 3 RULE DX 3	3
 c LOG 3 RULE UP 1	1
 c LOG 3 RULE UP 2	-2
+x1 !x2 x3 x4 x5
 c LOG 3 RULE BP1F 1	-3
 c LOG 3 RULE UNT 1	-7
 c LOG 4 RULE DX 4	-2
 c LOG 4 RULE UNT 2	-6
 c LOG 4 RULE UNT 3	-8
+!x2 !x3 x4 x5
 c LOG 4 RULE BN0F 1	2
 c LOG 4 RULE UP 3	1
 c LOG 2 RULE BP0F 1	-4
@@ -24,16 +27,27 @@ c LOG 3 RULE UNT 4	-6
 c LOG 3 RULE UNT 5	-8
 c LOG 3 RULE UNT 6	7
 c LOG 4 RULE UNX 1	-1
+x1 !x2 !x4 x5
 c LOG 4 RULE BN0F 2	-1
 c LOG 4 RULE UP 4	-3
+!x1 !x2 !x3 !x4 x5
 c LOG 2 RULE BP1L 1	2	2 -5
 c LOG 2 RULE UP 5	1
+<DISCOUNT>
 c LOG 0 RULE JP0 1	-2	-2
 c LOG 0 RULE UP 6	-5
 c LOG 0 RULE UNT 7	-6
 c LOG 0 RULE UNT 8	-8
 c LOG 0 RULE UNT 9	7
 c LOG 1 RULE UNX 2	-1
+x1 !x2 !x5
 c LOG 0 RULE BN0L 1	-1	-1
 c LOG 0 RULE UP 7	-3
+!x1 !x2 !x3 !x5
 c LOG 0 RULE EN0 1
+biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1008.cnf
+NUMBER SATISFYING ASSIGNMENTS
+9
+biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1008.cnf --blocklimit=1
+NUMBER SATISFYING ASSIGNMENTS
+12
