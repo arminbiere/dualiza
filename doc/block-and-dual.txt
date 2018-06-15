@@ -1,0 +1,14 @@
+biere@fmvi7ab:~/src/dualiza$ git show|head -1
+commit a46b13af9eb5da644d2fcb0a6e72576b43d58627
+biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1007.cnf -l|grep RULE
+c LOG 1 RULE DX 1	4
+c LOG 2 RULE DX 2	3
+c LOG 3 RULE DX 3	2
+c LOG 3 RULE UNT 1	-5
+c LOG 3 RULE UNT 2	-6
+c LOG 2 RULE BN0L 1	-2	-2 -3 -4
+c LOG 2 RULE UP 1	-1
+c LOG 0 RULE JP0 1	2	2
+c LOG 0 RULE UNT 3	-5
+c LOG 0 RULE UNT 4	-6
+c LOG 0 RULE EN0 1
