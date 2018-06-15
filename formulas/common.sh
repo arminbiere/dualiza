@@ -83,7 +83,7 @@ erase () {
     firsterase=no
   elif [ -t 1 ]
   then
-    printf '\r%70s\r' ""
+    printf '\r%78s\r' ""
   fi
 }
 filter () {
