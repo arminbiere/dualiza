@@ -348,14 +348,14 @@ static void enable_model_printing (Solver * solver, Name name) {
 }
 
 static void check_options_fixed () {
-  assert (!options.block || !options.dual || options.blocklimit <= 0);
+  assert (!options.block || !options.dual || options.blocklimit <= 1);
   assert (!options.block || !options.discount || options.blocklimit <= 1);
 }
 
 void fix_options () {
-  if (options.block && options.dual && options.blocklimit > 0) {
-    msg (1, "dual propagation restricts blocking clause size to zero");
-    options.blocklimit = 0;
+  if (options.block && options.dual && options.blocklimit > 1) {
+    msg (1, "dual propagation restricts blocking clause size to one");
+    options.blocklimit = 1;
   } 
   if (options.block && options.discount && options.blocklimit > 1) {
     msg (1, "discounting restricts blocking clause size to one");
@@ -1970,10 +1970,11 @@ static Clause * learn_primal_clause (Solver * solver, int glue, int level) {
 
 static void discount (Solver * solver) {
   assert (options.discount);
-  stats.models.discounted++;
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
   if (is_zero_number (f->count)) return;
+  assert (f->counted > 0);
+  stats.models.discounted++;
   SOGNUM (f->count, "discounted actual models");
   sub_number (solver->count, f->count);
   if (solver->model_printing_enabled) print_discount (solver, f);
@@ -2103,7 +2104,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
     assert (0 <= discount);
     assert (discount <= options.discountmax);
     SOG ("discounting %ld levels above back-jump level %d", discount, level);
-    stats.back.discounting++;
+    if (discount > 0) stats.back.discounting++;
     learn = 1;
   }
 
