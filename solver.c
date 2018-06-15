@@ -346,17 +346,21 @@ static void enable_model_printing (Solver * solver, Name name) {
 }
 
 static void check_options_fixed () {
+#if 0
   assert (!options.block || !options.dual || options.blocklimit <= 1);
+#endif
 #if 0
   assert (!options.block || !options.discount || options.blocklimit <= 1);
 #endif
 }
 
 void fix_options () {
+#if 0
   if (options.block && options.dual && options.blocklimit > 1) {
     msg (1, "dual propagation restricts blocking clause size to one");
     options.blocklimit = 1;
   } 
+#endif
 #if 0
   if (options.block && options.discount && options.blocklimit > 1) {
     msg (1, "discounting restricts blocking clause size to one");
