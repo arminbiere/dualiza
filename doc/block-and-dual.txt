@@ -1,18 +1,27 @@
+biere@fmvi7ab:~/src/dualiza$ git show|head -1
+commit 876a03693321211e293f142fa9d07d5a8cd76246
 biere@fmvi7ab:~/src/dualiza$ cat cnfs/1007.cnf 
 p cnf 4 2
 -1 2 0
 1 2 0
-biere@fmvi7ab:~/src/dualiza$ git show|head -1
-commit a46b13af9eb5da644d2fcb0a6e72576b43d58627
-biere@fmvi7ab:~/src/dualiza$ ./dualiza cnfs/1007.cnf -l|grep RULE
+biere@fmvi7ab:~/src/dualiza$ ./dualiza -e --blocklimit=3 -l cnfs/1007.cnf|egrep 'RULE|^[^c]'
+ALL SATISFYING ASSIGNMENTS
 c LOG 1 RULE DX 1	4
 c LOG 2 RULE DX 2	3
 c LOG 3 RULE DX 3	2
 c LOG 3 RULE UNT 1	-5
 c LOG 3 RULE UNT 2	-6
+x2 x3 x4
 c LOG 2 RULE BN0L 1	-2	-2 -3 -4
 c LOG 2 RULE UP 1	-1
 c LOG 0 RULE JP0 1	2	2
 c LOG 0 RULE UNT 3	-5
 c LOG 0 RULE UNT 4	-6
+x2
 c LOG 0 RULE EN0 1
+biere@fmvi7ab:~/src/dualiza$ ./dualiza --blocklimit=3 cnfs/1007.cnf
+NUMBER SATISFYING ASSIGNMENTS
+10
+biere@fmvi7ab:~/src/dualiza$ ./dualiza --blocklimit=2 cnfs/1007.cnf
+NUMBER SATISFYING ASSIGNMENTS
+8

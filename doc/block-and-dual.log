@@ -1,11 +1,12 @@
 c Dualiza #SAT Solver
 c Copyright (C) 2017-2018 Armin Biere Johannes Kepler University Linz
-c Version 008 11f91fe199a2b2ce5c08cf53036b0bd7c101c7c6
-c Released Fri Jun 15 09:52:43 2018 +0200
-c Compiled Fri Jun 15 09:53:30 CEST 2018
+c Version 008 e00aea0038033338e154a49f7b451085c083a81f
+c Released Fri Jun 15 10:02:22 2018 +0200
+c Compiled Fri Jun 15 10:38:47 CEST 2018
 c System Linux fmvi7ab 4.4.0-127-generic x86_64
 c Compiler gcc -Wall -g3
-c default counting mode
+c enumeration mode due to '-e'
+c --blocklimit=3
 c --verbosity=2147483647
 c --logging=1
 c reading from 'cnfs/1007.cnf'
@@ -45,7 +46,7 @@ c LOG new AND gate 6
 c LOG OR gate 4 connected as 1st input to AND gate 6
 c LOG OR gate 5 connected as 2nd input to AND gate 6
 c deleting input reader of 'cnfs/1007.cnf' after reading 23 bytes
-c generating dual circuit for counting with SAT engine
+c generating dual circuit for enumeration with SAT engine
 c LOG new INPUT gate 0
 c LOG copying input 0 gate 0 symbol 'x1'
 c LOG new INPUT gate 1
@@ -63,7 +64,7 @@ c LOG INPUT gate 1 connected negated as 2nd input to AND gate 5
 c LOG new OR gate 6
 c LOG AND gate 4 connected as 1st input to OR gate 6
 c LOG AND gate 5 connected as 2nd input to OR gate 6
-c counting with dual SAT engine
+c enumerating with dual SAT engine
 c LOG new primal CNF
 c LOG new dual CNF
 c LOG starting to encode first circuit
@@ -107,8 +108,6 @@ c LOG encoded new dual size 2 clause[0] 5 6
 c LOG added clause 6 to dual CNF
 c encoded 2 gates of second circuit
 c encoded 6 inputs and gates in total
-c primal CNF with 2 clauses
-c dual CNF with 7 clauses
 c LOG encoding input 0 symbol x1 as 1
 c LOG encoding input 1 symbol x2 as 2
 c LOG encoding input 2 symbol x3 as 3
@@ -149,6 +148,8 @@ c LOG 0 initial reduce learned limit 2000
 c LOG 0 initial restart conflict limit 2
 c LOG 0 new subsume limit 0
 c LOG 0 always forcing to split on relevant variables first
+ALL SATISFYING ASSIGNMENTS
+c enabled printing of partial models
 c LOG 0 connecting 2 primal clauses to solver
 c LOG 0 connecting literal -1 to primal size 2 clause[0] -1 2
 c LOG 0 connecting literal 2 to primal size 2 clause[0] -1 2
@@ -225,6 +226,7 @@ c LOG 3 conflict dual size 2 clause[6] 5 6
 c LOG 3 analyze dual
 c LOG 3 model 1 with 0 unassigned relevant variables
 c LOG 3 saving first model
+x2 x3 x4
 c 
 c                   primal    dual  learned primal dual variables log2  log2
 c       time  memory   conflicts           clauses              models count
@@ -333,11 +335,10 @@ c LOG 0 visiting while propagating -5 dual size 2 clause[6] 5 6
 c LOG 0 conflict dual size 2 clause[6] 5 6
 c LOG 0 analyze dual
 c LOG 0 model 2 with 0 unassigned relevant variables
+x2
 c +    0.00     0.7      1       2      1      3      7       3      1     3
 c LOG 0 dual conflict without any relevant decisions left
 c LOG 0 RULE EN0 1
-NUMBER SATISFYING ASSIGNMENTS
-10
 c LOG 0 deleting solver
 c LOG delete primal CNF
 c LOG delete primal size 2 clause[0] 2 -1
@@ -385,6 +386,6 @@ c looked up 4 symbols, 0 collisions (0.0 per look-up)
 c 
 c ---- [resources] -----------------------------------------
 c 
-c maximum allocated 4542 bytes (0.0 MB)
-c maximum resident set size 5165056 bytes (4.9 MB)
+c maximum allocated 4532 bytes (0.0 MB)
+c maximum resident set size 5181440 bytes (4.9 MB)
 c process time 0.00 seconds
