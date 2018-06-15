@@ -10,7 +10,7 @@ OPTION (blocklimit,   2, "blocking clause size limit") \
 DBGOPT (check,        0, "enable expensive assertion checking") \
 OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  1, "maximum number of flipped levels discounted") \
-OPTION (dual,         0, "dual SAT engine too (opposite of '--primal')") \
+OPTION (dual,         1, "dual SAT engine too (opposite of '--primal')") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \
 OPTION (learn,        1, "learn clauses") \
@@ -21,7 +21,7 @@ OPTION (reduce,       1, "garbage collect useless learned clauses") \
 OPTION (reduceinc,  300, "reduce interval increment") \
 OPTION (reduceinit, 2e3, "initial reduce interval") \
 OPTION (project,      1, "project on relevant variables") \
-OPTION (relevant,     1, "always split on relevant variables first") \
+OPTION (relevant,     0, "always split on relevant variables first") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
 OPTION (reuse,        1, "reuse trail during restart") \

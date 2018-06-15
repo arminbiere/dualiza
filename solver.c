@@ -99,6 +99,7 @@ struct Frame {
     int relevant;		// prev relevant level
   } prev;
   Number count;
+  long counted;			// number of times 
 };
 
 struct Limit {
@@ -268,6 +269,7 @@ static void push_frame (Solver * solver, int decision) {
   f.seen = f.flipped = 0;
   f.trail = COUNT (solver->trail);
   f.prev.flipped = f.prev.decision = f.prev.relevant = 0;
+  f.counted = 0;
   init_number (f.count);
   PUSH (solver->frames, f);
 }
@@ -346,27 +348,19 @@ static void enable_model_printing (Solver * solver, Name name) {
 }
 
 static void check_options_fixed () {
-#if 0
   assert (!options.block || !options.dual || options.blocklimit <= 1);
-#endif
-#if 0
   assert (!options.block || !options.discount || options.blocklimit <= 1);
-#endif
 }
 
 void fix_options () {
-#if 0
   if (options.block && options.dual && options.blocklimit > 1) {
     msg (1, "dual propagation restricts blocking clause size to one");
     options.blocklimit = 1;
   } 
-#endif
-#if 0
   if (options.block && options.discount && options.blocklimit > 1) {
     msg (1, "discounting restricts blocking clause size to one");
     options.blocklimit = 1;
   } 
-#endif
   check_options_fixed ();
 }
 
@@ -379,16 +373,14 @@ Solver * new_solver (CNF * primal,
   NEW (solver);
   solver->cnf.primal = primal;
   if (dual) {
-    SOG (
-      "new solver over %ld primal and %ld dual clauses %ld shared variables",
+    SOG ("new solver: %ld primal %ld, dual clauses, %ld shared variables",
       (long) COUNT (primal->clauses),
       (long) COUNT (dual->clauses),
       (long) COUNT (*shared));
     solver->cnf.dual = dual;
     solver->dual_solving_enabled = 1;
   } else {
-    SOG (
-      "new solver over %ld clauses and %ld shared variables",
+    SOG ("new solver: %ld clauses, %ld shared variables",
       (long) COUNT (primal->clauses),
       (long) COUNT (*shared));
     solver->cnf.dual = 0;
@@ -944,9 +936,10 @@ static void print_model (Solver * solver) {
   fputc ('\n', stdout);
 }
 
-static void print_discount (Solver * solver) {
+static void print_discount (Solver * solver, Frame * f) {
   assert (solver->model_printing_enabled);
-  fputs ("<DISCOUNT>\n", stdout);
+  for (long i = 0; i < f->counted; i++)
+    fputs ("<DISCOUNT>\n", stdout);
 }
 
 static int model_limit_reached (Solver * solver) {
@@ -1774,6 +1767,7 @@ backtrack_primal_satisfied_learn (Solver * solver, int level) {
 static void initialize_count (Solver * solver, int level, int counted) {
   Frame * f = frame_at_level (solver, level);
   add_power_of_two_to_number (f->count, counted);
+  f->counted++;
   SOGNUM (f->count,
     "initialized level %d flipping count to 2^%d =", level, counted);
 }
@@ -1790,6 +1784,7 @@ backtrack_accumulating_flipped_counts (Solver * solver, int level) {
       assert (g->decision == lit);
       SOGNUM (g->count, "accumulating level %d flipping count", level);
       add_number (f->count, g->count);
+      f->counted += g->counted;
       dec_level (solver);
     }
     (void) POP (solver->trail);
@@ -1839,25 +1834,6 @@ static int backtrack_primal_satisfied (Solver * solver) {
   return 1;
 }
 
-/*------------------------------------------------------------------------*/
-#if 0
-
-// TODO how and when to use this?
-
-static void
-backtrack_primal_conflict_learn (Solver * solver, int level) {
-  SOG ("applying primal conflict learning rule");
-  assert (is_relevant_decision_level (solver, level));
-  check_no_decision_above_level (solver, level);
-  int lit, decision = decision_at_level (solver, level);
-  while ((lit = TOP (solver->trail)) != decision) {
-    if (unassign (solver, lit) != UNDECIDED) dec_level (solver);
-    (void) POP (solver->trail);
-  }
-  add_decision_blocking_clause (solver, &rules.BP0L);
-}
-
-#endif
 /*------------------------------------------------------------------------*/
 
 static int resolve_literal (Solver * solver, int lit) {
@@ -2000,7 +1976,7 @@ static void discount (Solver * solver) {
   if (is_zero_number (f->count)) return;
   SOGNUM (f->count, "discounted actual models");
   sub_number (solver->count, f->count);
-  if (solver->model_printing_enabled) print_discount (solver);
+  if (solver->model_printing_enabled) print_discount (solver, f);
   report (solver, 3, 'd');
 }
 
@@ -2017,7 +1993,6 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
     (void) POP (solver->trail);
     const Decision decision = unassign (solver, lit);
     if (decision == UNDECIDED) continue;
-    // COVER (decision == FLIPPED);
     if (decision == FLIPPED) discount (solver);
     dec_level (solver);
   }
@@ -2072,11 +2047,14 @@ static int resolve_primal_conflict (Solver * solver, Clause * conflict) {
   return reset_levels (solver);
 }
 
-static int flipped_levels_above (Solver * solver, int level) {
-  int res = 0;
-  for (int i = level + 1; i <= solver->level; i++)
-    if (frame_at_level (solver, i)->flipped) res++;
-  SOG ("found %d flipped levels above %d", res, level);
+static long flipped_levels_above (Solver * solver, int level) {
+  long res = 0;
+  int flipped = 0;
+  for (int i = level + 1; i <= solver->level; i++) {
+    Frame * f = frame_at_level (solver, i);
+    if (f->flipped) flipped++, res += f->counted;
+  }
+  SOG ("%d flipped levels above %d counted %ld", flipped, level, res);
   return res;
 }
 
@@ -2100,7 +2078,7 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
   // Also determine back-jump level even if we only backtrack.
   //
   int level = jump_level (solver);
-  int discount = flipped_levels_above (solver, level);
+  long discount = flipped_levels_above (solver, level);
 
   int learn;	// Learn a clause or just backtrack and flip.
 
@@ -2114,7 +2092,6 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
       solver->last_flipped_level, level);
     learn = 1;
   } else if (!options.discount) {
-    assert (discount > 0);
     stats.back.forced++;
     SOG ("forces backtracking and flipping since discounting is disabled");
     level = solver->last_decision_level;
@@ -2123,9 +2100,9 @@ static int analyze_primal_conflict (Solver * solver, Clause * conflict) {
     level = solver->last_decision_level;
     learn = 0;
   } else {
-    assert (0 < discount);
+    assert (0 <= discount);
     assert (discount <= options.discountmax);
-    SOG ("discounting %d levels above back-jump level %d", discount, level);
+    SOG ("discounting %ld levels above back-jump level %d", discount, level);
     stats.back.discounting++;
     learn = 1;
   }
