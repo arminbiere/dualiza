@@ -33,7 +33,7 @@ do { \
 do { \
   rules.NAME++; \
   if (!options.logging) break; \
-  printf ("c LOG %d %s %ld\t%d", \
+  printf ("c LOG %d RULE %s %ld\t%d", \
     solver->level, #NAME, rules.NAME, LIT); \
   for (int I = 0; I < C->size; I++) { \
     fputc (I ? ' ' : '\t', stdout); \
