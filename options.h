@@ -6,7 +6,7 @@
 OPTION (annotate,     0, "annotate generated") \
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
-OPTION (blocklimit,   1, "blocking clause size limit") \
+OPTION (blocklimit,   0, "blocking clause size limit") \
 DBGOPT (check,        0, "enable expensive assertion checking") \
 OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  0, "maximum number of discounted models") \
