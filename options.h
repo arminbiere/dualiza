@@ -6,11 +6,11 @@
 OPTION (annotate,     0, "annotate generated") \
 OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
-OPTION (blocklimit,   1, "blocking clause size limit") \
+OPTION (blocklimit,   2, "blocking clause size limit") \
 DBGOPT (check,        0, "enable expensive assertion checking") \
 OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  1, "maximum number of flipped levels discounted") \
-OPTION (dual,         1, "dual SAT engine too (opposite of '--primal')") \
+OPTION (dual,         0, "dual SAT engine too (opposite of '--primal')") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \
 OPTION (learn,        1, "learn clauses") \
