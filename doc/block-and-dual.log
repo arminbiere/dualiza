@@ -1,0 +1,390 @@
+c Dualiza #SAT Solver
+c Copyright (C) 2017-2018 Armin Biere Johannes Kepler University Linz
+c Version 008 11f91fe199a2b2ce5c08cf53036b0bd7c101c7c6
+c Released Fri Jun 15 09:52:43 2018 +0200
+c Compiled Fri Jun 15 09:53:30 CEST 2018
+c System Linux fmvi7ab 4.4.0-127-generic x86_64
+c Compiler gcc -Wall -g3
+c default counting mode
+c --verbosity=2147483647
+c --logging=1
+c reading from 'cnfs/1007.cnf'
+c trying to determine file info of input file 'cnfs/1007.cnf'
+c assuming DIMACS file info after peeking at 3 characters
+c parsing input as DIMACS file
+c LOG parsed number of variables 4 in DIMACS header
+c LOG parsed number of clauses 2 in DIMACS header
+c parsed 'p cnf 4 2' header
+c LOG connecting 4 input gates to DIMACS variables
+c LOG new INPUT gate 0
+c enlarged symbol table from 0 to 1
+c LOG new symbol 'x1'
+c LOG DIMACS variable 1 connected to input gate 0 with symbol 'x1'
+c LOG new INPUT gate 1
+c enlarged symbol table from 1 to 2
+c LOG new symbol 'x2'
+c LOG DIMACS variable 2 connected to input gate 1 with symbol 'x2'
+c LOG new INPUT gate 2
+c enlarged symbol table from 2 to 4
+c LOG new symbol 'x3'
+c LOG DIMACS variable 3 connected to input gate 2 with symbol 'x3'
+c LOG new INPUT gate 3
+c LOG new symbol 'x4'
+c LOG DIMACS variable 4 connected to input gate 3 with symbol 'x4'
+c LOG start clause 1
+c LOG new OR gate 4
+c LOG INPUT gate 0 connected negated as 1st input to OR gate 4
+c LOG INPUT gate 1 connected as 2nd input to OR gate 4
+c LOG end clause 1
+c LOG start clause 2
+c LOG new OR gate 5
+c LOG INPUT gate 0 connected as 1st input to OR gate 5
+c LOG INPUT gate 1 connected as 2nd input to OR gate 5
+c LOG end clause 2
+c LOG new AND gate 6
+c LOG OR gate 4 connected as 1st input to AND gate 6
+c LOG OR gate 5 connected as 2nd input to AND gate 6
+c deleting input reader of 'cnfs/1007.cnf' after reading 23 bytes
+c generating dual circuit for counting with SAT engine
+c LOG new INPUT gate 0
+c LOG copying input 0 gate 0 symbol 'x1'
+c LOG new INPUT gate 1
+c LOG copying input 1 gate 1 symbol 'x2'
+c LOG new INPUT gate 2
+c LOG copying input 2 gate 2 symbol 'x3'
+c LOG new INPUT gate 3
+c LOG copying input 3 gate 3 symbol 'x4'
+c LOG new AND gate 4
+c LOG INPUT gate 0 connected as 1st input to AND gate 4
+c LOG INPUT gate 1 connected negated as 2nd input to AND gate 4
+c LOG new AND gate 5
+c LOG INPUT gate 0 connected negated as 1st input to AND gate 5
+c LOG INPUT gate 1 connected negated as 2nd input to AND gate 5
+c LOG new OR gate 6
+c LOG AND gate 4 connected as 1st input to OR gate 6
+c LOG AND gate 5 connected as 2nd input to OR gate 6
+c counting with dual SAT engine
+c LOG new primal CNF
+c LOG new dual CNF
+c LOG starting to encode first circuit
+c LOG resetting pos, neg, and mark fields of circuit
+c cone of influence: 4 pos, 0 neg, 1 both, 2 disconnected
+c LOG resetting code and root fields of circuit
+c LOG encoding input 0 symbol x1 as 1
+c LOG encoding input 1 symbol x2 as 2
+c LOG encoding input 2 symbol x3 as 3
+c LOG encoding input 3 symbol x4 as 4
+c encoded 4 inputs
+c LOG starting to encode roots of first circuit
+c LOG encoded new primal size 2 clause[0] -1 2
+c LOG added clause 0 to primal CNF
+c LOG encoded new primal size 2 clause[0] 1 2
+c LOG added clause 1 to primal CNF
+c encoded 0 gates of first circuit
+c LOG starting to encode second circuit
+c LOG resetting code and root fields of circuit
+c LOG encoding input 0 symbol x1 as 1
+c LOG encoding input 1 symbol x2 as 2
+c LOG encoding input 2 symbol x3 as 3
+c LOG encoding input 3 symbol x4 as 4
+c encoded 4 inputs
+c LOG starting to encode roots of second circuit
+c LOG encoding 2-ary AND gate 4 with literal 5
+c LOG encoded new dual size 2 clause[0] -5 1
+c LOG added clause 0 to dual CNF
+c LOG encoded new dual size 2 clause[0] -5 -2
+c LOG added clause 1 to dual CNF
+c LOG encoded new dual size 3 clause[0] 5 -1 2
+c LOG added clause 2 to dual CNF
+c LOG encoding 2-ary AND gate 5 with literal 6
+c LOG encoded new dual size 2 clause[0] -6 -1
+c LOG added clause 3 to dual CNF
+c LOG encoded new dual size 2 clause[0] -6 -2
+c LOG added clause 4 to dual CNF
+c LOG encoded new dual size 3 clause[0] 6 1 2
+c LOG added clause 5 to dual CNF
+c LOG encoded new dual size 2 clause[0] 5 6
+c LOG added clause 6 to dual CNF
+c encoded 2 gates of second circuit
+c encoded 6 inputs and gates in total
+c primal CNF with 2 clauses
+c dual CNF with 7 clauses
+c LOG encoding input 0 symbol x1 as 1
+c LOG encoding input 1 symbol x2 as 2
+c LOG encoding input 2 symbol x3 as 3
+c LOG encoding input 3 symbol x4 as 4
+c LOG found 4 encoded inputs
+c LOG 0 new solver over 2 primal and 7 dual clauses 4 shared variables
+c LOG 0 maximum shared variable index 4
+c LOG 0 maximum variable index 2 in primal CNF
+c LOG 0 no primal gate variables
+c LOG 0 maximum variable index 6 in dual CNF
+c LOG 0 2 dual gate variables 5 ... 6
+c LOG 0 minimum variable index 5 above 4 in dual CNF
+c LOG 0 maximum variable index 6
+c LOG 0 4 primal or shared variables
+c LOG 0 relevant shared variable 1
+c LOG 0 relevant shared variable 2
+c LOG 0 relevant shared variable 3
+c LOG 0 relevant shared variable 4
+c LOG 0 found 4 relevant shared variables
+c LOG 0 found 0 irrelevant shared variables
+c LOG 0 found 0 private primal variables
+c LOG 0 dual variable 5
+c LOG 0 dual variable 6
+c LOG 0 found 2 private dual variables
+c LOG 0 connecting variables
+c LOG 0 relevant enqueue variable 1 stamp 1
+c LOG 0 updating to search relevant variable 1 next in relevant queue
+c LOG 0 relevant enqueue variable 2 stamp 2
+c LOG 0 updating to search relevant variable 2 next in relevant queue
+c LOG 0 relevant enqueue variable 3 stamp 3
+c LOG 0 updating to search relevant variable 3 next in relevant queue
+c LOG 0 relevant enqueue variable 4 stamp 4
+c LOG 0 updating to search relevant variable 4 next in relevant queue
+c LOG 0 default initial phase 1
+c LOG 0 initial reduce interval 2000
+c LOG 0 initial reduce increment 300
+c LOG 0 initial reduce learned limit 2000
+c LOG 0 initial restart conflict limit 2
+c LOG 0 new subsume limit 0
+c LOG 0 always forcing to split on relevant variables first
+c LOG 0 connecting 2 primal clauses to solver
+c LOG 0 connecting literal -1 to primal size 2 clause[0] -1 2
+c LOG 0 connecting literal 2 to primal size 2 clause[0] -1 2
+c LOG 0 connecting literal 1 to primal size 2 clause[1] 1 2
+c LOG 0 connecting literal 2 to primal size 2 clause[1] 1 2
+c LOG 0 connecting 7 dual clauses to solver for counting
+c LOG 0 connecting literal -5 to dual size 2 clause[0] -5 1
+c LOG 0 connecting literal 1 to dual size 2 clause[0] -5 1
+c LOG 0 connecting literal -5 to dual size 2 clause[1] -5 -2
+c LOG 0 connecting literal -2 to dual size 2 clause[1] -5 -2
+c LOG 0 connecting literal 5 to dual size 3 clause[2] 5 -1 2
+c LOG 0 connecting literal -1 to dual size 3 clause[2] 5 -1 2
+c LOG 0 connecting literal -6 to dual size 2 clause[3] -6 -1
+c LOG 0 connecting literal -1 to dual size 2 clause[3] -6 -1
+c LOG 0 connecting literal -6 to dual size 2 clause[4] -6 -2
+c LOG 0 connecting literal -2 to dual size 2 clause[4] -6 -2
+c LOG 0 connecting literal 6 to dual size 3 clause[5] 6 1 2
+c LOG 0 connecting literal 1 to dual size 3 clause[5] 6 1 2
+c LOG 0 connecting literal 5 to dual size 2 clause[6] 5 6
+c LOG 0 connecting literal 6 to dual size 2 clause[6] 5 6
+c LOG 0 updating to search relevant variable 4 next in relevant queue
+c LOG 0 next relevant decision 4 stamped 4
+c LOG 0 relevant decide 4
+c LOG 1 incremented solver level
+c LOG 1 assume decision 4
+c LOG 1 incremented number decision levels to 1
+c LOG 1 new last decision level 1
+c LOG 1 incremented number relevant levels to 1
+c LOG 1 new last relevant level 1
+c LOG 1 relevant assign 4 decision
+c LOG 1 RULE DX 1	4
+c LOG 1 primal propagating 4
+c LOG 1 dual propagating 4
+c LOG 1 updating to search relevant variable 3 next in relevant queue
+c LOG 1 next relevant decision 3 stamped 3
+c LOG 1 relevant decide 3
+c LOG 2 incremented solver level
+c LOG 2 assume decision 3
+c LOG 2 incremented number decision levels to 2
+c LOG 2 new last decision level 2
+c LOG 2 incremented number relevant levels to 2
+c LOG 2 new last relevant level 2
+c LOG 2 relevant assign 3 decision
+c LOG 2 RULE DX 2	3
+c LOG 2 primal propagating 3
+c LOG 2 dual propagating 3
+c LOG 2 updating to search relevant variable 2 next in relevant queue
+c LOG 2 next relevant decision 2 stamped 2
+c LOG 2 relevant decide 2
+c LOG 3 incremented solver level
+c LOG 3 assume decision 2
+c LOG 3 incremented number decision levels to 3
+c LOG 3 new last decision level 3
+c LOG 3 incremented number relevant levels to 3
+c LOG 3 new last relevant level 3
+c LOG 3 relevant assign 2 decision
+c LOG 3 RULE DX 3	2
+c LOG 3 primal propagating 2
+c LOG 3 dual propagating 2
+c LOG 3 visiting while propagating 2 dual size 2 clause[1] -5 -2
+c LOG 3 dual unit -5 dual size 2 clause[1] -2 -5
+c LOG 3 dual assign -5 reason dual size 2 clause[1] -2 -5
+c LOG 3 RULE UNT 1	-5
+c LOG 3 visiting while propagating 2 dual size 2 clause[4] -6 -2
+c LOG 3 dual unit -6 dual size 2 clause[4] -2 -6
+c LOG 3 dual assign -6 reason dual size 2 clause[4] -2 -6
+c LOG 3 RULE UNT 2	-6
+c LOG 3 dual propagating -5
+c LOG 3 visiting while propagating -5 dual size 3 clause[2] 5 -1 2
+c LOG 3 disconnecting literal 5 from dual size 3 clause[2] 5 -1 2
+c LOG 3 connecting literal 2 to dual size 3 clause[2] 2 -1 5
+c LOG 3 visiting while propagating -5 dual size 2 clause[6] 5 6
+c LOG 3 conflict dual size 2 clause[6] 5 6
+c LOG 3 analyze dual
+c LOG 3 model 1 with 0 unassigned relevant variables
+c LOG 3 saving first model
+c 
+c                   primal    dual  learned primal dual variables log2  log2
+c       time  memory   conflicts           clauses              models count
+c 
+c +    0.00     0.7      0       1      0      2      7       4      0     1
+c LOG 3 backtracking to last relevant decision 2 at level 3
+c LOG 3 blocking clause size 3 below limit 3
+c LOG 3 applying dual conflict learning rule
+c LOG 3 backtrack to level 3
+c LOG 3 adding decision blocking clause 1 for decision 2 at level 3
+c LOG 3 adding decision relevant literal -2 from decision level 3
+c LOG 3 adding decision relevant literal -3 from decision level 2
+c LOG 3 adding decision relevant literal -4 from decision level 1
+c LOG 3 found blocking clause of length 3
+c LOG 3 dual unassign -6
+c LOG 3 dual unassign -5
+c LOG 3 relevant unassign 2
+c LOG 3 decremented number decision levels to 2
+c LOG 3 new last decision level 2
+c LOG 3 decremented number relevant levels to 2
+c LOG 3 new last relevant level 2
+c LOG 2 decremented solver level
+c LOG 2 decision blocking primal size 3 clause[0] -2 -3 -4
+c LOG added clause 2 to primal CNF
+c LOG 2 connecting literal -2 to primal size 3 clause[2] -2 -3 -4
+c LOG 2 connecting literal -3 to primal size 3 clause[2] -2 -3 -4
+c LOG 2 relevant assign -2 reason primal size 3 clause[2] -2 -3 -4
+c LOG 2 RULE BN0L 1	-2	-2 -3 -4
+c LOG 2 trying to subsume at most 4 clauses
+c LOG 2 marking literal -2
+c LOG 2 marking literal -3
+c LOG 2 marking literal -4
+c LOG 2 unmarking literal -2
+c LOG 2 unmarking literal -3
+c LOG 2 unmarking literal -4
+c LOG 2 subsumed 0 clauses
+c LOG 2 primal propagating -2
+c LOG 2 visiting while propagating -2 primal size 2 clause[0] -1 2
+c LOG 2 forcing -1 primal size 2 clause[0] 2 -1
+c LOG 2 relevant assign -1 reason primal size 2 clause[0] 2 -1
+c LOG 2 RULE UP 1	-1
+c LOG 2 visiting while propagating -2 primal size 2 clause[1] 1 2
+c LOG 2 conflict 1 primal size 2 clause[1] 2 1
+c LOG 2 analyze primal
+c LOG 2 resolving primal size 2 clause[1] 2 1
+c LOG 2 relevant seen literal 2
+c LOG 2 seen level 2
+c LOG 2 relevant seen literal 1
+c LOG 2 unresolved literals 2
+c LOG 2 relevant resolving literal -1
+c LOG 2 resolving primal size 2 clause[0] 2 -1
+c LOG 2 unresolved literals 1
+c LOG 2 relevant first UIP literal -2
+c LOG 2 relevant bump variable 1
+c LOG 2 relevant dequeue variable 1 stamp 1
+c LOG 2 relevant enqueue variable 1 stamp 5
+c LOG 2 relevant bump variable 2
+c LOG 2 relevant dequeue variable 2 stamp 2
+c LOG 2 updating to search relevant variable 3 next in relevant queue
+c LOG 2 relevant enqueue variable 2 stamp 6
+c LOG 2 seen 1 levels
+c LOG 2 new fast moving glue average 1.00
+c LOG 2 new slow moving glue average 1.00
+c LOG 2 first sorted literal 2
+c LOG 2 jump level 0 of learned clause of size 1
+c LOG 2 found 0 flipped levels above 0
+c LOG 2 learn since flipped level 0 less equal back-jump level 0
+c LOG 2 learning clause number 1 of size 1
+c LOG 2 learned new primal redundant glue 1 size 1 clause[0] 2
+c LOG added clause 3 to primal CNF
+c LOG 2 back-jump 1 to level 0
+c LOG 2 relevant unassign -1
+c LOG 2 updating to search relevant variable 1 next in relevant queue
+c LOG 2 relevant unassign -2
+c LOG 2 updating to search relevant variable 2 next in relevant queue
+c LOG 2 relevant unassign 3
+c LOG 2 decremented number decision levels to 1
+c LOG 2 new last decision level 1
+c LOG 2 decremented number relevant levels to 1
+c LOG 2 new last relevant level 1
+c LOG 1 decremented solver level
+c LOG 1 relevant unassign 4
+c LOG 1 decremented number decision levels to 0
+c LOG 1 new last decision level 0
+c LOG 1 decremented number relevant levels to 0
+c LOG 1 new last relevant level 0
+c LOG 0 decremented solver level
+c LOG 0 relevant assign 2 reason primal redundant glue 1 size 1 clause[3] 2
+c LOG 0 RULE JP0 1	2	2
+c LOG 0 primal propagating 2
+c LOG 0 visiting while propagating 2 primal size 3 clause[2] -2 -3 -4
+c LOG 0 disconnecting literal -2 from primal size 3 clause[2] -2 -3 -4
+c LOG 0 connecting literal -4 to primal size 3 clause[2] -4 -3 -2
+c i    0.00     0.7      1       1      1      3      7       3      0     1
+c LOG 0 dual propagating 2
+c LOG 0 visiting while propagating 2 dual size 2 clause[1] -2 -5
+c LOG 0 dual unit -5 dual size 2 clause[1] -2 -5
+c LOG 0 dual assign -5 reason dual size 2 clause[1] -2 -5
+c LOG 0 RULE UNT 3	-5
+c LOG 0 visiting while propagating 2 dual size 2 clause[4] -2 -6
+c LOG 0 dual unit -6 dual size 2 clause[4] -2 -6
+c LOG 0 dual assign -6 reason dual size 2 clause[4] -2 -6
+c LOG 0 RULE UNT 4	-6
+c LOG 0 dual propagating -5
+c LOG 0 visiting while propagating -5 dual size 2 clause[6] 5 6
+c LOG 0 conflict dual size 2 clause[6] 5 6
+c LOG 0 analyze dual
+c LOG 0 model 2 with 0 unassigned relevant variables
+c +    0.00     0.7      1       2      1      3      7       3      1     3
+c LOG 0 dual conflict without any relevant decisions left
+c LOG 0 RULE EN0 1
+NUMBER SATISFYING ASSIGNMENTS
+10
+c LOG 0 deleting solver
+c LOG delete primal CNF
+c LOG delete primal size 2 clause[0] 2 -1
+c LOG delete primal size 2 clause[1] 2 1
+c LOG delete primal size 3 clause[2] -4 -3 -2
+c LOG delete primal redundant glue 1 size 1 clause[3] 2
+c LOG delete dual CNF
+c LOG delete dual size 2 clause[0] -5 1
+c LOG delete dual size 2 clause[1] -2 -5
+c LOG delete dual size 3 clause[2] 2 -1 5
+c LOG delete dual size 2 clause[3] -6 -1
+c LOG delete dual size 2 clause[4] -2 -6
+c LOG delete dual size 3 clause[5] 6 1 2
+c LOG delete dual size 2 clause[6] 5 6
+c deleting circuit with 7 gates
+c deleting circuit with 7 gates
+c 
+c ---- [rules] ---------------------------------------------
+c 
+c            0 EP1             0 EP0             1 EN0
+c            0 BP0F            1 JP0
+c            0 BP1F            0 BP1L
+c            0 BN0F            1 BN0F
+c            3 DX              0 DY              0 DS
+c            1 UP              4 UNT
+c            0 UNX             0 UNY
+c            0 FP              0 FN
+c 
+c ---- [statistics] ----------------------------------------
+c 
+c 2 counted partial models (1.5 decisions per model)
+c 3 conflicts (0 per second)
+c 1 primal conflicts (0 per second)
+c 2 dual conflicts (0 per second)
+c 3 decisions (0 per second)
+c 11 propagations (0.0 million per second)
+c 5 primal propagations (0.0 million per second)
+c 6 dual propagations (0.0 million per second)
+c 1 backtracked (33% per decision)
+c 1 backjumped (100% per conflict)
+c 1 blocking clauses (3.0 average length)
+c bumped 2 variables (2.0 per primal conflict)
+c searched 2 variables (0.7 per decision)
+c looked up 4 symbols, 0 collisions (0.0 per look-up)
+c 
+c ---- [resources] -----------------------------------------
+c 
+c maximum allocated 4542 bytes (0.0 MB)
+c maximum resident set size 5165056 bytes (4.9 MB)
+c process time 0.00 seconds
