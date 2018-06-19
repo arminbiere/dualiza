@@ -201,13 +201,14 @@ static void encode_or (Gate * g, Encoder * e) {
   const int n = get_gate_size (g);
   int lit = map_gate (g, e);
   LOG ("encoding %d-ary OR gate %d with literal %d", n, g->idx, lit);
-  for (int i = 0; i < n; i++)
-    encode_binary (e, lit, -map_input (g, i, e));
   assert (EMPTY (e->clause));
   PUSH (e->clause, -lit);
   for (int i = 0; i < n; i++)
     PUSH (e->clause, map_input (g, i, e));
   encode_clause (e);
+  if (options.polarity && g->pos && !g->neg) return;
+  for (int i = 0; i < n; i++)
+    encode_binary (e, lit, -map_input (g, i, e));
 }
 
 static void encode_ite (Gate * g, Encoder * e) {
