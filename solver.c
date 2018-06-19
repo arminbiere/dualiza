@@ -1973,7 +1973,7 @@ static void discount (Solver * solver) {
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
   if (is_zero_number (f->count)) return;
-  COVER (solver->level > solver->last_decision_level);
+  // COVER (solver->level > solver->last_decision_level);
   assert (f->counted > 0);
   stats.models.discounted++;
   SOGNUM (f->count, "discounted actual models");
@@ -2302,7 +2302,7 @@ static void reduce_dual (Solver * solver)
     solver->dual_or_shared_fixed >
       solver->limit.reduce.dual_or_shared_fixed;
 
-  COVER (!simplify);		// TODO remove
+  COVER (!simplify);
   if (!simplify) return;
 
   SOG ("dual simplifying reduction");

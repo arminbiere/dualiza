@@ -9,7 +9,7 @@ OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
 OPTION (blocklimit,   2, "blocking clause size limit") \
 DBGOPT (check,        0, "enable expensive assertion checking") \
 OPTION (discount,     1, "discount models instead of backtracking") \
-OPTION (discountmax,  0, "maximum number of discounted models") \
+OPTION (discountmax,  1, "maximum number of discounted models") \
 OPTION (dual,         1, "dual SAT engine too (opposite of '--primal')") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \
