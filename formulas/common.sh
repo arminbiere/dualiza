@@ -1,7 +1,7 @@
 dir=`pwd|xargs basename`
 cd ..
 [ -t 1 ] && echo "$0: write to file or pipe into less for more details"
-tmp="/tmp/dualiza-formulas-test-$$"
+tmp="/tmp/dualiza-test-$$"
 trap "rm -f $tmp*" 2
 die () {
   echo "$0: $*"

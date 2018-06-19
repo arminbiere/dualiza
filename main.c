@@ -26,7 +26,7 @@ fputs (
 "to be compressed and is decompressed during parsing on-the-fly.\n"
 "The parsed input is negated after parsing with the following option\n"
 "\n"
-"  -n | --negate     negate before printing\n"
+"  -n | --negate          negate before printing\n"
 "\n"
 "The default mode is to count and print the number of all models.\n"
 "Alternatively the input can either just be parsed and printed with\n"

@@ -15,7 +15,7 @@ sat () {
   if [ "$picosat" ]
   then
     cnf="$tmp.cnf"
-    if filter $dualiza -d $1 -o $cnf
+    if filter $dualiza -d $1 -o $cnf --no-polarity
     then
       execute "$picosat" $cnf
       res=`echo $firstline|awk '{print $2}'`
@@ -69,7 +69,7 @@ count () {
       if [ "$sharpsat" ]
       then
 	cnf="$tmp.cnf"
-	if filter $dualiza -d $1 -o $cnf
+	if filter $dualiza -d $1 -o $cnf --no-polarity
 	then
 	  filter "$sharpsat" $cnf
 	  res="`sed -e '1,/# solutions/d' -e '/# END/,$d' $tmp`"

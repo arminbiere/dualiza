@@ -171,6 +171,7 @@ static void encode_and (Gate * g, Encoder * e) {
   for (int i = 0; i < n; i++)
     encode_binary (e, -lit, map_input (g, i, e));
   assert (EMPTY (e->clause));
+  if (options.polarity && g->pos && !g->neg) return;
   PUSH (e->clause, lit);
   for (int i = 0; i < n; i++)
     PUSH (e->clause, -map_input (g, i, e));
