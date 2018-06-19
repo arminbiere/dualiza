@@ -1973,6 +1973,7 @@ static void discount (Solver * solver) {
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
   if (is_zero_number (f->count)) return;
+  COVER (solver->level > solver->last_decision_level);
   assert (f->counted > 0);
   stats.models.discounted++;
   SOGNUM (f->count, "discounted actual models");
