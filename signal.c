@@ -37,6 +37,7 @@ static void catch_signal (int sig) {
     catched_signal = 1;
     msg (1, "");
     msg (1, "caught signal(%d) '%s'", sig, signal_name (sig));
+    print_rules ();
     print_statistics ();
   }
   msg (1, "reraising signal(%d) '%s'", sig, signal_name (sig));

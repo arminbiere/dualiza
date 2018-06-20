@@ -43,4 +43,11 @@ unsigned primes[num_primes] = {
 
 int is_space_character (int ch) {
   return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\n' || ch == '\r';
+} 
+
+void * first_non_zero_byte (void * p, size_t size) {
+  char * end = size + (char*) p;
+  for (const char * q = p; q != end; q++)
+    if (*q) return (void*) q;
+  return 0;
 }

@@ -40,4 +40,5 @@ extern Rules rules;
 
 /*------------------------------------------------------------------------*/
 
+void print_rules ();
 void print_statistics ();

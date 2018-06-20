@@ -3,14 +3,13 @@
 Stats stats;
 Rules rules;
 
-static double average (double a, double b) { return b ? a / b : 0; }
-static double percent (double a, double b) { return b ? 100*a / b : 0; }
-
-void print_statistics () {
+void print_rules () {
   if (options.verbosity < 1) return;
+  if (!first_non_zero_byte (&rules, sizeof rules)) return;
   msg (1, "");
   msg (1, "---- [rules] ---------------------------------------------");
   msg (1, "");
+
   msg (1, "%12ld EP1  %12ld EP0  %12ld EN0",
            rules.EP1, rules.EP0, rules.EN0);
   msg (1, "%12ld BP0F %12ld JP0",
@@ -31,6 +30,13 @@ void print_statistics () {
   msg (1, "%12ld UNX  %12ld UNY",
            rules.UNX, rules.UNY);
   msg (1, "%12ld FP   %12ld FN", rules.FP, rules.FN);
+}
+
+static double average (double a, double b) { return b ? a / b : 0; }
+static double percent (double a, double b) { return b ? 100*a / b : 0; }
+
+void print_statistics () {
+  if (options.verbosity < 1) return;
   msg (1, "");
   msg (1, "---- [statistics] ----------------------------------------");
   msg (1, "");

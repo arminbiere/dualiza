@@ -661,6 +661,7 @@ int main (int argc, char ** argv) {
   else                count ();
   reset ();
   reset_signal_handlers ();
+  print_rules ();
   print_statistics ();
   assert (!stats.bytes.current);
   return res;
