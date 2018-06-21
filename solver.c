@@ -1172,6 +1172,7 @@ static void report_iterating (Solver * solver) {
 }
 
 static Clause * primal_propagate (Solver * solver) {
+  SOG ("primal propagation");
   Clause * res = 0;
   while (!res && solver->next.primal < COUNT (solver->trail)) {
     int lit = solver->trail.start[solver->next.primal++];
@@ -1288,7 +1289,8 @@ static Clause * dual_force (Solver * solver, Clause * c, int lit) {
 // Propagate collected dual unit clauses on root level.
 
 static Clause * dual_propagate_units (Solver * solver) {
-  assert (!solver->level);
+  assert (!solver->last_decision_level);
+  SOG ("dual trail propagation");
   Clause * res = 0;
   while (!res && !EMPTY (solver->units)) {
     Clause * c = POP (solver->units);
@@ -1310,6 +1312,7 @@ static Clause * dual_propagate_units (Solver * solver) {
 // Propagate assignments on trail through dual CNF.
 
 static Clause * dual_propagate_trail (Solver * solver) {
+  SOG ("dual trail propagation");
   check_primal_propagated (solver);
   assert (solver->next.dual <= solver->next.primal);
   Clause * res = 0;
@@ -1362,9 +1365,10 @@ static Clause * dual_propagate_trail (Solver * solver) {
 
 static Clause * dual_propagate (Solver * solver) {
   if (!solver->dual_solving_enabled) return 0;
+  SOG ("dual propagation");
   check_primal_propagated (solver);
   Clause * res = 0;
-  if (!solver->level) res = dual_propagate_units (solver);
+  if (!solver->last_decision_level) res = dual_propagate_units (solver);
   if (!res) res = dual_propagate_trail (solver);
   report_iterating (solver);
   return res;
@@ -1602,6 +1606,12 @@ static void adjust_next_to_trail (Solver * solver) {
   adjust_next (solver, COUNT (solver->trail));
 }
 
+static void register_new_fixed_variable (Solver * solver) {
+  if (solver->last_decision_level > 0) return;
+  SOG ("registered new fixed variable");
+  solver->found_new_fixed_variable = 1;
+}
+
 static void add_decision_blocking_clause (Solver * solver, long * rule) {
   assert (solver->level > 0);
   Frame * f = last_frame (solver);
@@ -1642,7 +1652,7 @@ static void add_decision_blocking_clause (Solver * solver, long * rule) {
        if (rule == &rules.BP1L) RULE2 (BP1L, -first, c);
   else if (rule == &rules.BN0L) RULE2 (BN0L, -first, c);
   else SOG ("WARNING UNMATCHED RULE in '%s'", __FUNCTION__);
-  if (!solver->level) solver->found_new_fixed_variable = 1;
+  register_new_fixed_variable (solver);
   if (options.subsume) subsume (solver, c);
 }
 
@@ -1806,6 +1816,7 @@ backtrack_primal_satisfied_flip (Solver * solver, int level, int counted)
   backtrack_accumulating_flipped_counts (solver, level);
 
   flip_decision (solver, &rules.BP1F);
+  register_new_fixed_variable (solver);
   adjust_next_to_trail (solver);
 }
 
@@ -2003,7 +2014,7 @@ backjump_primal_conflict_learn (Solver * solver, Clause * c, int level) {
   adjust_next_to_trail (solver);
   assign (solver, forced, c);
   RULE2 (JP0, forced, c);
-  if (!level) solver->found_new_fixed_variable = 1;
+  register_new_fixed_variable (solver);
 }
 
 /*------------------------------------------------------------------------*/
@@ -2021,6 +2032,7 @@ backtrack_primal_conflict_flip (Solver * solver, int level) {
   backtrack_accumulating_flipped_counts (solver, level);
 
   flip_decision (solver, &rules.BP0F);
+  register_new_fixed_variable (solver);
   adjust_next_to_trail (solver);
 }
 
@@ -2146,6 +2158,7 @@ backtrack_dual_conflict_flip (Solver * solver, int level, int counted)
   backtrack_accumulating_flipped_counts (solver, level);
 
   flip_decision (solver, &rules.BN0F);
+  register_new_fixed_variable (solver);
   adjust_next_to_trail (solver);
 }
 
