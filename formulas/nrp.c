@@ -4,10 +4,9 @@ int n;
 int main (int argc, char ** argv) {
   if (argc > 1) n = atoi (argv [1]);
   if (n < 2) n = 2;
-  if (n > 13) n = 13;
-  printf ("(a");
-  for (int i = 1; i < n; i++)
-    printf (" | %c", 'a' + i);
+  printf ("(x1");
+  for (int i = 2; i <= n; i++)
+    printf (" | x%d", i);
   printf (")");
 #if 0
   for (int i = 1; i < n; i++) {
