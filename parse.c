@@ -10,14 +10,14 @@ struct Parser {
 
 static Gate * parse_expr (Parser *);
 
-static int is_symbol_start (int ch) {
+int is_symbol_start (int ch) {
   if ('a' <= ch && ch <= 'z') return 1;
   if ('A' <= ch && ch <= 'Z') return 1;
   if (ch == '_') return 1;
   return 0;
 }
 
-static int is_symbol_character (int ch) {
+int is_symbol_character (int ch) {
   if ('0' <= ch && ch <= '9') return 1;
   return is_symbol_start (ch);
 }

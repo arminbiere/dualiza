@@ -603,7 +603,12 @@ static void reset () {
   if (symbols)         delete_symbols (symbols);
   if (relevant)      { RELEASE (*relevant);      DELETE (relevant); }
   if (relevant_ints) { RELEASE (*relevant_ints); DELETE (relevant_ints); }
-  if (relevant_strs) { RELEASE (*relevant_strs); DELETE (relevant_strs); }
+  if (relevant_strs) {
+    while (!EMPTY (*relevant_strs))
+      STRDEL (POP (*relevant_strs));
+    RELEASE (*relevant_strs);
+    DELETE (relevant_strs);
+  }
 }
 
 static void setup_messages (const char * output_name) {
@@ -619,23 +624,22 @@ static void parse_relevant_ints (char * arg) {
   for (char * p = arg, * end; *p; p = end + 1) {
     for (end = p; *end && *end != ','; end++)
       ;
-    if (p + 1 == end)
+    if (p == end)
       die ("two consecutive ',' in argument to '-r'");
+    *end = 0;
     int res = 0, digits = 0;
     for (const char * q = p; q < end; q++) {
       if (!isdigit (*q))
 	die ("non-digit character in argument to '-r'");
-      if (INT_MAX/10 < res) {
-INVALID:
-        *end = 0;
-	die ("invalid integer '%s' in argument to '-r'", p);
-      }
+      if (INT_MAX/10 < res)
+INVALID: die ("invalid integer '%s' in argument to '-r'", p);
       res *= 10;
       int digit = *q - '0';
       if (digits++ && !res && !digit) goto INVALID;
       if (INT_MAX - digit < res) goto INVALID;
       res += digit;
     }
+    assert (atoi (p) == res);
     LOG ("pushing relevant %d", res);
     PUSH (*relevant_ints, res);
   }
@@ -643,9 +647,29 @@ INVALID:
 
 static void parse_relevant_strs (char * arg) {
   if (!relevant_strs) NEW (relevant_strs);
+  for (char * p = arg, * end; *p; p = end + 1) {
+    for (end = p; *end && *end != ','; end++)
+      ;
+    if (p == end)
+      die ("two consecutive ',' in argument to '-r'");
+    *end = 0;
+    if (!is_symbol_start (*p))
+      die ("invalid first letter '%c' of symbol '%s' in argument to '-r'", *p, p);
+    for (const char * q = p + 1; q < end; q++) {
+      if (!is_symbol_character (*p))
+	die ("invalid letter '%c' in symbol '%s' in argument to '-r'", *q, p);
+    }
+    char * res;
+    STRDUP (res, p);
+    LOG ("pushing relevant '%s'", res);
+    PUSH (*relevant_strs, res);
+  }
 }
 
 static void parse_relevant_variables (const char * arg) {
+  if (!*arg) die ("empty argument to '-r'");
+  if (*arg == ',') die ("leading ',' in argument to '-r'");
+  if (arg[strlen(arg)-1] == ',') die ("trailing ',' in argument to '-r'");
   size_t len = strlen (arg);
   char * tmp;
   ALLOC (tmp, len);
