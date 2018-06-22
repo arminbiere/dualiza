@@ -125,6 +125,8 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and '%ld'", PRINTING, limit);
   if (options.annotate && !dimacs)
     die ("can not use '--annotate' without DIMACS printing");
+  if (relevant_strs && relevant_ints) {
+  }
 }
 
 static void init_mode () {
@@ -619,6 +621,33 @@ static void setup_messages (const char * output_name) {
   if (aiger && options.verbosity) message_file = stderr;
 }
 
+static int cmp_relevant_int (const void * p, const void * q) {
+  int a = * (int *) p, b = * (int *) q;
+  return a - b;
+}
+
+static void sort_and_flush_relevant_ints () {
+  const size_t n = COUNT (*relevant_ints);
+  qsort (relevant_ints->start, n, sizeof (int), cmp_relevant_int);
+  size_t i = 0;
+  int prev = -1;
+  for (size_t j = 0; j < n; j++) {
+    int d = PEEK (*relevant_ints, j);
+    if (d == prev) {
+      LOG ("removing duplicated relevant entry '%d'", d);
+      continue;
+    }
+    POKE (*relevant_ints, i, d);
+    prev = d;
+    i++;
+  }
+  RESIZE (*relevant_ints, i);
+#ifndef NLOG
+  for (size_t j = 0; j < i; j++)
+    LOG ("sorted relevant %d", PEEK (*relevant_ints, j));
+#endif
+}
+
 static void parse_relevant_ints (char * arg) {
   if (!relevant_ints) NEW (relevant_ints);
   for (char * p = arg, * end; *p; p = end + 1) {
@@ -639,6 +668,7 @@ INVALID: die ("invalid integer '%s' in argument to '-r'", p);
       if (INT_MAX - digit < res) goto INVALID;
       res += digit;
     }
+    assert (res >= 0);
     assert (atoi (p) == res);
     LOG ("pushing relevant %d", res);
     PUSH (*relevant_ints, res);
@@ -688,7 +718,7 @@ static void parse_relevant_variables (const char * arg) {
 int main (int argc, char ** argv) {
   const char * input_name = 0;
   const char * output_name = 0;
-  for (int i = 1; i < argc; i++)
+  for (int i = 1; i < argc; i++) {
     if (!strcmp (argv[i], "-h") ||
         !strcmp (argv[i], "--help")) usage (), exit (0);
     else if (!strcmp (argv[i], "--version"))
@@ -736,6 +766,7 @@ int main (int argc, char ** argv) {
     } else if (input_name)
       die ("multiple files '%s' and '%s'", input_name, argv[i]);
     else input_name = argv[i];
+  }
 #ifndef NLOG
   if (options.logging) options.verbosity = INT_MAX;
 #endif
