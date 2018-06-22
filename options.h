@@ -20,7 +20,7 @@ OPTION (print,        1, "print model or number of all assignments") \
 OPTION (reduce,       1, "garbage collect useless learned clauses") \
 OPTION (reduceinc,  300, "reduce interval increment") \
 OPTION (reduceinit, 2e3, "initial reduce interval") \
-OPTION (polarity,     1, "use polarity based CNF encoding") \
+OPTION (polarity,     1, "use polarity based CNF encoding (2=force)") \
 OPTION (project,      1, "project on relevant variables") \
 OPTION (relevant,     0, "always split on relevant variables first") \
 OPTION (restart,      1, "enable search restarts") \

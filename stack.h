@@ -79,4 +79,5 @@ do { \
 
 typedef STACK (int) IntStack;
 typedef STACK (char) CharStack;
+typedef STACK (char *) StrStack;
 typedef STACK (unsigned) UnsignedStack;

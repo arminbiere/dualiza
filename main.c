@@ -51,6 +51,19 @@ fputs (
 "  -b | --bdd             use BDD engine instead of SAT engine\n"
 "  --visualize            visualize generated BDD\n"
 "\n"
+"We are supporting projected model counting unless the 'project' option\n"
+"is disabled .  Relevant variables are specified by the following option\n"
+"(which can be repeated)\n"
+"\n"
+"  -r <var>[,<var>]*\n"
+"\n"
+"where '<var>' is either a symbolic name in case of formulas, the input\n"
+"index in case of AIGER files (starting with '0') or positive integers\n"
+"for DIMACS files.  Repeated variables are ignored.  For DIMACS files it\n"
+"is also possible to specify the list of relevant variables as a comment\n"
+"in the file.  Combining both ways to specify relevant variable for DIMACS\n"
+"files gives an error.\n"
+"\n"
 "Then '<option>' can also be one of the following long options\n"
 "which all require to use an explicit argument (default values given)\n"
 "\n"
@@ -130,6 +143,12 @@ static void init_mode () {
     msg (1, "disabling projection due to%s", CHECKING);
     options.project = 0;
   }
+  if (dimacs && options.polarity == 1) {
+    msg (1,
+      "disabling polarity based encoding due to%s "
+      "(use '--polarity=2' to force it)", DIMACS);
+    options.polarity = 0;
+  }
   fix_options ();
 }
 
@@ -171,7 +190,10 @@ static Reader * input;
 static Symbols * symbols;
 static Circuit * primal_circuit;
 static Circuit * dual_circuit;
+
 static IntStack * relevant;
+static IntStack * relevant_ints;
+static StrStack * relevant_strs;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -579,7 +601,9 @@ static void reset () {
   if (primal_circuit)  delete_circuit (primal_circuit);
   if (dual_circuit)    delete_circuit (dual_circuit);
   if (symbols)         delete_symbols (symbols);
-  if (relevant) { RELEASE (*relevant); DELETE (relevant); }
+  if (relevant)      { RELEASE (*relevant);      DELETE (relevant); }
+  if (relevant_ints) { RELEASE (*relevant_ints); DELETE (relevant_ints); }
+  if (relevant_strs) { RELEASE (*relevant_strs); DELETE (relevant_strs); }
 }
 
 static void setup_messages (const char * output_name) {
@@ -588,6 +612,53 @@ static void setup_messages (const char * output_name) {
   if (formula) message_prefix = "-- ";
   else message_prefix = "c ";
   if (aiger && options.verbosity) message_file = stderr;
+}
+
+static void parse_relevant_ints (char * arg) {
+  if (!relevant_ints) NEW (relevant_ints);
+  for (char * p = arg, * end; *p; p = end + 1) {
+    for (end = p; *end && *end != ','; end++)
+      ;
+    if (p + 1 == end)
+      die ("two consecutive ',' in argument to '-r'");
+    int res = 0, digits = 0;
+    for (const char * q = p; q < end; q++) {
+      if (!isdigit (*q))
+	die ("non-digit character in argument to '-r'");
+      if (INT_MAX/10 < res) {
+INVALID:
+        *end = 0;
+	die ("invalid integer '%s' in argument to '-r'", p);
+      }
+      res *= 10;
+      int digit = *q - '0';
+      if (digits++ && !res && !digit) goto INVALID;
+      if (INT_MAX - digit < res) goto INVALID;
+      res += digit;
+    }
+    LOG ("pushing relevant %d", res);
+    PUSH (*relevant_ints, res);
+  }
+}
+
+static void parse_relevant_strs (char * arg) {
+  if (!relevant_strs) NEW (relevant_strs);
+}
+
+static void parse_relevant_variables (const char * arg) {
+  size_t len = strlen (arg);
+  char * tmp;
+  ALLOC (tmp, len);
+  strcpy (tmp, arg);
+  if (isdigit (*arg)) parse_relevant_ints (tmp);
+  else parse_relevant_strs (tmp);
+  DEALLOC (tmp, len);
+  if (!relevant_ints) return;
+  if (!relevant_strs) return;
+  assert (!EMPTY (*relevant_ints));
+  assert (!EMPTY (*relevant_strs));
+  die ("can not combine '-r %d' and '-r %s'",
+    PEEK (*relevant_ints, 0), PEEK (*relevant_strs, 0));
 }
 
 int main (int argc, char ** argv) {
@@ -621,7 +692,10 @@ int main (int argc, char ** argv) {
     else if (!strcmp (argv[i], "--counting"))   counting = +1;
     else if (!strcmp (argv[i], "--bdd"))             bdd = +1;
     else if (!strcmp (argv[i], "--visualize")) visualize = 1;
-    else if (argv[i][0] == '-' && argv[i][1] == '-') {
+    else if (!strcmp (argv[i], "-r")) {
+      if (++i == argc) die ("argument to '-r' missing'");
+      parse_relevant_variables (argv[i]);
+    } else if (argv[i][0] == '-' && argv[i][1] == '-') {
       if (!parse_option (argv[i]))
 	die ("invalid long option '%s'", argv[i]);
     } else if (!strcmp (argv[i], "-o")) {
