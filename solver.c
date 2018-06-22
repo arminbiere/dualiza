@@ -1156,7 +1156,6 @@ static int connect_dual_cnf (Solver * solver) {
     } else if (c->size == 1) {
       SOGCLS (c, "registering unit");
       PUSH (solver->units, c);
-      mark_clause_active (c, cnf);
     } else {
       assert (c->size > 1);
       connect_dual_clause (solver, c);
@@ -1299,11 +1298,10 @@ static Clause * dual_propagate_units (Solver * solver) {
     SOG ("propagating dual unit clause %d", lit);
     assert (!is_primal_var (var (solver, lit)));
     res = dual_force (solver, c, lit);
-    if (res) {
-      assert (res == c);
-      SOGCLS (c, "re-registering unit");
-      PUSH (solver->units, c);
-    } else mark_clause_inactive (c, solver->cnf.dual);
+    if (!res) continue;
+    assert (res == c);
+    SOGCLS (c, "keeping unit");
+    PUSH (solver->units, c);
   }
   if (!res) update_primal_propagated (solver);
   return res;
@@ -1558,6 +1556,7 @@ static void flush_dual_garbage_occurrences (Solver * solver) {
       Clause ** q = o->start, ** p = q;
       while (p < o->top) {
 	Clause * c = *p++;
+	if (c->size == 1) continue;
 	if (c->garbage) flushed++;
 	else *q++ = c;
       }
