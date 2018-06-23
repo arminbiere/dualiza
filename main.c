@@ -221,6 +221,8 @@ static void parse (const char * input_name) {
       die ("reading formula with integer '-r' arguments");
     msg (1, "parsing input as formula");
     primal_circuit = parse_formula (input, symbols);
+    if (relevant_strs)
+      die ("relevant variables for formulas not implemented yet");
   } else if (info == DIMACS) {
     if (relevant_strs)
       die ("reading DIMACS file with symbolic '-r' arguments");
@@ -244,6 +246,8 @@ static void parse (const char * input_name) {
       relevant_ints = 0;
     }
   } else {
+    if (relevant_ints)
+      die ("relevant variables for AIGER not implemented yet");
     assert (info == AIGER);
     msg (1, "parsing input as AIGER file");
     primal_circuit = parse_aiger (input, symbols);
