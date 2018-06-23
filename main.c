@@ -81,6 +81,9 @@ static int sat, tautology, enumerate;
 static int bdd, limited, visualize;
 static long limit;
 
+static IntStack * relevant_ints;
+static StrStack * relevant_strs;
+
 # define FORMULA   (formula  >0?" '--formula'"  :(formula<0  ?" '-f'":""))
 # define AIGER     (aiger    >0?" '--aiger'"    :(aiger<0    ?" '-a'":""))
 # define DIMACS    (dimacs   >0?" '--dimacs'"   :(dimacs<0   ?" '-d'":""))
@@ -126,6 +129,7 @@ static void check_options (const char * output_name) {
   if (options.annotate && !dimacs)
     die ("can not use '--annotate' without DIMACS printing");
   if (relevant_strs && relevant_ints) {
+    die ("can not combine '-r' for strings and integers");
   }
 }
 
@@ -194,8 +198,6 @@ static Circuit * primal_circuit;
 static Circuit * dual_circuit;
 
 static IntStack * relevant;
-static IntStack * relevant_ints;
-static StrStack * relevant_strs;
 
 static void setup_input (const char * input_name) {
   if (input_name) input = open_new_reader (input_name);
@@ -621,32 +623,7 @@ static void setup_messages (const char * output_name) {
   if (aiger && options.verbosity) message_file = stderr;
 }
 
-static int cmp_relevant_int (const void * p, const void * q) {
-  int a = * (int *) p, b = * (int *) q;
-  return a - b;
-}
-
-static void sort_and_flush_relevant_ints () {
-  const size_t n = COUNT (*relevant_ints);
-  qsort (relevant_ints->start, n, sizeof (int), cmp_relevant_int);
-  size_t i = 0;
-  int prev = -1;
-  for (size_t j = 0; j < n; j++) {
-    int d = PEEK (*relevant_ints, j);
-    if (d == prev) {
-      LOG ("removing duplicated relevant entry '%d'", d);
-      continue;
-    }
-    POKE (*relevant_ints, i, d);
-    prev = d;
-    i++;
-  }
-  RESIZE (*relevant_ints, i);
-#ifndef NLOG
-  for (size_t j = 0; j < i; j++)
-    LOG ("sorted relevant %d", PEEK (*relevant_ints, j));
-#endif
-}
+/*------------------------------------------------------------------------*/
 
 static void parse_relevant_ints (char * arg) {
   if (!relevant_ints) NEW (relevant_ints);
@@ -714,6 +691,65 @@ static void parse_relevant_variables (const char * arg) {
   die ("can not combine '-r %d' and '-r %s'",
     PEEK (*relevant_ints, 0), PEEK (*relevant_strs, 0));
 }
+
+/*------------------------------------------------------------------------*/
+
+static int cmp_relevant_ints (const void * p, const void * q) {
+  int a = * (int *) p, b = * (int *) q;
+  return a - b;
+}
+
+static void sort_and_flush_relevant_ints () {
+  const size_t n = COUNT (*relevant_ints);
+  qsort (relevant_ints->start, n, sizeof (int), cmp_relevant_ints);
+  size_t i = 0;
+  int prev = -1;
+  for (size_t j = 0; j < n; j++) {
+    int d = PEEK (*relevant_ints, j);
+    if (d == prev) {
+      LOG ("removing duplicated relevant entry '%d'", d);
+      continue;
+    }
+    POKE (*relevant_ints, i, d);
+    prev = d;
+    i++;
+  }
+  RESIZE (*relevant_ints, i);
+#ifndef NLOG
+  for (size_t j = 0; j < i; j++)
+    LOG ("sorted relevant %d", PEEK (*relevant_ints, j));
+#endif
+}
+
+static int cmp_relevant_strs (const void * p, const void * q) {
+  const char * a = * (char **) p, * b = * (char **) q;
+  return strcmp (a, b);
+}
+
+static void sort_and_flush_relevant_strs () {
+  const size_t n = COUNT (*relevant_strs);
+  qsort (relevant_strs->start, n, sizeof (char*), cmp_relevant_strs);
+  size_t i = 0;
+  const char * prev = 0;
+  for (size_t j = 0; j < n; j++) {
+    char * s = PEEK (*relevant_strs, j);
+    if (!strcmp (s, prev)) {
+      LOG ("removing duplicated relevant entry '%s'", s);
+      STRDEL (s);
+      continue;
+    }
+    POKE (*relevant_strs, i, s);
+    prev = s;
+    i++;
+  }
+  RESIZE (*relevant_strs, i);
+#ifndef NLOG
+  for (size_t j = 0; j < i; j++)
+    LOG ("sorted relevant '%s'", PEEK (*relevant_strs, j));
+#endif
+}
+
+/*------------------------------------------------------------------------*/
 
 int main (int argc, char ** argv) {
   const char * input_name = 0;
