@@ -29,3 +29,7 @@ int peek_char (Reader *);
 Info get_file_info (Reader *);
 
 void parse_error (Reader *, Coo ch, const char * fmt, ...);
+
+#define parse_error_at(READER,COO,FMT,ARGS...) \
+  parse_error (READER, COO, FMT " at character %s", ##ARGS, \
+    make_character_printable_as_string (COO.code));

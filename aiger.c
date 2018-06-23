@@ -60,7 +60,7 @@ parse_aiger_ascii_number (Reader * r, int expect_space, Coo * chptr) {
   Coo ch = next_char (r);
   if (chptr) *chptr = ch;
   if (!isdigit (ch.code))
-    parse_error (r, ch, "expected digit");
+    parse_error_at (r, ch, "expected digit");
   unsigned res = ch.code - '0';
   ch = next_char (r);
   if (!res && ch.code == '0')
@@ -74,9 +74,9 @@ parse_aiger_ascii_number (Reader * r, int expect_space, Coo * chptr) {
     ch = next_char (r);
   }
   if (expect_space && ch.code != ' ')
-    parse_error (r, ch, "expected space after '%u'", res);
+    parse_error_at (r, ch, "expected space after '%u'", res);
   if (!expect_space && ch.code != '\n')
-    parse_error (r, ch, "expected new line after '%u'", res);
+    parse_error_at (r, ch, "expected new line after '%u'", res);
   return res;
 }
 
@@ -230,18 +230,18 @@ static void parse_binary_aiger (Aiger * aiger) {
 Circuit * parse_aiger (Reader * r, Symbols * t) {
   unsigned M, I, L, O, A;
   Coo ch = next_char (r);
-  if (ch.code != 'a') parse_error (r, ch, "expected 'a'");
+  if (ch.code != 'a') parse_error_at (r, ch, "expected 'a'");
   ch = next_char (r);
   int binary = 0;
   const char * fmtstr = 0;
   if (ch.code == 'i') binary = 1, fmtstr = "aig";
   else if (ch.code == 'a') binary = 0, fmtstr = "aag";
-  else parse_error (r, ch, "expected 'a' or 'i' after 'a'");
+  else parse_error_at (r, ch, "expected 'a' or 'i' after 'a'");
   ch = next_char (r);
   if (ch.code != 'g')
-    parse_error (r, ch, "expected 'g' after '%s'", fmtstr);
+    parse_error_at (r, ch, "expected 'g' after '%s'", fmtstr);
   if ((ch = next_char (r)).code != ' ')
-    parse_error (r, ch, "expected space 'g' after '%s'", fmtstr);
+    parse_error_at (r, ch, "expected space 'g' after '%s'", fmtstr);
   M = parse_aiger_ascii_number (r, 1, 0);
   I = parse_aiger_ascii_number (r, 1, 0);
   L = parse_aiger_ascii_number (r, 1, 0);

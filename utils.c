@@ -51,3 +51,10 @@ void * first_non_zero_byte (void * p, size_t size) {
     if (*q) return (void*) q;
   return 0;
 }
+
+const char * make_character_printable_as_string (char ch) {
+  static char buffer[16];
+  if (isprint (ch)) sprintf (buffer, "'%c'", ch);
+  else sprintf (buffer, "code 0x%d", ch);
+  return buffer;
+}

@@ -2,6 +2,20 @@
 
 extern int sat_competition_mode;
 
+static int is_relevant_variable_string (const char * s) {
+  const char * p = s;
+  int ch;
+  for (;;) {
+    while ((ch = *p++) == ' ' || ch == '\t')
+      ;
+    if (!isdigit (ch)) return 0;
+    while (isdigit (ch = *p++))
+      ;
+    if (!ch) return 1;
+    if (ch != ',') return 0;
+  }
+}
+
 Circuit * parse_dimacs (Reader * r, Symbols * symbols,
                         IntStack ** relevant_ptr) {
   assert (relevant_ptr);
@@ -19,30 +33,30 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
       if (ch.code == EOF)
 	parse_error (r, ch,
 	  "unexpected end-of-file in header comment");
-      if (parsed_relevant_variables) continue;
-      if (!EMPTY (comment) || ch.code != ' ') PUSH (comment, ch.code);
+      PUSH (comment, ch.code);
     }
-    if (options.project &&
-        !parsed_relevant_variables &&
-	!EMPTY (comment)) {
+    if (options.project && 
+        is_relevant_variable_string (comment.start)) {
       PUSH (comment, 0);
       LOG ("parsing comment for relevant variables: %s", comment.start);
       int dh;
       for (const char * p = comment.start; (dh = *p); p++) {
+	if (dh == ' ') continue;
 	if (isdigit (dh)) {
 	  Coo relevant_coo = comment_coo;
 	  relevant_coo.column += p - comment.start + 1;
 	  int idx = dh - '0';
+	  if (!idx)
+	    parse_error (r, relevant_coo, "invalid relevant index");
 	  while (isdigit (dh = p[1])) {
-	    if (!idx)
-	      parse_error (r, relevant_coo, "invalid index");
-	    else if (INT_MAX/10 < idx)
-	      parse_error (r, relevant_coo, "really too large index");
+	    if (INT_MAX/10 < idx)
+	      parse_error (r, relevant_coo,
+	        "really too large relevant index");
 	    else {
 	      idx *= 10;
 	      const int digit = dh - '0';
 	      if (INT_MAX - digit < idx)
-		parse_error (r, relevant_coo, "too large index");
+		parse_error (r, relevant_coo, "too large relevant index");
 	      else idx += digit, p++;
 	    }
 	  }
@@ -60,13 +74,17 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
 	    assert (p[1] == dh);
 	    Coo after_dh_coo = comment_coo;
 	    after_dh_coo.column += p - comment.start + 2;
-	    parse_error (r, after_dh_coo, "expected ',' or digit");
+	    parse_error (r, after_dh_coo,
+	      "expected ',' or digit at character %s",
+	      make_character_printable_as_string (dh));
 	  }
 	} else {
 	  assert (*p == dh);
 	  Coo dh_coo = comment_coo;
 	  dh_coo.column += p - comment.start + 1;
-	  parse_error (r, dh_coo, "expected digit");
+	  parse_error (r, dh_coo,
+	    "expected digit at character %s",
+	    make_character_printable_as_string (dh));
 	}
       }
       const size_t n = COUNT (*relevant);
@@ -78,19 +96,19 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
   }
   RELEASE (comment);
   if (ch.code != 'p')
-    parse_error (r, ch, "expected 'p' or 'c'");
+    parse_error_at (r, ch, "expected 'p' or 'c'");
   if ((ch = next_char (r)).code != ' ')
-    parse_error (r, ch, "expected space after 'p'");
+    parse_error_at (r, ch, "expected space after 'p'");
   if ((ch = next_char (r)).code != 'c')
-    parse_error (r, ch, "expected 'c' after 'p '");
+    parse_error_at (r, ch, "expected 'c' after 'p '");
   if ((ch = next_char (r)).code != 'n')
-    parse_error (r, ch, "expected 'n' after 'p c'");
+    parse_error_at (r, ch, "expected 'n' after 'p c'");
   if ((ch = next_char (r)).code != 'f')
-    parse_error (r, ch, "expected 'f' after 'p cn'");
+    parse_error_at (r, ch, "expected 'f' after 'p cn'");
   if ((ch = next_char (r)).code != ' ')
-    parse_error (r, ch, "expected space after 'p cnf'");
+    parse_error_at (r, ch, "expected space after 'p cnf'");
   if (!isdigit ((ch = next_char (r)).code))
-    parse_error (r, ch, "expected digit after 'p cnf '");
+    parse_error_at (r, ch, "expected digit after 'p cnf '");
   int s = ch.code - '0';
   while (isdigit ((ch = next_char (r)).code)) {
     if (!s) parse_error (r, ch, "invalid number of variables");
@@ -104,7 +122,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
   }
   LOG ("parsed number of variables %d in DIMACS header", s);
   if (ch.code != ' ')
-    parse_error (r, ch, "expected space after 'p cnf %d'", s);
+    parse_error_at (r, ch, "expected space after 'p cnf %d'", s);
   if (!isdigit ((ch = next_char (r)).code))
     parse_error (r, ch, "expected digit after 'p cnf %d '", s);
   int t = ch.code - '0';
@@ -144,7 +162,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
       Coo first = PEEK (relevant_coos, i);
       if (idx > s)
 	parse_error (r, first, "relevant index '%d' too large'", idx);
-      if (seen[idx]) LOG ("ignoring duplicated relevant '%d'", idx);
+      if (seen[idx]) LOG ("ignoring duplicated relevant index '%d'", idx);
       else {
 	POKE (*relevant, j, idx);
 	seen[idx] = 1;
@@ -201,12 +219,12 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
     if (ch.code == '-') {
       ch = next_char (r);
       if (!isdigit (ch.code))
-	parse_error (r, ch, "expected digit after '-'");
+	parse_error_at (r, ch, "expected digit after '-'");
       if (ch.code == '0')
-	parse_error (r, ch, "expected non-zero digit after '-'");
+	parse_error_at (r, ch, "expected non-zero digit after '-'");
       sign = 1;
     } else if (!isdigit (ch.code))
-      parse_error (r, ch, "expected digit or '-'");
+      parse_error_at (r, ch, "expected digit or '-'");
     Coo start = ch;
     int i = ch.code - '0';
     while (isdigit ((ch = next_char (r)).code)) {
@@ -249,7 +267,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
     }
     if (ch.code != EOF) {
       if (!is_space_character (ch.code))
-	parse_error (r, ch, "unexpected character after literal");
+	parse_error_at (r, ch, "unexpected character after literal");
       prev_char (r, ch);
       ch = next_non_white_space_char (r);
     }
