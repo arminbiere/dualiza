@@ -11,10 +11,10 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
   Coo ch;
   int parsed_relevant_variables = 0;
   IntStack * relevant = 0;
-  IntStack relevant_chars;
-  INIT (relevant_chars);
+  CooStack relevant_coos;
+  INIT (relevant_coos);
   while ((ch = next_char (r)).code == 'c') {
-    Coo start = ch;
+    Coo comment_coo = ch;
     while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
 	parse_error (r, ch,
@@ -27,22 +27,25 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
 	!EMPTY (comment)) {
       PUSH (comment, 0);
       LOG ("parsing comment for relevant variables: %s", comment.start);
-      const char * err = 0;
       int dh;
-      for (const char * p = comment.start; !err && (dh = *p); p++) {
+      for (const char * p = comment.start; (dh = *p); p++) {
 	if (isdigit (dh)) {
+	  Coo relevant_coo = comment_coo;
+	  relevant_coo.column += p - comment.start + 1;
 	  int idx = dh - '0';
-	  while (!err && isdigit (dh = p[1])) {
-	    if (!idx) err = "invalid index";
-	    else if (INT_MAX/10 < idx) err = "really too large index";
+	  while (isdigit (dh = p[1])) {
+	    if (!idx)
+	      parse_error (r, relevant_coo, "invalid index");
+	    else if (INT_MAX/10 < idx)
+	      parse_error (r, relevant_coo, "really too large index");
 	    else {
 	      idx *= 10;
 	      const int digit = dh - '0';
-	      if (INT_MAX - digit < idx) err = "too large index";
+	      if (INT_MAX - digit < idx)
+		parse_error (r, relevant_coo, "too large index");
 	      else idx += digit, p++;
 	    }
 	  }
-	  if (err) break;
 	  if (dh == ',' || !dh) {
 	    if (dh) p++;
 	    LOG ("found relevant variable index %d", idx);
@@ -52,37 +55,24 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
 	      *relevant_ptr = relevant;
 	    }
 	    PUSH (*relevant, idx);
-	  } else err = "expected ',' or digit";
-	} else err = "expected digit";
-      }
-      if (!err) {
-	assert (!EMPTY (*relevant));
-	int cmp (const void * p, const void * q) {
-	  int l = * (int*) p, k = * (int*) q, res = abs (l) - abs (k);
-	  return res ? res : l - k;
-	}
-	const size_t n = COUNT (*relevant);
-	qsort (relevant->start, n, sizeof (int), cmp);
-	for (size_t i = 1; !err && i < n; i++) {
-	  int prev = PEEK (*relevant, i-1);
-	  int current = PEEK (*relevant, i);
-	  if (prev == current) err = "duplicated variable";
+	    PUSH (relevant_coos, relevant_coo);
+	  } else {
+	    assert (p[1] == dh);
+	    Coo after_dh_coo = comment_coo;
+	    after_dh_coo.column += p - comment.start + 2;
+	    parse_error (r, after_dh_coo, "expected ',' or digit");
+	  }
+	} else {
+	  assert (*p == dh);
+	  Coo dh_coo = comment_coo;
+	  dh_coo.column += p - comment.start + 1;
+	  parse_error (r, dh_coo, "expected digit");
 	}
       }
-      if (err) {
-	if (relevant && EMPTY (*relevant))
-	  LOG ("parse error relevant variable line: %s", err);
-	else msg (2, "parse error relevant variable line: %s", err);
-	if (relevant) {
-	  RELEASE (*relevant);
-	  *relevant_ptr = relevant = 0;
-	}
-      } else {
-	const size_t n = COUNT (*relevant);
-	assert (n > 0);
-	msg (2, "found relevant variable line with %zd variables", n);
-	parsed_relevant_variables = 1;
-      }
+      const size_t n = COUNT (*relevant);
+      assert (n > 0);
+      msg (2, "found relevant variable line with %zd variables", n);
+      parsed_relevant_variables = 1;
     }
     CLEAR (comment);
   }
@@ -134,24 +124,48 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
       parse_error (r, ch,
 	"non-space character before newline after 'p cnf %d %d'", s, t);
     else ch = next_char (r);
+
   msg (1, "parsed 'p cnf %d %d' header", s, t);
+
   if (parsed_relevant_variables) {
+
+    char * seen;
+    ALLOC (seen, s + 1);
+
     assert (relevant);
     assert (!EMPTY (*relevant));
+
     const size_t n = COUNT (*relevant);
     size_t j = 0;
+
     for (size_t i = 0; i < n; i++) {
       const int idx = PEEK (*relevant, i);
-      if (idx > s) msg (0, "ignoring too large relevant index %d", idx);
+      assert (0 < idx);
+      Coo first = PEEK (relevant_coos, i);
+      if (idx > s)
+	parse_error (r, first, "relevant index '%d' too large'", idx);
+      if (seen[idx]) LOG ("ignoring duplicated relevant '%d'", idx);
       else {
 	POKE (*relevant, j, idx);
+	seen[idx] = 1;
 	j++;
       }
     }
-    relevant->top = relevant->start + j;
+    RESIZE (*relevant, j);
     msg (1, "found %zd relevant variables", j);
+
+    DEALLOC (seen, s + 1);
+
+    int cmp (const void * p, const void * q) {
+      return *(int*)p - *(int*)q;
+      int a = * (int *) p, b = * (int *) q;
+      return a - b;
+    }
+
+    qsort (relevant->start, j, sizeof (int), cmp);
   }
-  RELEASE (relevant_chars);
+  RELEASE (relevant_coos);
+
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];
@@ -193,19 +207,20 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
       sign = 1;
     } else if (!isdigit (ch.code))
       parse_error (r, ch, "expected digit or '-'");
+    Coo start = ch;
     int i = ch.code - '0';
     while (isdigit ((ch = next_char (r)).code)) {
-      if (!i) parse_error (r, ch, "invalid variable index number");
+      if (!i) parse_error (r, start, "invalid variable index number");
       if (INT_MAX/10 < i)
-	parse_error (r, ch, "really too large variable index");
+	parse_error (r, start, "really too large variable index");
       i *= 10;
       const int digit = ch.code - '0';
       if (INT_MAX - digit < i)
-	parse_error (r, ch, "too large variable index");
+	parse_error (r, start, "too large variable index");
       i += digit;
     }
     if (i > s)
-      parse_error (r, ch, "maximum variable index %d exceeded", s);
+      parse_error (r, start, "maximum variable index %d exceeded", s);
     assert (COUNT (clauses) <= t);
     if (COUNT (clauses) == t)
       parse_error (r, ch, "more clauses than specified");

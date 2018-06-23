@@ -646,14 +646,16 @@ static void setup_messages (const char * output_name) {
 
 /*------------------------------------------------------------------------*/
 
-static int cmp_relevant_ints (const void * p, const void * q) {
-  int a = * (int *) p, b = * (int *) q;
-  return a - b;
-}
-
 static void sort_and_flush_relevant_ints () {
+
+  int cmp (const void * p, const void * q) {
+    return *(int*)p - *(int*)q;
+    int a = * (int *) p, b = * (int *) q;
+    return a - b;
+  }
+
   const size_t n = COUNT (*relevant_ints);
-  qsort (relevant_ints->start, n, sizeof (int), cmp_relevant_ints);
+  qsort (relevant_ints->start, n, sizeof (int), cmp);
   size_t i = 0;
   int prev = -1;
   for (size_t j = 0; j < n; j++) {
@@ -673,14 +675,15 @@ static void sort_and_flush_relevant_ints () {
 #endif
 }
 
-static int cmp_relevant_strs (const void * p, const void * q) {
-  const char * a = * (char **) p, * b = * (char **) q;
-  return strcmp (a, b);
-}
-
 static void sort_and_flush_relevant_strs () {
+
+  int cmp (const void * p, const void * q) {
+    const char * a = * (char **) p, * b = * (char **) q;
+    return strcmp (a, b);
+  }
+
   const size_t n = COUNT (*relevant_strs);
-  qsort (relevant_strs->start, n, sizeof (char*), cmp_relevant_strs);
+  qsort (relevant_strs->start, n, sizeof (char*), cmp);
   size_t i = 0;
   const char * prev = 0;
   for (size_t j = 0; j < n; j++) {
