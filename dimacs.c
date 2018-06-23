@@ -170,7 +170,8 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
       }
     }
     RESIZE (*relevant, j);
-    msg (1, "found %zd relevant variables", j);
+
+    msg (1, "parsed %zd relevant variables", j);
 
     DEALLOC (seen, s + 1);
 

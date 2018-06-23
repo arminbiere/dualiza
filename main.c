@@ -235,6 +235,13 @@ static void parse (const char * input_name) {
     if (relevant && relevant_ints)
       die ("found relevant variables in DIMACS file combined with '-r'");
     if (!relevant && relevant_ints) {
+      int max_dimacs_var = (int) COUNT (primal_circuit->inputs);
+      int max_relevant_var = TOP (*relevant_ints);
+      if (max_dimacs_var < max_relevant_var)
+	die ("variable '%d' in '-r' exceeds maximum DIMACS variable '%d'",
+	  max_relevant_var, max_dimacs_var);
+      relevant = relevant_ints;
+      relevant_ints = 0;
     }
   } else {
     assert (info == AIGER);
