@@ -56,8 +56,8 @@ static Gate * aiger_literal_to_gate (Aiger * aiger, unsigned lit) {
 }
  
 static unsigned
-parse_aiger_ascii_number (Reader * r, int expect_space, Char * chptr) {
-  Char ch = next_char (r);
+parse_aiger_ascii_number (Reader * r, int expect_space, Coo * chptr) {
+  Coo ch = next_char (r);
   if (chptr) *chptr = ch;
   if (!isdigit (ch.code))
     parse_error (r, ch, "expected digit");
@@ -81,8 +81,8 @@ parse_aiger_ascii_number (Reader * r, int expect_space, Char * chptr) {
 }
 
 static unsigned
-parse_aiger_ascii_literal (Aiger * aiger, int expect_space, Char * chptr) {
-  Char ch;
+parse_aiger_ascii_literal (Aiger * aiger, int expect_space, Coo * chptr) {
+  Coo ch;
   unsigned res =
     parse_aiger_ascii_number (aiger->reader, expect_space, &ch);
   if (!is_valid_aiger_literal (aiger, res))
@@ -116,7 +116,7 @@ static void setup_aiger_symbol_table (Aiger * aiger) {
 
 static void parse_ascii_aiger (Aiger * aiger) {
   Reader * r = aiger->reader;
-  Char ch;
+  Coo ch;
   for (unsigned i = 0; i < aiger->num_inputs; i++) {
     unsigned input = parse_aiger_ascii_literal (aiger, 0, &ch);
     if (input < 2)
@@ -130,7 +130,7 @@ static void parse_ascii_aiger (Aiger * aiger) {
   }
   setup_aiger_symbol_table (aiger);
   unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
-  Char output_ch = ch;
+  Coo output_ch = ch;
   LOG ("AIGER output literal %u", output);
   for (unsigned i = 0; i < aiger->num_ands; i++) {
     unsigned lhs = parse_aiger_ascii_literal (aiger, 1, &ch);
@@ -164,8 +164,8 @@ static void parse_ascii_aiger (Aiger * aiger) {
   connect_output (aiger->circuit, output_gate);
 }
 
-static Char parse_aiger_binary_char (Reader * reader) {
-  Char ch = next_char (reader);
+static Coo parse_aiger_binary_char (Reader * reader) {
+  Coo ch = next_char (reader);
   if (ch.code == EOF)
     parse_error (reader, ch,
       "unexpected end-of-literal while reading binary literal");
@@ -173,10 +173,10 @@ static Char parse_aiger_binary_char (Reader * reader) {
 }
 
 static unsigned
-parse_aiger_binary_number (Reader * reader, Char * chptr) {
+parse_aiger_binary_number (Reader * reader, Coo * chptr) {
   unsigned res = 0, i = 0;
   unsigned char uch;
-  Char ch;
+  Coo ch;
   while ((uch = (ch = parse_aiger_binary_char (reader)).code) & 0x80) {
     if (i == 4 && uch > 15)
       parse_error (reader, ch, "invalid binary encoding");
@@ -196,7 +196,7 @@ static void parse_binary_aiger (Aiger * aiger) {
     aiger->gates[input/2] = new_input_gate (aiger->circuit);
   }
   setup_aiger_symbol_table (aiger);
-  Char ch;
+  Coo ch;
   unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
   assert (is_valid_aiger_literal (aiger, output));
   LOG ("AIGER output literal %u", output);
@@ -228,7 +228,7 @@ static void parse_binary_aiger (Aiger * aiger) {
 
 Circuit * parse_aiger (Reader * r, Symbols * t) {
   unsigned M, I, L, O, A;
-  Char ch = next_char (r);
+  Coo ch = next_char (r);
   if (ch.code != 'a') parse_error (r, ch, "expected 'a'");
   ch = next_char (r);
   int binary = 0;

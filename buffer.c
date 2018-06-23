@@ -20,9 +20,9 @@ static void compact_buffer (Buffer * b) {
   long head = b->head;
   assert (head <= count);
   long actual = count - head;
-  long bytes = actual * sizeof (Char);
-  Char * start = b->stack.start;
-  const Char * src = start + head;
+  long bytes = actual * sizeof (Coo);
+  Coo * start = b->stack.start;
+  const Coo * src = start + head;
   memmove (start, src, bytes);
   RESIZE (b->stack, actual);
   b->head = 0;
@@ -30,13 +30,13 @@ static void compact_buffer (Buffer * b) {
     (long) SIZE (b->stack), count, head);
 }
 
-void enqueue_buffer (Buffer * b, Char c) {
+void enqueue_buffer (Buffer * b, Coo c) {
   long count = COUNT (b->stack);
   if (count > 8 && b->head >= count/2) compact_buffer (b);
   PUSH (b->stack, c);
 }
 
-Char dequeue_buffer (Buffer * b) {
+Coo dequeue_buffer (Buffer * b) {
   assert (!empty_buffer (b));
   return b->stack.start[b->head++];
 }

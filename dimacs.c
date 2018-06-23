@@ -8,10 +8,13 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
   Circuit * res = new_circuit ();
   CharStack comment;
   INIT (comment);
-  Char ch;
+  Coo ch;
   int parsed_relevant_variables = 0;
   IntStack * relevant = 0;
+  IntStack relevant_chars;
+  INIT (relevant_chars);
   while ((ch = next_char (r)).code == 'c') {
+    Coo start = ch;
     while ((ch = next_char (r)).code != '\n') {
       if (ch.code == EOF)
 	parse_error (r, ch,
@@ -148,6 +151,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
     relevant->top = relevant->start + j;
     msg (1, "found %zd relevant variables", j);
   }
+  RELEASE (relevant_chars);
   LOG ("connecting %d input gates to DIMACS variables", s);
   for (int i = 0; i < s; i++) {
     char name[32];

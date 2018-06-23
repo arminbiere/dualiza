@@ -8,6 +8,7 @@ static Reader * new_reader (const char * name, FILE * file, int close) {
   STRDUP (res->name, name);
   res->buffer = new_buffer ();
   res->close = close;
+  res->saved.code = EOF;
   res->file = file;
   return res;
 }
@@ -50,9 +51,8 @@ void delete_reader (Reader * r) {
   DELETE (r);
 }
 
-static Char get_char (Reader * r) {
-  Char res;
-  res.coo = r->coo;
+static Coo get_char (Reader * r) {
+  Coo res = r->coo;
   if (r->eof) res.code = EOF;
   else {
     res.code = getc (r->file);
@@ -67,25 +67,25 @@ static void inc_coo (Coo * c, int ch) {
   if (ch != EOF) c->bytes++;
 }
 
-Char next_char (Reader * r) {
-  Char res;
-  if (r->char_saved)
-    res = r->saved_char, r->char_saved = 0, r->coo = res.coo;
+Coo next_char (Reader * r) {
+  Coo res;
+  if (r->saved.code != EOF)
+    res = r->saved, r->saved.code = EOF, r->coo = res;
   else if (empty_buffer (r->buffer)) res = get_char (r);
-  else res = dequeue_buffer (r->buffer), r->coo = res.coo;
+  else res = dequeue_buffer (r->buffer), r->coo = res;
   inc_coo (&r->coo, res.code);
   return res;
 }
 
 int peek_char (Reader * r) {
-  Char res = get_char (r);
+  Coo res = get_char (r);
   inc_coo (&r->coo, res.code);
   if (res.code != EOF) enqueue_buffer (r->buffer, res);
   return res.code;
 }
 
-Char next_non_white_space_char (Reader * r) {
-  Char ch;
+Coo next_non_white_space_char (Reader * r) {
+  Coo ch;
   for (;;) {
     while (is_space_character ((ch = next_char (r)).code))
       ;
@@ -113,18 +113,16 @@ SKIP_REST_OF_LINE:
   return ch;
 }
 
-void prev_char (Reader * r, Char ch) {
-  assert (!r->char_saved);
-  r->char_saved = 1;
-  r->saved_char = ch;
-  r->coo = ch.coo;
+void prev_char (Reader * r, Coo ch) {
+  assert (r->saved.code == EOF);
+  r->saved = r->coo = ch;
 }
 
-void parse_error (Reader * r, Char ch, const char * fmt, ...) {
+void parse_error (Reader * r, Coo ch, const char * fmt, ...) {
   fflush (stdout);
-  long line = ch.coo.line;
-  long column = ch.coo.column;
-  long bytes = ch.coo.bytes;
+  long line = ch.line;
+  long column = ch.column;
+  long bytes = ch.bytes;
   if (ch.code == IMPLIES) column--, bytes--;
   if (ch.code == IFF) column -= 2, bytes -= 2;
   fprintf (stderr,

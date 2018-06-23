@@ -9,11 +9,10 @@ enum Info { UNKNOWN, DIMACS, AIGER, FORMULA };
 struct Reader {
   char * name;
   FILE * file;
-  int close, eof, char_saved;
-  Char saved_char;
+  char close, eof;	// flags
   Buffer * buffer;
   CharStack symbol;
-  Coo coo;
+  Coo saved, coo;
   Info info;
 };
 
@@ -22,11 +21,11 @@ Reader * open_new_reader (const char * path);
 
 void delete_reader (Reader *);
 
-Char next_char (Reader *);
-Char next_non_white_space_char (Reader *);
-void prev_char (Reader *, Char);
+Coo next_char (Reader *);
+Coo next_non_white_space_char (Reader *);
+void prev_char (Reader *, Coo);
 int peek_char (Reader *);
 
 Info get_file_info (Reader *);
 
-void parse_error (Reader *, Char ch, const char * fmt, ...);
+void parse_error (Reader *, Coo ch, const char * fmt, ...);
