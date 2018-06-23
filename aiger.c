@@ -200,6 +200,7 @@ static void parse_binary_aiger (Aiger * aiger) {
   unsigned output = parse_aiger_ascii_literal (aiger, 0, &ch);
   assert (is_valid_aiger_literal (aiger, output));
   LOG ("AIGER output literal %u", output);
+  r->binary = 1;
   for (unsigned i = 0; i < aiger->num_ands; i++) {
     unsigned lhs = 2*(aiger->num_inputs + i + 1);
     unsigned delta0 = parse_aiger_binary_number (r, &ch);

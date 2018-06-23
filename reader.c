@@ -125,9 +125,11 @@ void parse_error (Reader * r, Coo ch, const char * fmt, ...) {
   long bytes = ch.bytes;
   if (ch.code == IMPLIES) column--, bytes--;
   if (ch.code == IFF) column -= 2, bytes -= 2;
-  fprintf (stderr,
-    "dualiza: %s:%ld:%ld: parse error at byte %ld: ",
-    r->name, line + 1, column + 1, bytes + 1);
+  fprintf (stderr, "dualiza: %s:", r->name);
+  if (!r->binary) fprintf (stderr, "%ld:%ld:", line + 1, column + 1);
+  fputs (" parse error", stderr);
+  if (r->binary) fprintf (stderr, " at byte %ld", bytes + 1);
+  fputs (": ", stderr);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);

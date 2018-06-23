@@ -9,7 +9,7 @@ enum Info { UNKNOWN, DIMACS, AIGER, FORMULA };
 struct Reader {
   char * name;
   FILE * file;
-  char close, eof;	// flags
+  char close, eof, binary;
   Buffer * buffer;
   CharStack symbol;
   Coo saved, coo;
