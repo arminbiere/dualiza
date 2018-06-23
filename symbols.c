@@ -70,6 +70,10 @@ static void enlarge_symbols (Symbols * t) {
   msg (2, "enlarged symbol table from %u to %u", old_size, new_size); 
 }
 
+Symbol * find_symbol (Symbols * t, const char * name) {
+  return * lookup_symbol (t, name);
+}
+
 Symbol * find_or_create_symbol (Symbols * t, const char * name) {
   if (t->size == t->count) enlarge_symbols (t);
   Symbol ** p = lookup_symbol (t, name), * s = *p;

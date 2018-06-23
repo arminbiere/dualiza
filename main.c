@@ -221,8 +221,22 @@ static void parse (const char * input_name) {
       die ("reading formula with integer '-r' arguments");
     msg (1, "parsing input as formula");
     primal_circuit = parse_formula (input, symbols);
-    if (relevant_strs)
-      die ("relevant variables for formulas not implemented yet");
+    if (relevant_strs) {
+      assert (!relevant);
+      NEW (relevant);
+      INIT (*relevant);
+      for (char ** p = relevant_strs->start;
+           p != relevant_strs->top;
+	   p++) {
+	Symbol * s = find_symbol (symbols, *p);
+	if (!s) die ("relevant symbol '%s' not in formula", *p);
+	assert (!strcmp (s->name, *p));
+	assert (s->gate);
+	assert (s->gate->op == INPUT_OPERATOR);
+	assert (s->gate->input >= 0);
+	PUSH (*relevant, s->gate->input + 1);
+      }
+    }
   } else if (info == DIMACS) {
     if (relevant_strs)
       die ("reading DIMACS file with symbolic '-r' arguments");
@@ -641,8 +655,10 @@ static void reset () {
   if (relevant)      { RELEASE (*relevant);      DELETE (relevant); }
   if (relevant_ints) { RELEASE (*relevant_ints); DELETE (relevant_ints); }
   if (relevant_strs) {
-    while (!EMPTY (*relevant_strs))
-      STRDEL (POP (*relevant_strs));
+    while (!EMPTY (*relevant_strs)) {
+      char * s = POP (*relevant_strs);
+      STRDEL (s);
+    }
     RELEASE (*relevant_strs);
     DELETE (relevant_strs);
   }
