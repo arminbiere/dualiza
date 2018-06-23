@@ -100,6 +100,7 @@ static StrStack * relevant_strs;
 static void check_options (const char * output_name) {
   printing = (formula != 0) + (aiger != 0) + (dimacs != 0);
   checking = (sat != 0) + (tautology != 0);
+  int relevant = (relevant_ints || relevant_strs);
   if (printing > 1)
     die ("too many printing options:%s%s%s", PRINTING);
   if (checking > 1)
@@ -128,9 +129,12 @@ static void check_options (const char * output_name) {
     die ("can not combine%s%s%s and '%ld'", PRINTING, limit);
   if (options.annotate && !dimacs)
     die ("can not use '--annotate' without DIMACS printing");
-  if (relevant_strs && relevant_ints) {
+  if (relevant_strs && relevant_ints)
     die ("can not combine '-r' for strings and integers");
-  }
+  if (relevant && printing)
+    die ("can not combine '-r' and%s%s%s", PRINTING);
+  if (relevant && checking)
+    die ("can not combine '-r' and%s%s (yet)", CHECKING);
 }
 
 static void init_mode () {
@@ -211,9 +215,13 @@ static void parse (const char * input_name) {
   symbols = new_symbols ();
   Info info = get_file_info (input);
   if (info == FORMULA) {
+    if (relevant_ints)
+      die ("reading formula with integer '-r' arguments");
     msg (1, "parsing input as formula");
     primal_circuit = parse_formula (input, symbols);
   } else if (info == DIMACS) {
+    if (relevant_strs)
+      die ("reading DIMACS with symbolic '-r' arguments");
     if (checking) {
       msg (1, "switching to SAT solver competition mode");
       sat_competition_mode = 1;
@@ -333,6 +341,11 @@ static BDD * simulate_primal () {
 }
 
 static int check () {
+
+  assert (!relevant);
+  assert (!relevant_ints);
+  assert (!relevant_strs);
+
   int res = 0;
   if (bdd) {
     msg (1, "checking with BDD engine");
@@ -402,7 +415,7 @@ static int check () {
     IntStack inputs;
     INIT (inputs);
     get_encoded_inputs (circuit, &inputs);
-    Solver * solver = new_solver (primal_cnf, &inputs, relevant, dual_cnf);
+    Solver * solver = new_solver (primal_cnf, &inputs, 0, dual_cnf);
     if (options.primal) res = primal_sat (solver);
     else res = dual_sat (solver);
     if (sat) {
@@ -625,6 +638,13 @@ static void setup_messages (const char * output_name) {
 
 /*------------------------------------------------------------------------*/
 
+static const char * make_character_printable_as_string (char ch) {
+  static char buffer[16];
+  if (isprint (ch)) sprintf (buffer, "'%c'", ch);
+  else sprintf (buffer, "code 0x%d", ch);
+  return buffer;
+}
+
 static void parse_relevant_ints (char * arg) {
   if (!relevant_ints) NEW (relevant_ints);
   for (char * p = arg, * end; *p; p = end + 1) {
@@ -636,7 +656,8 @@ static void parse_relevant_ints (char * arg) {
     int res = 0, digits = 0;
     for (const char * q = p; q < end; q++) {
       if (!isdigit (*q))
-	die ("non-digit character in argument to '-r'");
+	die ("non-digit character %s in argument to '-r'",
+	  make_character_printable_as_string (*q));
       if (INT_MAX/10 < res)
 INVALID: die ("invalid integer '%s' in argument to '-r'", p);
       res *= 10;
@@ -661,10 +682,12 @@ static void parse_relevant_strs (char * arg) {
       die ("two consecutive ',' in argument to '-r'");
     *end = 0;
     if (!is_symbol_start (*p))
-      die ("invalid first letter '%c' of symbol '%s' in argument to '-r'", *p, p);
+      die ("invalid first symbol character %s in argument to '-r'",
+        make_character_printable_as_string (*p));
     for (const char * q = p + 1; q < end; q++) {
       if (!is_symbol_character (*p))
-	die ("invalid letter '%c' in symbol '%s' in argument to '-r'", *q, p);
+	die ("invalid symbol character %s in argument to '-r'",
+	  make_character_printable_as_string (*q));
     }
     char * res;
     STRDUP (res, p);
