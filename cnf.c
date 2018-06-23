@@ -120,12 +120,24 @@ int minimum_variable_index_above (CNF * cnf, int lower_limit) {
   return res;
 }
 
-void print_cnf_to_file (CNF * cnf, FILE * file) {
-  int m = maximum_variable_index (cnf);
+void print_cnf_to_file (CNF * cnf, int max_relevant, FILE * file) {
+  int max_var = maximum_variable_index (cnf);
+  int m;
+  if (max_var > max_relevant) {
+    LOG ("maximum variable in CNF '%d' larger than maximum relevant '%d'",
+      max_var, max_relevant);
+    m = max_var;
+  } else if (max_var < max_relevant) {
+    LOG ("maximum variable in CNF '%d' smaller than maximum relevant '%d'",
+      max_var, max_relevant);
+    m = max_relevant;
+  } else m = max_relevant;
   long n = COUNT (cnf->clauses);
   fprintf (file, "p cnf %d %ld\n", m, n);
   for (Clause ** p = cnf->clauses.start; p < cnf->clauses.top; p++)
     print_clause_to_file (*p, file);
 }
 
-void print_cnf (CNF * cnf) { print_cnf_to_file (cnf, stdout); }
+void print_cnf (CNF * cnf) {
+  print_cnf_to_file (cnf, maximum_variable_index (cnf), stdout);
+}

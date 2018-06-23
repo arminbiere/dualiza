@@ -136,7 +136,7 @@ static void check_options (const char * output_name) {
   if (relevant && checking)
     die ("can not combine '-r' and%s%s (yet)", CHECKING);
   if (relevant && !options.project)
-    die ("not use '-r' without '--project'");
+    die ("can not use '-r' without '--project'");
 }
 
 static void init_mode () {
@@ -490,7 +490,8 @@ static void print (const char * output_name) {
     encode_circuit (primal_circuit, cnf);
     if (options.annotate)
       print_dimacs_encoding_to_file (primal_circuit, output->file);
-    print_cnf_to_file (cnf, output->file);
+    int num_inputs = COUNT (primal_circuit->inputs);
+    print_cnf_to_file (cnf, num_inputs, output->file);
     delete_cnf (cnf);
   } else {
     assert (aiger);
@@ -671,6 +672,7 @@ static void sort_and_flush_relevant_ints () {
   int prev = -1;
   for (size_t j = 0; j < n; j++) {
     int d = PEEK (*relevant_ints, j);
+    assert (d >= 0);
     if (d == prev) {
       LOG ("removing duplicated relevant entry '%d'", d);
       continue;
@@ -699,7 +701,8 @@ static void sort_and_flush_relevant_strs () {
   const char * prev = 0;
   for (size_t j = 0; j < n; j++) {
     char * s = PEEK (*relevant_strs, j);
-    if (!strcmp (s, prev)) {
+    assert (s);
+    if (prev && !strcmp (s, prev)) {
       LOG ("removing duplicated relevant entry '%s'", s);
       STRDEL (s);
       continue;

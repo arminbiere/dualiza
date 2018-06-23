@@ -13,7 +13,7 @@ void delete_cnf (CNF *);
 int maximum_variable_index (CNF *);
 int minimum_variable_index_above (CNF *, int idx);
 
-void print_cnf_to_file (CNF *, FILE *);
+void print_cnf_to_file (CNF *, int, FILE *);
 void print_cnf (CNF *);
 
 void add_clause_to_cnf (Clause *, CNF *);

@@ -5,7 +5,7 @@ FILE * message_file;
 
 void die (const char * fmt, ...) {
   fflush (stdout);
-  fputs ("*** dualiza: ", stderr);
+  fputs ("dualiza: error: ", stderr);
   va_list ap;
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
