@@ -266,8 +266,6 @@ static void parse (const char * input_name) {
     msg (1, "parsing input as AIGER file");
     primal_circuit = parse_aiger (input, symbols);
     if (relevant_ints) {
-      NEW (relevant);
-      INIT (*relevant);
       int num_inputs = (int) COUNT (primal_circuit->inputs);
       int max_relevant_input = TOP (*relevant_ints);
       if (max_relevant_input >= num_inputs)
@@ -762,14 +760,15 @@ static void sort_and_flush_relevant_strs () {
 
 static void parse_relevant_ints (char * arg) {
   if (!relevant_ints) NEW (relevant_ints);
-  for (char * p = arg, * end; *p; p = end + 1) {
-    for (end = p; *end && *end != ','; end++)
+  const char * end = arg + strlen (arg);
+  for (char * p = arg, * next; p < end; p = next + 1) {
+    for (next = p; *next && *next != ','; next++)
       ;
-    if (p == end)
+    if (p == next)
       die ("two consecutive ',' in argument to '-r'");
-    *end = 0;
+    *next = 0;
     int res = 0, digits = 0;
-    for (const char * q = p; q < end; q++) {
+    for (const char * q = p; q < next; q++) {
       if (!isdigit (*q))
 	die ("non-digit character %s in argument to '-r'",
 	  make_character_printable_as_string (*q));
@@ -817,7 +816,7 @@ static void parse_relevant_variables (const char * arg) {
   if (arg[strlen(arg)-1] == ',') die ("trailing ',' in argument to '-r'");
   size_t len = strlen (arg);
   char * tmp;
-  ALLOC (tmp, len);
+  ALLOC (tmp, len + 1);
   strcpy (tmp, arg);
   if (isdigit (*arg)) {
     parse_relevant_ints (tmp);
@@ -826,7 +825,7 @@ static void parse_relevant_variables (const char * arg) {
     parse_relevant_strs (tmp);
     sort_and_flush_relevant_strs ();
   }
-  DEALLOC (tmp, len);
+  DEALLOC (tmp, len + 1);
   if (!relevant_ints) return;
   if (!relevant_strs) return;
   assert (!EMPTY (*relevant_ints));

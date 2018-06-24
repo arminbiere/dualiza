@@ -1383,6 +1383,10 @@ static Clause * dual_propagate_trail (Solver * solver) {
 
 static Clause * dual_propagate (Solver * solver) {
   if (!solver->dual_solving_enabled) return 0;
+  if (EMPTY (solver->units) && 
+      !solver->split_on_relevant_first &&
+      solver->require_to_split_on_relevant_first_after_first_model)
+    return 0;
   SOG ("dual propagation");
   check_primal_propagated (solver);
   Clause * res = 0;
