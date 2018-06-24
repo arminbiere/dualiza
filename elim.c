@@ -7,12 +7,14 @@ struct Elm {
   int frozen, max_var, original, eliminated;
   signed char * mark;
   IntStack schedule;
+  IntStack clause;
   Clauses * occs;
   int * score;
 };
 
 static void score_elimination_clause (Elm * elm, Clause * c) {
   if (c->garbage) return;
+  assert (!c->redundant);
   assert (elm->cnf->dual == c->dual);
   for (int i = 0; i < c->size; i++) {
     const int lit = c->literals[i], idx = abs (lit);
@@ -24,6 +26,7 @@ static void score_elimination_clause (Elm * elm, Clause * c) {
 
 static void connect_elimination_clause (Elm * elm, Clause * c) {
   if (c->garbage) return;
+  assert (!c->redundant);
   assert (elm->cnf->dual == c->dual);
   for (int i = 0; i < c->size; i++) {
     const int lit = c->literals[i], idx = abs (lit);
@@ -74,6 +77,7 @@ static void delete_elimination (Elm * elm) {
   DEALLOC (elm->score, elm->max_var + 1);
   DEALLOC (elm->mark, elm->max_var + 1);
   RELEASE (elm->schedule);
+  RELEASE (elm->clause);
   DELETE (elm);
 }
 
@@ -141,11 +145,66 @@ static int eliminate_variable (Elm * elm, int pivot) {
     if (resolvents > limit) break;
   }
   stats.resolutions += resolvents;
+
   if (resolvents > limit) {
-    LOG ("can not eliminate %d (more than %d resolvents)",
+    LOG ("can not eliminate variable %d (needs more than %d resolvents)",
       pivot, limit);
     return 0;
   }
+
+  LOG ("eliminating variable %d", pivot);
+  elm->eliminated++;
+  stats.eliminated++;
+
+  for (Clause ** p = pos->start; p != pos->top; p++) {
+    Clause * c = *p;
+    assert (!c->garbage);
+    for (int i = 0; i < c->size; i++) mark (c->literals[i]);
+    for (Clause ** q = neg->start; q != neg->top; q++) {
+      Clause * d = *q;
+      assert (!d->garbage);
+      int tautological = 0;
+      for (int j = 0; !tautological && j < d->size; j++) {
+	const int lit = d->literals[j];
+	if (lit == -pivot) continue;
+	assert (lit != pivot);
+	tautological = (marked (lit) < 0);
+      }
+      if (tautological) continue;
+
+      CLEAR (elm->clause);
+      LOGCLS (c, "1st antecedent");
+      assert (!c->redundant);
+      assert (!c->garbage);
+      for (int i = 0; i < c->size; i++) {
+	const int lit = c->literals[i];
+	if (lit == pivot) continue;
+	assert (lit != -pivot);
+	assert (marked (lit) > 0);
+	PUSH (elm->clause, lit);
+      }
+      LOGCLS (d, "2nd antecedent");
+      assert (!d->redundant);
+      assert (!d->garbage);
+      for (int i = 0; i < d->size; i++) {
+	const int lit = d->literals[i];
+	if (lit == -pivot) continue;
+	assert (lit != pivot);
+	int tmp = marked (lit);
+	assert (tmp >= 0);
+	if (tmp) continue;
+	PUSH (elm->clause, lit);
+      }
+      const int size = COUNT (elm->clause);
+      Clause * r = new_clause (elm->clause.start, size);
+      if (c->dual) assert (d->dual), r->dual = 1;
+      LOGCLS (r, "resolvent");
+      connect_elimination_clause (elm, r);
+    }
+    for (int i = 0; i < c->size; i++) unmark (c->literals[i]);
+    if (resolvents > limit) break;
+  }
+
   return 0;
 }
 

@@ -4,7 +4,7 @@ struct Clause {
   long id;
   char dual, redundant, garbage, recent, active; // flags
   int glue, size, search;
-  int literals[];	// embedded literals
+  int literals[];				// embedded literals
 };
 
 Clause * new_clause (const int *, const int size);
