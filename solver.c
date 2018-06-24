@@ -1151,6 +1151,7 @@ static int connect_dual_cnf (Solver * solver) {
     assert (c->dual == cnf->dual);
     if (c->size == 0) {
       SOG ("found empty clause in dual CNF");
+      RULE0 (EN0);
       return 0;
     } else if (c->size == 1) {
       SOGCLS (c, "registering unit");
@@ -2430,7 +2431,7 @@ static void solve (Solver * solver) {
   if (!connect_primal_cnf (solver)) return;
   if (primal_propagate (solver)) return;
   if (is_primal_satisfied (solver)) { (void) new_model (solver); return; }
-  if (!connect_dual_cnf (solver)) return;
+  if (!connect_dual_cnf (solver)) { (void) new_model (solver); return; }
   for (;;) {
     Clause * conflict = primal_propagate (solver);
     if (conflict) {

@@ -253,9 +253,11 @@ static void schedule_elimination (Elm * elm)
     const int score = elm->score[i];
     if (i <= elm->frozen) {
       LOG ("ignoring frozen variable %d", i);
+    } else if (!score) {
+      LOG ("ignoring variable %d without occurrences", i);
     } else if (score == INT_MAX) {
       LOG ("ignoring variable %d (clause size limit exceeded)", i);
-    } else if (elm->score[i] > options.elimocclim) {
+    } else if (score > options.elimocclim) {
       LOG ("ignoring variable %d (occurrence limit exceeded)", i);
       elm->score[i] = INT_MAX;
     } else {
