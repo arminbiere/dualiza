@@ -11,6 +11,7 @@ Clause * new_clause (const int * literals, const int size) {
   if (!res) die ("out-of-memory allocating clause of size %d", size);
   memset (res, 0, (char*) &res->size - (char*) res);
   res->size = size;
+  res->search = 2;
   for (int i = 0; i < size; i++)
     res->literals[i] = literals[i];
   return res;

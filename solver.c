@@ -1193,14 +1193,24 @@ static Clause * primal_propagate (Solver * solver) {
       const int other = c->literals[1];
       const int other_val = val (solver, other);
       if (other_val > 0) continue;
-      int i = 2, replacement_val = -1, replacement = 0;
+      int i = c->search, replacement_val = -1, replacement = 0;
       while (i < c->size) {
 	replacement = c->literals[i];
 	replacement_val = val (solver, replacement);
 	if (replacement_val >= 0) break;
 	i++;
       }
+      if (replacement_val < 0) {
+	i = 2;
+	while (i < c->search) {
+	  replacement = c->literals[i];
+	  replacement_val = val (solver, replacement);
+	  if (replacement_val >= 0) break;
+	  i++;
+	}
+      }
       if (replacement_val >= 0) {
+	c->search = i;
 	SOGCLS (c, "disconnecting literal %d from", -lit);
 	c->literals[0] = replacement;
 	c->literals[i] = -lit;
@@ -1334,14 +1344,24 @@ static Clause * dual_propagate_trail (Solver * solver) {
       assert (c->literals[0] == -lit);
       const int other = c->literals[1], other_val = val (solver, other);
       if (other_val > 0) continue;
-      int i = 2, replacement_val = -1, replacement = 0;
+      int i = c->search, replacement_val = -1, replacement = 0;
       while (i < c->size) {
 	replacement = c->literals[i];
 	replacement_val = val (solver, replacement);
 	if (replacement_val >= 0) break;
 	i++;
       }
+      if (replacement_val < 0) {
+	i = 2;
+	while (i < c->search) {
+	  replacement = c->literals[i];
+	  replacement_val = val (solver, replacement);
+	  if (replacement_val >= 0) break;
+	  i++;
+	}
+      }
       if (replacement_val >= 0) {
+	c->search = i;
 	SOGCLS (c, "disconnecting literal %d from", -lit);
 	c->literals[0] = replacement;
 	c->literals[i] = -lit;

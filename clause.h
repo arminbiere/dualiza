@@ -3,7 +3,7 @@ typedef struct Clause Clause;
 struct Clause {
   long id;
   char dual, redundant, garbage, recent, active; // flags
-  int glue, size;
+  int glue, size, search;
   int literals[];	// embedded literals
 };
 
