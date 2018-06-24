@@ -63,6 +63,7 @@ static Elm * new_elimination (CNF * cnf, int frozen) {
   elm->max_var = maximum_variable_index (cnf);
   LOG ("found maximum variable index %d", elm->max_var);
   ALLOC (elm->occs, 2*(elm->max_var + 1));
+  elm->occs += elm->max_var;
   ALLOC (elm->score, elm->max_var + 1);
   ALLOC (elm->mark, elm->max_var + 1);
   elm->original = original_non_frozen_variables (elm);
@@ -94,13 +95,17 @@ static int elimination_occurrences (Elm * elm, int lit) {
 
 static int eliminate_variable (Elm * elm, int pivot) {
 
+  int m = elimination_occurrences (elm, pivot);
+  int n = elimination_occurrences (elm, -pivot);
+
+  int limit = m + n;
+  if (!limit) return 0;
+  if (limit > options.elimocclim) return 0;
+
   LOG ("trying to eliminate %d", pivot);
   assert (pivot > elm->frozen);
   stats.pivots++;
 
-  int m = elimination_occurrences (elm, pivot);
-  int n = elimination_occurrences (elm, -pivot);
-  if (m + n > options.elimocclim) return 0;
 
   int sign (int lit) { return lit < 0 ? -1 : 1; }
 
@@ -119,7 +124,7 @@ static int eliminate_variable (Elm * elm, int pivot) {
 
   void unmark (int lit) { elm->mark[abs (lit)] = 0; }
 
-  int limit = m + n, resolvents = 0;
+  int resolvents = 0;
 
   Clauses * pos = elm->occs + pivot;
   Clauses * neg = elm->occs - pivot;
@@ -199,13 +204,28 @@ static int eliminate_variable (Elm * elm, int pivot) {
       Clause * r = new_clause (elm->clause.start, size);
       if (c->dual) assert (d->dual), r->dual = 1;
       LOGCLS (r, "resolvent");
+      add_clause_to_cnf (r, elm->cnf);
       connect_elimination_clause (elm, r);
     }
     for (int i = 0; i < c->size; i++) unmark (c->literals[i]);
     if (resolvents > limit) break;
   }
 
-  return 0;
+  for (Clause ** p = pos->start; p != pos->top; p++) {
+    Clause * c = *p;
+    assert (!c->garbage);
+    LOGCLS (c, "marking garbage literal %d", pivot);
+    c->garbage = 1;
+  }
+
+  for (Clause ** p = neg->start; p != neg->top; p++) {
+    Clause * d = *p;
+    assert (!d->garbage);
+    LOGCLS (d, "marking garbage literal %d", -pivot);
+    d->garbage = 1;
+  }
+
+  return 1;
 }
 
 static int eliminate_variables (Elm * elm) {
@@ -220,7 +240,7 @@ static int eliminate_variables (Elm * elm) {
 static void schedule_elimination (Elm * elm)
 {
   CLEAR (elm->schedule);
-  for (int i = -elm->max_var; i <= elm->max_var; i++) elm->score[i] = 0;
+  for (int i = 1; i <= elm->max_var; i++) elm->score[i] = 0;
   for (int i = -elm->max_var; i <= elm->max_var; i++)
     CLEAR (elm->occs[i]);
 
@@ -231,7 +251,9 @@ static void schedule_elimination (Elm * elm)
 
   for (int i = 1; i <= elm->max_var; i++) {
     const int score = elm->score[i];
-    if (score == INT_MAX) {
+    if (i <= elm->frozen) {
+      LOG ("ignoring frozen variable %d", i);
+    } else if (score == INT_MAX) {
       LOG ("ignoring variable %d (clause size limit exceeded)", i);
     } else if (elm->score[i] > options.elimocclim) {
       LOG ("ignoring variable %d (occurrence limit exceeded)", i);
