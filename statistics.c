@@ -16,7 +16,7 @@ void print_rules () {
            rules.BP0F,rules.JP0);
   msg (1, "%12ld BP1F %12ld BP1L",
            rules.BP1F,rules.BP1L);
-  msg (1, "%12ld BN0F %12ld BN0F",
+  msg (1, "%12ld BN0F %12ld BN0L",
            rules.BN0F,rules.BN0L);
 #if  0
   msg (1, "%12ld BN0L", rules.BN0L);
