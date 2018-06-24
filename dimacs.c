@@ -3,6 +3,7 @@
 extern int sat_competition_mode;
 
 static int is_relevant_variable_string (const char * s) {
+  if (!s) return 0;
   const char * p = s;
   int ch;
   for (;;) {
