@@ -260,11 +260,25 @@ static void parse (const char * input_name) {
       relevant_ints = 0;
     }
   } else {
-    if (relevant_ints)
-      die ("relevant variables for AIGER not implemented yet");
     assert (info == AIGER);
+    if (relevant_strs)
+      die ("reading AIGER file with symbolic '-r' arguments");
     msg (1, "parsing input as AIGER file");
     primal_circuit = parse_aiger (input, symbols);
+    if (relevant_ints) {
+      NEW (relevant);
+      INIT (*relevant);
+      int num_inputs = (int) COUNT (primal_circuit->inputs);
+      int max_relevant_input = TOP (*relevant_ints);
+      if (max_relevant_input >= num_inputs)
+	die ("input index '%d' in '-r' too large (%d AIGER inputs)",
+	  max_relevant_input, num_inputs);
+      relevant = relevant_ints;
+      relevant_ints = 0;
+      LOG ("increasing all relevant input indices by one");
+      for (int * p = relevant->start; p != relevant->top; p++)
+        *p += 1;
+    }
   }
   sort_circuit (primal_circuit);
 }
