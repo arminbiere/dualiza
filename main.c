@@ -266,6 +266,7 @@ static void parse (const char * input_name) {
     msg (1, "parsing input as AIGER file");
     primal_circuit = parse_aiger (input, symbols);
   }
+  sort_circuit (primal_circuit);
 }
 
 static void flatten () {

@@ -5,6 +5,7 @@ static Gate * copy_input_gate_and_share_symbol (Gate * g, Circuit * c) {
   Symbol * s = g->symbol;
   if (s) {
     res->symbol = s;
+    assert (s->name);
     LOG ("sharing input %d gate %d symbol '%s'",
       res->input, res->idx, s->name);
   }
@@ -16,35 +17,28 @@ static Gate * negate_gate (Gate * g, Gate ** map, Circuit * c) {
   if (sign) g = NOT (g);
   Gate * res = map[g->idx];
   if (!res) {
-    Gate ** inputs = g->inputs.start;
-    switch (g->op) {
-      case FALSE_OPERATOR:
-        res = NOT (new_false_gate (c));
-	break;
-      case INPUT_OPERATOR:
-        res = NOT (copy_input_gate_and_share_symbol (g, c));
-	break;
-      case AND_OPERATOR:
-        res = new_or_gate (c);
-	goto CONNECT;
-      case XOR_OPERATOR:
-        res = new_xnor_gate (c);
-	goto CONNECT;
-      case OR_OPERATOR:
-        res = new_and_gate (c);
-	goto CONNECT;
-      case XNOR_OPERATOR:
-        res = new_xor_gate (c);
-      CONNECT:
-	for (Gate ** p = inputs; p < g->inputs.top; p++)
-	  connect_gates (negate_gate (*p, map, c), res);
-	break;
-      case ITE_OPERATOR:
+    if (g->op == FALSE_OPERATOR) res = NOT (new_false_gate (c));
+    else if (g->op == INPUT_OPERATOR)
+      res = NOT (copy_input_gate_and_share_symbol (g, c));
+    else {
+      if (g->op == ITE_OPERATOR) {
         res = new_ite_gate (c);
+	Gate ** inputs = g->inputs.start;
+	// IMPORTANT: do not change the order here!!!!
         connect_gates (negate_gate (inputs[0], map, c), res);
-        connect_gates (negate_gate (inputs[2], map, c), res); /* yes 2 !! */
-        connect_gates (negate_gate (inputs[1], map, c), res); /* yes 1 !! */
-        break;
+        connect_gates (negate_gate (inputs[2], map, c), res);
+        connect_gates (negate_gate (inputs[1], map, c), res);
+      } else {
+	switch (g->op) {
+	  default: assert (g->op == AND_OPERATOR); // fall through
+	  case AND_OPERATOR:  res = new_or_gate (c); break;
+	  case XOR_OPERATOR:  res = new_xnor_gate (c); break;
+	  case OR_OPERATOR:   res = new_and_gate (c); break;
+	  case XNOR_OPERATOR: res = new_xor_gate (c); break;
+	}
+	for (Gate ** p = g->inputs.start; p != g->inputs.top; p++)
+	  connect_gates (negate_gate (*p, map, c), res);
+      }
     }
     map[g->idx] = res;
   }

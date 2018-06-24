@@ -130,3 +130,40 @@ void check_circuit_connected (Circuit * c) {
   }
 #endif
 }
+
+static int sort_gate (Gate * g, int * map, int idx) {
+  if (SIGN (g)) g = NOT (g);
+  if (map[g->idx] >= 0) return idx;
+  for (Gate ** p = g->inputs.start; p != g->inputs.top; p++)
+    idx = sort_gate (*p, map, idx);
+  return map[g->idx] = ++idx;
+}
+
+void sort_circuit (Circuit * c) {
+  LOG ("sorting circuit");
+  const int n = COUNT (c->gates);
+  int * map;
+  ALLOC (map, n);
+  for (int i = 0; i < n; i++) map[i] = -1;
+  int idx = 0;
+  for (Gate ** p = c->inputs.start; p != c->inputs.top; p++)
+    idx = sort_gate (*p, map, idx);
+  assert (idx == (int) COUNT (c->inputs));
+  for (Gate ** p = c->gates.top; p != c->gates.start; p--)
+    idx = sort_gate (p[-1], map, idx);
+  assert (idx == n);
+  int cmp (const void * p, const void * q) {
+    Gate * g = * (Gate **) p, * h = * (Gate **) q;
+    int i = map[g->idx], j = map[h->idx];
+    return i - j;
+  }
+  qsort (c->gates.start, n, sizeof (Gate*), cmp);
+  DEALLOC (map, n);
+  for (idx = 0; idx < n; idx++) {
+    Gate * g = PEEK (c->gates, idx);
+    if (g->idx == idx) continue;
+    LOG ("changing %s gate %d to %d", gate_name (g), g->idx, idx);
+    g->idx = idx;
+  }
+  LOG ("sorted circuit");
+}

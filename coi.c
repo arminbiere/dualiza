@@ -43,7 +43,7 @@ void cone_of_influence (Circuit * c) {
   check_circuit_connected (c);
   reset_pos_neg_mark_fields_of_circuit (c);
   coi (c, c->output, 0);
-  int pos = 0, neg = 0, both = 0, disconnected = 0;
+  int pos = 0, neg = 0, both = 0, tree = 0, disconnected = 0;
   for (Gate ** p = c->gates.start; p < c->gates.top; p++) {
     Gate * g = *p;
     assert (!SIGN (g));
@@ -51,9 +51,11 @@ void cone_of_influence (Circuit * c) {
     else if (g->pos) pos++;
     else if (g->neg) neg++;
     else disconnected++;
+    if (g->pos == 1 && !g->neg) tree++;
     g->mark = 0;
   }
-  msg (2, "cone of influence: %d pos, %d neg, %d both, %d disconnected",
-    pos, neg, both, disconnected);
+  msg (2,
+    "cone of influence: %d pos, %d neg, %d both, %d tree, %d disconnected",
+    pos, neg, both, tree, disconnected);
 }
 

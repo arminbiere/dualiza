@@ -49,3 +49,5 @@ const char * gate_name (Gate *);
 void connect_gates (Gate * input, Gate * output);
 void connect_output (Circuit *, Gate * output);
 void check_circuit_connected (Circuit *);
+
+void sort_circuit (Circuit *);
