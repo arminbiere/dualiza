@@ -17,8 +17,9 @@ static int is_relevant_variable_string (const char * s) {
   }
 }
 
-Circuit * parse_dimacs (Reader * r, Symbols * symbols,
-                        IntStack ** relevant_ptr) {
+Circuit *
+parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
+{
   assert (relevant_ptr);
   Circuit * res = new_circuit ();
   CharStack comment;
@@ -200,6 +201,7 @@ Circuit * parse_dimacs (Reader * r, Symbols * symbols,
       "DIMACS variable %d connected to input gate %d with symbol '%s'",
       i + 1, g->input, symbol->name);
     assert (g->input == g->idx);
+    symbol->gate = g;
   }
   STACK (Gate *) clauses, clause;
   INIT (clauses); INIT (clause);

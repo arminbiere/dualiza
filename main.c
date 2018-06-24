@@ -268,6 +268,15 @@ static void parse (const char * input_name) {
   }
 }
 
+static void flatten () {
+  assert (primal_circuit);
+  assert (!dual_circuit);
+  if (!options.flatten) return;
+  Circuit * flattened_circuit = flatten_circuit (primal_circuit);
+  delete_circuit (primal_circuit);
+  primal_circuit = flattened_circuit;
+}
+
 static void generate_dual_circuit () {
   assert (checking + printing + (enumerate!=0) + (counting!=0) == 1);
   assert (primal_circuit);
@@ -879,6 +888,7 @@ int main (int argc, char ** argv) {
   set_signal_handlers ();
   print_options ();
   parse (input_name);
+  flatten ();
   delete_reader (input);
   init ();
   int res = 0;

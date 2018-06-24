@@ -58,3 +58,6 @@ const char * make_character_printable_as_string (char ch) {
   else sprintf (buffer, "code 0x%d", ch);
   return buffer;
 }
+
+double average (double a, double b) { return b ? a / b : 0; }
+double percent (double a, double b) { return b ? 100*a / b : 0; }

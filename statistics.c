@@ -32,9 +32,6 @@ void print_rules () {
   msg (1, "%12ld FP   %12ld FN", rules.FP, rules.FN);
 }
 
-static double average (double a, double b) { return b ? a / b : 0; }
-static double percent (double a, double b) { return b ? 100*a / b : 0; }
-
 void print_statistics () {
   if (options.verbosity < 1) return;
   msg (1, "");

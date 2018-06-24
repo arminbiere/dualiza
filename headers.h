@@ -18,6 +18,7 @@
 #include "coi.h"
 #include "dimacs.h"
 #include "encode.h"
+#include "flatten.h"
 #include "logging.h"
 #include "mem.h"
 #include "msg.h"

@@ -108,6 +108,7 @@ static void setup_aiger_symbol_table (Aiger * aiger) {
     Symbol * symbol = find_or_create_symbol (aiger->symbols, name);
     assert (!g->symbol);
     g->symbol = symbol;
+    symbol->gate = g;
     LOG (
 "AIGER input %u literal %u connected to input gate %d with symbol '%s'",
         i, input, g->input, symbol->name);
