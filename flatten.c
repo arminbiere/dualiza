@@ -10,6 +10,7 @@ static int removal_gate_during_flattening (Gate * g) {
 static void mark_removed_during_flattening (Gate * g, Gate ** map) {
   assert (!SIGN (g));
   assert (!map [g->idx]);
+  if (!g->pos && !g->neg) return;
   if (!removal_gate_during_flattening (g)) return;
   for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
     Gate * h = *p;
@@ -44,6 +45,7 @@ static void
 flatten_tree (Gate * g, Gate ** map, Gates * gates, Circuit * c)
 {
   assert (!SIGN (g));
+  if (!g->pos && !g->neg) return;
   assert (removal_gate_during_flattening (g));
   for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
     Gate * h = *p;
