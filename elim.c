@@ -261,13 +261,13 @@ static void schedule_elimination (Elm * elm)
 void variable_elimination (CNF * cnf, int frozen) {
   if (!options.elim) return;
   assert (!cnf->redundant);
-  LOG ("%s variable elimination with %d frozen variables",
-    cnf->dual ? "dual" : "primal", frozen);
+  const char * type = cnf->dual ? "dual" : "primal";
+  LOG ("%s variable elimination with %d frozen variables", type, frozen);
   Elm * elm = new_elimination (cnf, frozen);
   do schedule_elimination (elm);
   while (eliminate_variables (elm));
-  msg (1, "eliminated %d variables %.0f%% out of %d non-frozen",
-    elm->eliminated,
+  msg (1, "eliminated %d %s variables %.0f%% out of %d non-frozen",
+    elm->eliminated, type,
     percent (elm->eliminated, elm->original), elm->original);
   delete_elimination (elm);
 }
