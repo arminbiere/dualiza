@@ -600,7 +600,6 @@ static CNF * cnf (Solver * solver, Clause * c) {
 
 static int lit_sign (int literal) { return literal < 0 ? -1 : 1; }
 
-
 static void dec_unassigned (Solver * solver, Var * v) {
   if (is_primal_or_shared_var (v)) {
     assert (solver->unassigned_primal_and_shared_variables > 0);

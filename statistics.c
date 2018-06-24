@@ -98,6 +98,13 @@ void print_statistics () {
     if (stats.subsumed)
       msg (1, "%ld subsumed clauses (%.1f%% of blocking clauses)",
         stats.subsumed, percent (stats.subsumed, stats.blocked.clauses));
+    if (stats.pivots) {
+      msg (1, "%ld variable elimination attempts", stats.pivots);
+      msg (1, "%ld resolutions (%.1f per elimination attempt)",
+        stats.resolutions, average (stats.resolutions, stats.pivots));
+      msg (1, "%ld variables eliminated (%.0f%% of attempted)",
+        stats.eliminated, percent (stats.eliminated, stats.pivots));
+    }
     if (stats.restarts)
       msg (1, "%ld restarts (%.0f primal conflicts per restart)",
         stats.restarts,

@@ -22,6 +22,7 @@ struct Stats {
   long decisions, flipped;
   long reductions, collected;
   long reports, restarts, reused;
+  long pivots, resolutions, eliminated;
   long bumped, searched, learned, subsumed;
   struct { long clauses, literals; } blocked;
   struct { struct { long shared; } dual; } units;

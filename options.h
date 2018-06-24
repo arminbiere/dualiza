@@ -8,6 +8,9 @@ OPTION (block,        1, "use blocking clauses") \
 OPTION (bump,         1, "bump variables (1=resolved, 2=reason)") \
 OPTION (blocklimit,   2, "blocking clause size limit") \
 DBGOPT (check,        0, "enable expensive assertion checking") \
+OPTION (elim,         1, "enabled bounded variable elimination") \
+OPTION (elimclslim, 100, "clause size limit for variable elimination") \
+OPTION (elimocclim,  10, "occurrence limit for variable elimination") \
 OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  0, "maximum number of discounted models") \
 OPTION (dual,         1, "dual SAT engine too (opposite of '--primal')") \

@@ -37,9 +37,9 @@ parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
 	  "unexpected end-of-file in header comment");
       PUSH (comment, ch.code);
     }
+    PUSH (comment, 0);
     if (options.project && 
         is_relevant_variable_string (comment.start)) {
-      PUSH (comment, 0);
       LOG ("parsing comment for relevant variables: %s", comment.start);
       int dh;
       for (const char * p = comment.start; (dh = *p); p++) {

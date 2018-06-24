@@ -17,6 +17,7 @@
 #include "cnf.h"
 #include "coi.h"
 #include "dimacs.h"
+#include "elim.h"
 #include "encode.h"
 #include "flatten.h"
 #include "logging.h"
