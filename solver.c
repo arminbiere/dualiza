@@ -1381,12 +1381,15 @@ static Clause * dual_propagate_trail (Solver * solver) {
   return res;
 }
 
-static Clause * dual_propagate (Solver * solver) {
+static int dual_propagating (Solver * solver) {
   if (!solver->dual_solving_enabled) return 0;
-  if (EMPTY (solver->units) && 
-      !solver->split_on_relevant_first &&
-      solver->require_to_split_on_relevant_first_after_first_model)
-    return 0;
+  if (!EMPTY (solver->units)) return 1;
+  if (solver->split_on_relevant_first) return 1;
+  return 0;
+}
+
+static Clause * dual_propagate (Solver * solver) {
+  if (!dual_propagating (solver)) return 0;
   SOG ("dual propagation");
   check_primal_propagated (solver);
   Clause * res = 0;
@@ -1480,8 +1483,7 @@ static void check_all_relevant_variables_assigned (Solver * solver) {
 #endif
 
 static void check_dual_propagated (Solver * solver) {
-  if (!solver->dual_solving_enabled) return;
-  if (!solver->level) assert (EMPTY (solver->units));
+  if (!dual_propagating (solver)) return;
   assert (solver->next.dual == COUNT (solver->trail));
 }
 
@@ -2407,7 +2409,7 @@ static int reuse_trail (Solver * solver) {
 
 static void force_splitting_on_relevant_first (Solver * solver) {
   assert (!solver->split_on_relevant_first);
-  SOG ("forcing to split on relevant shared variables first");
+  SOG ("forcing to split on relevant variables first");
   solver->split_on_relevant_first = 1;
   int level = 0;
   while (level + 1 <= solver->level &&
