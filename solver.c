@@ -319,15 +319,15 @@ static void init_restart_limit (Solver * solver) {
     solver->limit.restart.conflicts);
 }
 
-static void set_subsumed_limit (Solver * solver) {
+static void set_subsumed_learned_limit (Solver * solver) {
   solver->limit.subsumed += solver->cnf.primal->irredundant/10;
-  SOG ("new subsume limit %ld", solver->limit.subsumed);
+  SOG ("new subsume learned clause limit %ld", solver->limit.subsumed);
 }
 
 static void init_limits (Solver * solver) {
   init_reduce_limit (solver);
   init_restart_limit (solver);
-  set_subsumed_limit (solver);
+  set_subsumed_learned_limit (solver);
   solver->limit.models.count = LONG_MAX;
   solver->limit.models.report = 1;
   solver->limit.models.log2report = 0;
@@ -1541,7 +1541,9 @@ static int marked_literal (Solver * solver, int lit) {
   return v->seen == lit_sign (lit);
 }
 
-static int subsumed (Solver * solver, Clause * c, int expected) {
+static int
+subsumed_learned (Solver * solver, Clause * c, int expected)
+{
   if (c->garbage) return 0;
   if (c->size < expected) return 0;
   int slack = c->size - expected;
@@ -1594,15 +1596,17 @@ static void flush_dual_garbage_occurrences (Solver * solver) {
 }
 
 // If a new blocking clause is added, then try to subsume a limited number
-// of previously added clauses.  This removes some redundant blocking
-// clause, but should probably eventually be replaced by a scheme which
-// eagerly and in a more controlled way removes blocking clauses.
+// of previously added learned clauses.  This removes some redundant
+// blocking clause, but should probably eventually be replaced by a scheme
+// which eagerly and in a more controlled way removes blocking clauses.
 
-static void subsume (Solver * solver, Clause * c) {
+static void subsume_learned (Solver * solver, Clause * c) {
+  if (!options.subsume) return;
+  if (!options.sublearned) return;
   if (c->size <= 1) return;
   assert (!c->redundant);
-  int limit = MAX (options.subsumelimit, 0);
-  SOG ("trying to subsume at most %d clauses", limit);
+  int limit = MAX (options.sublearnlim, 0);
+  SOG ("trying to subsume at most %d learned clauses", limit);
   assert (!c->dual);
   mark_clause (solver, c);
   Clause ** p = solver->cnf.primal->clauses.top;
@@ -1611,7 +1615,7 @@ static void subsume (Solver * solver, Clause * c) {
     Clause * d = *--p;
     if (d == c) continue;
     if (d->garbage) break;
-    if (subsumed (solver, d, c->size)) {
+    if (subsumed_learned (solver, d, c->size)) {
       SOGCLS (d, "subsumed");
       d->garbage = 1;
       stats.subsumed++;
@@ -1623,7 +1627,7 @@ static void subsume (Solver * solver, Clause * c) {
   if (stats.subsumed <= solver->limit.subsumed) return;
   flush_primal_garbage_occurrences (solver);
   collect_garbage_clauses (solver->cnf.primal);
-  set_subsumed_limit (solver);
+  set_subsumed_learned_limit (solver);
   report (solver, 1, 's');
 }
 
@@ -1678,7 +1682,7 @@ static void add_decision_blocking_clause (Solver * solver, long * rule) {
   else if (rule == &rules.BN0L) RULE2 (BN0L, -first, c);
   else SOG ("WARNING UNMATCHED RULE in '%s'", __FUNCTION__);
   register_new_fixed_variable (solver);
-  if (options.subsume) subsume (solver, c);
+  subsume_learned (solver, c);
 }
 
 static int blocking_clause_size (Solver * solver, int target_level) {
