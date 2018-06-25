@@ -506,12 +506,17 @@ Solver * new_solver (CNF * primal,
   assert (COUNT (solver->frames) == solver->level + 1);
   init_number (solver->count);
   if (options.relevant) {
-    SOG ("always forcing to split on relevant variables first");
+    msg (1, "forced to split on relevant variables first");
     solver->split_on_relevant_first = 1;
   } else {
     assert (!solver->split_on_relevant_first);
-    if (count_irrelevant || count_primal) {
-      SOG ("will split on relevant variables first after first model");
+    const char * reason;
+         if (dual)             reason = "in dual mode";
+    else if (count_irrelevant) reason = "with irrelevant variables";
+    else if (count_primal)     reason = "with primal variables";
+    else                       reason = 0;
+    if (reason) {
+      msg (1, "split on relevant variables after first model (%s)", reason);
       solver->require_to_split_on_relevant_first_after_first_model = 1;
     }
   }
@@ -2013,7 +2018,6 @@ static void discount (Solver * solver) {
   Frame * f = solver->frames.start + solver->level;
   assert (f->flipped);
   if (is_zero_number (f->count)) return;
-  // COVER (solver->level > solver->last_decision_level);
   assert (f->counted > 0);
   stats.models.discounted++;
   SOGNUM (f->count, "discounted actual models");
@@ -2344,7 +2348,6 @@ static void reduce_dual (Solver * solver)
     solver->dual_or_shared_fixed >
       solver->limit.reduce.dual_or_shared_fixed;
 
-  COVER (!simplify);
   if (!simplify) return;
 
   SOG ("dual simplifying reduction");

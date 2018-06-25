@@ -35,6 +35,7 @@
 #include "simulate.h"
 #include "solver.h"
 #include "statistics.h"
+#include "subsume.h"
 #include "symbols.h"
 #include "utils.h"
 #include "version.h"
