@@ -11,7 +11,7 @@ DIR=/tmp/$NAME
 rm -rf $DIR || exit 1
 mkdir $DIR || exit 1
 cp -p `ls *.[ch]|grep -v version.c` $DIR
-cp -p makefile.in configure.sh VERSION README LICENSE $DIR
+cp -p makefile.in configure.sh test.sh VERSION README LICENSE $DIR
 RELEASED="`git log -n 1|sed -e '/^Date:/!d' -e 's,^Date: *,,'`"
 sed \
   -e "s,^VERSION=.*,VERSION=$VERSION," \
@@ -19,6 +19,7 @@ sed \
   -e "s,^RELEASED=.*,RELEASED=\"$RELEASED\"," \
 version.sh > $DIR/version.sh
 chmod 755 $DIR/version.sh
+cp -pr formulas cnfs aigs $DIR/
 cd /tmp
 TAR=/tmp/$NAME.tar.xz
 tar cfJ $TAR $NAME
