@@ -2,7 +2,7 @@
 
 static Gate REMOVE[1];
 
-static int removal_gate_during_flattening (Gate * g) {
+static int removable_gate_during_flattening (Gate * g) {
   return g->op == AND_OPERATOR || g->op == XOR_OPERATOR ||
          g->op == OR_OPERATOR ||  g->op == XNOR_OPERATOR;
 }
@@ -11,7 +11,7 @@ static void mark_removed_during_flattening (Gate * g, Gate ** map) {
   assert (!SIGN (g));
   assert (!map [g->idx]);
   if (!g->pos && !g->neg) return;
-  if (!removal_gate_during_flattening (g)) return;
+  if (!removable_gate_during_flattening (g)) return;
   for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
     Gate * h = *p;
     if (SIGN (h)) continue;
@@ -46,7 +46,7 @@ flatten_tree (Gate * g, Gate ** map, Gates * gates, Circuit * c)
 {
   assert (!SIGN (g));
   if (!g->pos && !g->neg) return;
-  assert (removal_gate_during_flattening (g));
+  assert (removable_gate_during_flattening (g));
   for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
     Gate * h = *p;
     if (!SIGN (h) && map[h->idx] == REMOVE) {
@@ -69,9 +69,10 @@ flatten_gate (Gate * g, Gate ** map, Gates * gates, Circuit * c)
   Gate * res = map[g->idx];
   if (res == REMOVE) { assert (!sign); return 0; }
   if (!res) {
-    if (g->op == FALSE_OPERATOR) res = new_false_gate (c);
-    else if (g->op == INPUT_OPERATOR)
+    if (g->op == INPUT_OPERATOR)
       res = copy_input_gate_and_own_symbol (g, c);
+    else if (!g->pos && !g->neg) return 0;
+    else if (g->op == FALSE_OPERATOR) res = new_false_gate (c);
     else {
       if (g->op == ITE_OPERATOR) {
         res = new_ite_gate (c);
