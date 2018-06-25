@@ -131,7 +131,7 @@ static void check_options (const char * output_name) {
     die ("can not use '--annotate' without DIMACS printing");
   if (relevant_strs && relevant_ints)
     die ("can not combine '-r' for strings and integers");
-  if (relevant && printing)
+  if (relevant && (printing && !dimacs))
     die ("can not combine '-r' and%s%s%s", PRINTING);
   if (relevant && checking)
     die ("can not combine '-r' and%s%s (yet)", CHECKING);
@@ -279,6 +279,9 @@ static void parse (const char * input_name) {
     }
   }
   sort_circuit (primal_circuit);
+  if (relevant)
+    msg (1, "PROJECTING ON %zd RELEVANT VARIABLES",
+      COUNT (*relevant));
 }
 
 static void flatten () {
@@ -514,6 +517,17 @@ static int check () {
   return res;
 }
 
+static void
+print_relevant_variables_to_file (IntStack * s, FILE * file) {
+  assert (!EMPTY (*s));
+  for (const int * p = s->start; p != s->top; p++) {
+    if (p == s->start) fputs ("c ", file);
+    else fputs (",", file);
+    fprintf (file, "%d", *p);
+  }
+  fputc ('\n', file);
+}
+
 static void print (const char * output_name) {
   Writer * output;
   if (output_name) {
@@ -524,17 +538,25 @@ static void print (const char * output_name) {
     output = new_writer_from_stdout ();
   }
   if (formula) {
+    assert (!relevant);
     msg (1, "printing formula to '%s'", output->name);
     println_circuit_to_file (primal_circuit, output->file);
   } else if (dimacs) {
     CNF * cnf = new_cnf (0);
     encode_circuit (primal_circuit, cnf);
+    if (options.elim > 1) {
+      const int frozen = COUNT (primal_circuit->inputs);
+      variable_elimination (cnf, frozen);
+    }
     if (options.annotate)
       print_dimacs_encoding_to_file (primal_circuit, output->file);
+    if (relevant)
+      print_relevant_variables_to_file (relevant, output->file);
     int num_inputs = COUNT (primal_circuit->inputs);
     print_cnf_to_file (cnf, num_inputs, output->file);
     delete_cnf (cnf);
   } else {
+    assert (!relevant);
     assert (aiger);
     die ("printing of AIGER files not implemented yet");
   }
