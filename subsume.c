@@ -110,10 +110,8 @@ static int cmp (const void * p, const void * q) {
 
 void subsume_clauses (CNF * cnf) {
   if (!options.subsume) return;
-#ifndef NLOG
   const char * type = cnf->dual ? "dual" : "primal";
   LOG ("%s subsumed clause elimination", type);
-#endif
   Sub * sub = new_subsume (cnf);
   Clauses clauses;
   INIT (clauses);
