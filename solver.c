@@ -1018,7 +1018,7 @@ column (Solver * solver, const char * name,
 	int precision, int percent_suffix, int flush_right, double value)
 {
   const size_t t = 80;
-  char tmp[t], fmt[16];
+  char tmp[t], fmt[32];
   const char * suffix = percent_suffix ? "%%" : "";
   sprintf (fmt, "%%.%df%s", precision, suffix);
   snprintf (tmp, t, fmt, value);

@@ -19,6 +19,7 @@ static Sub * new_subsume (CNF * cnf) {
   ALLOC (sub->marks, sub->max_var + 1);
   ALLOC (sub->occs, 2*(sub->max_var + 1));
   sub->occs += sub->max_var;
+  sub->original = cnf->irredundant + cnf->redundant;
   return sub;
 }
 
@@ -50,8 +51,9 @@ static void unmark (Sub * sub, int lit) { sub->marks[abs (lit)] = 0; }
 
 static int try_to_subsume_clause (Sub * sub, Clause * c) {
 
-  stats.tried++;
+  if (c->garbage) return 0;
 
+  stats.tried++;
   LOGCLS (c, "candidate");
   assert (!c->garbage);
 
@@ -68,6 +70,8 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
     if (tmp_occs < min_occs) min_occs = tmp_occs, min_lit = lit;
     for (Clause ** p = clauses->start; !res && p != clauses->top; p++) {
       Clause * d = *p;
+      if (d->garbage) continue;
+      assert (d->size <= c->size);
       if (c->redundant && !d->redundant) continue;
       int j;
       for (j = 0; j < d->size; j++) {
@@ -75,7 +79,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
 	if (other == lit) continue;
 	if (marked (sub, other) <= 0) break;
       }
-      res = (j == d->size);
+      if (j == d->size) res = INT_MIN;
     }
   }
 
@@ -85,6 +89,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   if (res == INT_MIN) {
     LOGCLS (c, "subsumed clause");
     stats.subsumed++;
+    sub->subsumed++;
     c->garbage = 1;
   } else {
     LOG ("minimum occurrence literal %d size with %zd occurrences",
@@ -115,8 +120,10 @@ void subsume_clauses (CNF * cnf) {
   Sub * sub = new_subsume (cnf);
   Clauses clauses;
   INIT (clauses);
+  Clause * empty = 0;
   for (Clause ** p = cnf->clauses.start; p != cnf->clauses.top; p++) {
     Clause * c = *p;
+    if (!empty && c->size == 0) { empty = c; break; }
     if (c->garbage) continue;
     if (c->redundant &&
         c->size > options.keepsize &&
@@ -124,19 +131,26 @@ void subsume_clauses (CNF * cnf) {
     PUSH (clauses, c);
   }
   LOG ("found %zd candidate clauses", COUNT (clauses));
-  long changed;
-  do {
+  long changed = 1;
+  while (changed && !empty) {
     changed = 0;
     qsort (clauses.start, COUNT (clauses), sizeof (Clause *), cmp);
     for (Clause ** p = clauses.start; p != clauses.top; p++)
       changed += try_to_subsume_clause (sub, *p);
-  } while (changed);
+    if (changed)
+      for (int lit = -sub->max_var; lit <= sub->max_var; lit++)
+	CLEAR (sub->occs[lit]);
+  }
+  if (empty)
+    msg (1, "found empty clause during clause subsumption");
+  if (sub->subsumed)
+    msg (1, "subsumed %ld %s clauses %.0f%% out of %d",
+      sub->subsumed, type,
+      percent (sub->subsumed, sub->original), sub->original);
+  if (sub->strengthened)
+    msg (1, "strengthened %ld %s clauses %.0f%% out of %d",
+      sub->strengthened, type,
+      percent (sub->strengthened, sub->original), sub->original);
   RELEASE (clauses);
-  msg (1, "subsumed %ld %s clauses %.0f%% out of %d",
-    sub->subsumed, type,
-    percent (sub->subsumed, sub->original), sub->original);
-  msg (1, "strengthened %ld %s clauses %.0f%% out of %d",
-    sub->strengthened, type,
-    percent (sub->strengthened, sub->original), sub->original);
   delete_subsume (sub);
 }
