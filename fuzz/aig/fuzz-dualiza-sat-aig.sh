@@ -12,7 +12,8 @@ fi
 i=0
 suffix=aag
 tmp=/tmp/dualiza-aig-fuzz${mode}-$$
-trap "rm -f $tmp*; exit 1" 2 9 15
+child=0
+trap "[ $child ] || kill -9 $child; rm -f $tmp*; exit 1" 2 9 15
 while true
 do
   aig=$tmp.$suffix
@@ -20,7 +21,9 @@ do
   seed="`./aiger/aiginfo $aig|awk '/^seed/{print $2}'`"
   i=`expr $i + 1`
   echo -n "\r$i $seed         "
-  if $cmp $aig > /dev/null; then continue; fi
+  $cmp $aig > /dev/null &
+  child=$!
+  wait $child && continue
   echo
   bug=bug-${mode}-$seed.$suffix
   red=red-${mode}-$seed.$suffix

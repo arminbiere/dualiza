@@ -13,7 +13,7 @@ do { \
 
 #define ALLOC(P,N) \
 do { \
-  if ((N)) { \
+  if ((N) != 0) { \
     assert ((N) > 0); \
     const long BYTES = (N) * sizeof *(P); \
     (P) = malloc (BYTES); \
@@ -38,7 +38,7 @@ do { \
   assert ((N) >= 0); \
   DEC_ALLOCATED (O); \
   (P) = realloc ((P), (N)); \
-  if ((N) && !(P)) \
+  if ((N) != 0 && !(P)) \
     die ("out-of-memory in '%s' reallocating %ld bytes", \
       __FUNCTION__, (long)(N)); \
   if ((O) < (N)) memset ((O) + (char*)(P), 0, (N) - (O)); \
