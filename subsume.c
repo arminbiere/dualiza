@@ -31,8 +31,15 @@ static void delete_subsume (Sub * sub) {
   DELETE (sub);
 }
 
+static int
+marked_clause_is_subsumed_by_clause (Clause * c, Clause * d) {
+  return 0;
+}
+
 static int try_to_subsume_clause (Sub * sub, Clause * c) {
+
   LOGCLS (c, "candidate");
+  assert (!c->garbage);
 
   int sign (int lit) { return lit < 0 ? -1 : 1; }
 
@@ -54,11 +61,31 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   for (int i = 0; i < c->size; i++)
     mark (c->literals[i]);
 
-  for (int i = 0; i < c->size; i++)
+  int res = 0, min_lit = 0;
+  size_t min_occs = LLONG_MAX;
 
+  for (int i = 0; !res && i < c->size; i++) {
+    int lit = c->literals[i];
+    Clauses * clauses = sub->occs + lit;
+    size_t tmp_occs = COUNT (*clauses);
+    if (tmp_occs < min_occs) min_occs = tmp_occs, min_lit = lit;
+    for (Clause ** p = clauses->start; !res && p != clauses->top; p++)
+      res = marked_clause_is_subsumed_by_clause (c, *p);
+  }
+
+  for (int i = 0; i < c->size; i++)
     unmark (c->literals[i]);
 
-  return 0;
+  if (res == INT_MIN) {
+    LOGCLS (c, "subsumed clause");
+    stats.subsumed++;
+  } else {
+    LOG ("minimum occurrence literal %d size with %zd occurrences",
+      min_lit, min_occs);
+    PUSH (sub->occs[min_lit], c);
+  }
+
+  return res;
 }
 
 void subsume_clauses (CNF * cnf) {
@@ -99,10 +126,10 @@ void subsume_clauses (CNF * cnf) {
       changed += try_to_subsume_clause (sub, *p);
   } while (changed);
   RELEASE (clauses);
-  msg (1, "subsumed %ld clauses %.0f%% out of %d",
+  msg (1, "subsumed %ld %s clauses %.0f%% out of %d",
     sub->subsumed, type,
     percent (sub->subsumed, sub->original), sub->original);
-  msg (1, "strengthened %ld clauses %.0f%% out of %d",
+  msg (1, "strengthened %ld %s clauses %.0f%% out of %d",
     sub->strengthened, type,
     percent (sub->strengthened, sub->original), sub->original);
   delete_subsume (sub);
