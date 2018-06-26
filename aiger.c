@@ -17,7 +17,7 @@ static Aiger *
 new_aiger (Circuit * c,
            Reader * r, Symbols * t,
 	   unsigned M, unsigned I, unsigned A) {
-  assert (M == I + A);
+  assert (M >= I + A);
   Aiger * res;
   NEW (res);
   res->circuit = c;
@@ -253,7 +253,10 @@ Circuit * parse_aiger (Reader * r, Symbols * t) {
     parse_error (r, ch, "maximum variable index %u too large", M);
   if (O != 1)
     parse_error (r, ch, "expected exactly one output but got %u", O);
-  if (I > M || A > M || M - I != A)
+  if (I > M ||
+      A > M ||
+      (binary && M - I != A) ||
+      (!binary && M - I < A))
     parse_error (r, ch,
       "invalid header M I L O A = %u %u %u %u %u",
       M, I, L, O, A);
