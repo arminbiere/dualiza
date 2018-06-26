@@ -288,8 +288,10 @@ void variable_elimination (CNF * cnf, int frozen) {
   const char * type = cnf->dual ? "dual" : "primal";
   LOG ("%s variable elimination with %d frozen variables", type, frozen);
   Elm * elm = new_elimination (cnf, frozen);
-  do schedule_elimination (elm);
-  while (eliminate_variables (elm));
+  do { 
+    subsume_clauses (cnf);
+    schedule_elimination (elm);
+  } while (eliminate_variables (elm));
   msg (1, "eliminated %d %s variables %.0f%% out of %d non-frozen",
     elm->eliminated, type,
     percent (elm->eliminated, elm->original), elm->original);
