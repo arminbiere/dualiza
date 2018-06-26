@@ -1,0 +1,12 @@
+These are AIG fuzzers for 'dualiza' both for SAT and Counting mode.
+The AIGER tools for fuzzing and delta-debugging are included for convenience.
+Just use
+
+  ./fuzzsat.sh
+
+or
+
+  ./fuzzcount.sh
+
+to start the fuzzing and 'make clean' to kill all fuzzing processes
+and also remove the bugs and reduced files.
