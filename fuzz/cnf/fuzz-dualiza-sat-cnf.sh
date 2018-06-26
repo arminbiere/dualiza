@@ -12,7 +12,8 @@ then
 fi
 i=0
 tmp=/tmp/dualiza-cnf-fuzz${mode}-$$
-trap "rm -f $tmp*; exit 1" 2 9 15
+child=0
+trap "[ $child ] || kill -9 $child; rm -f $tmp*; exit 1" 2 9 15
 while true
 do
   cnf=$tmp.cnf
@@ -20,7 +21,9 @@ do
   seed="`awk '/^c seed/{print $3}' $cnf`"
   i=`expr $i + 1`
   echo -n "\r$i $seed         "
-  if $cmp $cnf > /dev/null; then continue; fi
+  $cmp $cnf > /dev/null &
+  child=$!
+  wait $child && continue
   echo
   bug=bug-sat-$seed.cnf
   red=red-sat-$seed.cnf
