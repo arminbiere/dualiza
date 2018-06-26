@@ -998,139 +998,6 @@ static int remaining_variables (Solver * solver) {
   return solver->max_primal_or_shared_var - solver->primal_or_shared_fixed;
 }
 
-#if 0
-
-static void primal_header (Solver * solver) {
-  assert (!solver->dual_solving_enabled);
-  msg (1, "");
-  msg (1,
-    "  "
-    "        "
-    "        "
-    "          "
-    "  learned"
-    "   primal"
-    "          "
-    "  log2 "
-    "  log2");
-  msg (1,
-    "  "
-    "    time"
-    "  memory"
-    " conflicts"
-    "  clauses"
-    "  clauses"
-    " variables"
-    " models"
-    " count");
-  msg (1, "");
-}
-
-static void inc_model_report_limit (Solver * solver) {
-  while (stats.models.counted >= solver->limit.models.report) {
-    solver->limit.models.log2report++;
-    solver->limit.models.report *= 2;
-  }
-  while (cmp_number (solver->count, solver->limit.count.report) >= 0) {
-    solver->limit.count.log2report++;
-    multiply_number_by_power_of_two (solver->limit.count.report, 1);
-  }
-}
-
-static void
-primal_report (Solver * solver, int verbosity, const char type) {
-  assert (!solver->dual_solving_enabled);
-  if (options.verbosity < verbosity) return;
-  if (!(stats.reports++ % 20)) primal_header (solver);
-  inc_model_report_limit (solver);
-  msg (1,
-    "%c"
-    " %8.2f"
-    " %7.1f"
-    " %9ld"
-    " %8ld"
-    " %8ld"
-    " %8ld"
-    " %6ld"
-    " %6ld",
-    type,
-    process_time (),
-    current_resident_set_size ()/(double)(1<<20),
-    stats.conflicts.primal,
-    solver->cnf.primal->redundant,
-    solver->cnf.primal->irredundant,
-    remaining_variables (solver),
-    solver->limit.models.log2report-1,
-    solver->limit.count.log2report-1);
-}
-
-static void dual_header (Solver * solver) {
-  assert (solver->dual_solving_enabled);
-  msg (1, "");
-  msg (1,
-    "  "
-    "        "
-    "        "
-    "primal "
-    "   dual "
-    " learned"
-    " primal"
-    " dual "
-    "variables"
-    " log2"
-    "  log2");
-  msg (1,
-    "  "
-    "    time"
-    "  memory"
-    "   conflicts    "
-    "       clauses  "
-    "        "
-    "    models"
-    " count");
-  msg (1, "");
-}
-
-static void
-dual_report (Solver * solver, int verbosity, const char type) {
-  assert (solver->dual_solving_enabled);
-  if (options.verbosity < verbosity) return;
-  if (!(stats.reports++ % 20)) dual_header (solver);
-  assert (solver->cnf.dual);
-  assert (!solver->cnf.dual->redundant);
-  inc_model_report_limit (solver);
-  msg (1,
-    "%c"
-    " %7.2f"
-    " %7.1f"
-    " %6ld"
-    " %7ld"
-    " %6ld"
-    " %6ld"
-    " %6ld"
-    " %7ld"
-    " %6ld"
-    " %5ld",
-    type,
-    process_time (),
-    current_resident_set_size ()/(double)(1<<20),
-    stats.conflicts.primal,
-    stats.conflicts.dual,
-    solver->cnf.primal->redundant,
-    solver->cnf.primal->irredundant,
-    solver->cnf.dual->irredundant,
-    remaining_variables (solver),
-    solver->limit.models.log2report-1,
-    solver->limit.count.log2report-1);
-}
-
-static void report (Solver * solver, int verbosity, const char type) {
-  if (solver->dual_solving_enabled) dual_report (solver, verbosity, type);
-  else primal_report (solver, verbosity, type);
-}
-
-#else
-
 static void inc_model_report_limit (Solver * solver) {
   while (stats.models.counted >= solver->limit.models.report) {
     solver->limit.models.log2report++;
@@ -1188,25 +1055,6 @@ static void report (Solver * solver, int verbosity, char ch)
   CLEAR (COLUMNS);
   for (int i = 0; i < num_report_header_lines; i++)
     CLEAR (HEADER[i]);
-#if 0
-  column ("time", 2, 0, 0, process_time ());
-  column ("space", 1, 0, 0, current_resident_set_size ()/(double)(1<<20));
-  column ("level", 1, 0, 0, average.level);
-  if (option.conquer && option.cube) {
-    column ("cubes", 0, 0, 0, cubes);
-    column ("conquer", 0, 1, 0, 100 * relative_conquer_visits ());
-    column ("interval", 0, 0, 0, interval.conquer.average);
-  }
-  column ("reduced", 0, 0, 0, reductions);
-  if (option.conquer) column ("restarts", 0, 0, 0, restarts);
-  column ("conflicts", 0, 0, 0, conflicts);
-  column ("redundant", 0, 0, 0, num_redundant_clauses);
-  column ("glue", 1, 0, 0, average.glue.slow);
-  column ("size", 1, 0, 0, average.size);
-  column ("irredundant", 0, 0, 0, num_irredundant_clauses);
-  column ("variables", 0, 0, 0, remaining ());
-  column ("remaining", 0, 1, 1, percent (remaining (), max_var));
-#else
   double space = current_resident_set_size () / (double)(1<<20);
   column (solver, "time", 2, 0, 0, process_time ());
   column (solver, "space", 1, 0, 0, space);
@@ -1221,7 +1069,6 @@ static void report (Solver * solver, int verbosity, char ch)
   column (solver, "remaining", 0, 1, 0, p);
   column (solver, "log2models", 0, 0, 0, solver->limit.models.log2report-1);
   column (solver, "log2count", 0, 0, 1, solver->limit.count.log2report-1);
-#endif
   if (!(stats.reports++ % 20)) {
     printf ("c\n");
     for (int i = 0; i < num_report_header_lines; i++) {
@@ -1235,8 +1082,6 @@ static void report (Solver * solver, int verbosity, char ch)
   printf ("c %c%s\n", ch, COLUMNS.start);
   inc_model_report_limit (solver);
 }
-
-#endif
 
 static int
 restart_after_first_model_to_split_on_relevant_first (Solver * solver) {
