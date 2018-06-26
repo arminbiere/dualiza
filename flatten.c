@@ -7,18 +7,43 @@ static int removable_gate_during_flattening (Gate * g) {
          g->op == OR_OPERATOR ||  g->op == XNOR_OPERATOR;
 }
 
-static void mark_removed_during_flattening (Gate * g, Gate ** map) {
+static void mark_disconnected (Gate * g, Gate ** map) {
   assert (!SIGN (g));
   assert (!map [g->idx]);
-  if (!g->pos && !g->neg) return;
+  if (g->op != INPUT_OPERATOR && !g->pos && !g->neg) {
+    LOG ("marking gate %d as removed", g->idx);
+    map[g->idx] = REMOVE;
+  } else LOG ("keeping gate %d", g->idx);
+  g->pos = g->neg = 0;
+}
+
+static void count_occurrences (Gate * g, Gate ** map) {
+  assert (!SIGN (g));
+  if (g->op == INPUT_OPERATOR) return;
+  if (map [g->idx] == REMOVE) return;
+  for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
+    Gate * h = *p;
+    int sign = SIGN (h);
+    if (sign) h = NOT (h);
+    assert (h->idx < g->idx);
+    if (sign) h->neg++; else h->pos++;
+  }
+}
+
+static void mark_removed (Gate * g, Gate ** map) {
+  assert (!SIGN (g));
+  if (g->op == INPUT_OPERATOR) return;
+  if (map [g->idx] == REMOVE) return;
+  assert (!map [g->idx]);
   if (!removable_gate_during_flattening (g)) return;
   for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
     Gate * h = *p;
     if (SIGN (h)) continue;
     assert (h->idx < g->idx);
     if (h->op != g->op) continue;
-    if ((long)h->pos + (long)h->neg > 1) continue;
-    assert (!map[h->idx] || map[h->idx] == REMOVE);
+    if (h->neg) continue;
+    if (h->pos != 1) continue;
+    assert (!map[h->idx]);
     map[h->idx] = REMOVE;
   }
 }
@@ -37,7 +62,15 @@ static Gate * copy_input_gate_and_own_symbol (Gate * g, Circuit * c) {
   return res;
 }
 
-static Gate * flatten_gate (Gate *, Gate **, Gates *, Circuit *);
+static Gate * flattened_gate (Gate * g, Gate ** map) {
+  const int sign = SIGN (g);
+  if (sign) g = NOT (g);
+  Gate * res = map[g->idx];
+  if (!res) return 0;
+  if (res == REMOVE) return 0;
+  if (sign) res = NOT (res);
+  return res;
+}
 
 static void
 flatten_tree (Gate * g, Gate ** map, Gates * gates, Circuit * c)
@@ -52,7 +85,8 @@ flatten_tree (Gate * g, Gate ** map, Gates * gates, Circuit * c)
       assert (h->pos + h->neg == 1);
       flatten_tree (h, map, gates, c);
     } else {
-      Gate * res = flatten_gate (h, map, gates, c);
+      Gate * res = flattened_gate (h, map);
+      assert (res);
       PUSH (*gates, res);
     }
   }
@@ -109,10 +143,14 @@ Circuit * flatten_circuit (Circuit *c) {
   Gates gates;
   INIT (gates);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
-    mark_removed_during_flattening (*p, map);
+    mark_disconnected (*p, map);
+  for (Gate ** p = c->gates.start; p < c->gates.top; p++)
+    count_occurrences (*p, map);
+  for (Gate ** p = c->gates.start; p < c->gates.top; p++)
+    mark_removed (*p, map);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
     (void) flatten_gate (*p, map, &gates, res);
-  Gate * o = flatten_gate (c->output, map, &gates, res);
+  Gate * o = flattened_gate (c->output, map);
   assert (o);
   RELEASE (gates);
   connect_output (res, o);

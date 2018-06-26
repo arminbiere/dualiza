@@ -58,4 +58,3 @@ void cone_of_influence (Circuit * c) {
     "cone of influence: %d pos, %d neg, %d both, %d tree, %d disconnected",
     pos, neg, both, tree, disconnected);
 }
-
