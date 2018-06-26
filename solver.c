@@ -117,6 +117,8 @@ struct Limit {
   struct { Number report; long log2report; } count;
 };
 
+#define num_report_header_lines 3
+
 struct Solver {
 
   Var * vars;
@@ -146,18 +148,31 @@ struct Solver {
 
   Clauses units;
 
-  IntStack trail, clause, levels, relevant;
+  IntStack clause;
+  IntStack trail;
+  IntStack levels;
+  IntStack relevant;
   FrameStack frames;
   VarStack seen;
   Limit limit;
+
   struct { CNF * primal, * dual; } cnf;
+
   struct {
     long stamp;
     Queue relevant, irrelevant, primal, dual;
   } queue;
+
   struct { Clauses * primal, * dual; } occs;
+
   Number count;
   Name name;
+
+  struct {
+    int entries;
+    CharStack buffer[num_report_header_lines];
+    CharStack columns;
+  } report;
 };
 
 static Var * var (Solver * solver, int lit) {
@@ -594,6 +609,9 @@ void delete_solver (Solver * solver) {
   RELEASE (solver->levels);
   RELEASE (solver->units);
   DEALLOC (solver->vars, solver->max_var+1);
+  for (int i = 0; i < num_report_header_lines; i++)
+    RELEASE (solver->report.buffer[i]);
+  RELEASE (solver->report.columns);
   clear_number (solver->count);
   clear_number (solver->limit.count.report);
   DELETE (solver);
@@ -980,6 +998,8 @@ static int remaining_variables (Solver * solver) {
   return solver->max_primal_or_shared_var - solver->primal_or_shared_fixed;
 }
 
+#if 0
+
 static void primal_header (Solver * solver) {
   assert (!solver->dual_solving_enabled);
   msg (1, "");
@@ -1108,6 +1128,115 @@ static void report (Solver * solver, int verbosity, const char type) {
   if (solver->dual_solving_enabled) dual_report (solver, verbosity, type);
   else primal_report (solver, verbosity, type);
 }
+
+#else
+
+static void inc_model_report_limit (Solver * solver) {
+  while (stats.models.counted >= solver->limit.models.report) {
+    solver->limit.models.log2report++;
+    solver->limit.models.report *= 2;
+  }
+  while (cmp_number (solver->count, solver->limit.count.report) >= 0) {
+    solver->limit.count.log2report++;
+    multiply_number_by_power_of_two (solver->limit.count.report, 1);
+  }
+}
+
+#define HEADER solver->report.buffer
+#define COLUMNS solver->report.columns
+#define ENTRIES solver->report.entries
+
+static void
+column (Solver * solver, const char * name,
+	int precision, int percent_suffix, int flush_right, double value)
+{
+  const size_t t = 80;
+  char tmp[t], fmt[16];
+  const char * suffix = percent_suffix ? "%%" : "";
+  sprintf (fmt, "%%.%df%s", precision, suffix);
+  snprintf (tmp, t, fmt, value);
+  tmp[t-1] = 0;
+  size_t m = strlen (tmp);
+  if (m < 3) m = 3;
+  sprintf (fmt, "%%%zd.%df%s", m - percent_suffix, precision, suffix);
+  snprintf (tmp, t, fmt, value);
+  tmp[t-3] = tmp[t-2] = '.', tmp[t-1] = 0;
+  PUSH (COLUMNS, ' ');
+  for (const char * p = tmp; *p; p++)
+    PUSH (COLUMNS, *p);
+  PUSH (COLUMNS, 0);
+  (void) POP (COLUMNS);
+  size_t n = strlen (name);
+  int shift;
+  if (n <= m) shift = 0;
+  else if (!flush_right) shift = (n - m)/2;
+  else shift = 1;
+  PUSH (HEADER[ENTRIES], ' ');
+  while (n + COUNT (HEADER[ENTRIES]) < COUNT (COLUMNS) + shift)
+    PUSH (HEADER[ENTRIES], ' ');
+  for (const char * p = name; *p; p++)
+    PUSH (HEADER[ENTRIES], *p);
+  PUSH (HEADER[ENTRIES], 0);
+  (void) POP (HEADER[ENTRIES]);
+  if (++ENTRIES == num_report_header_lines) ENTRIES = 0;
+}
+
+static void report (Solver * solver, int verbosity, char ch)
+{
+  if (verbosity > options.verbosity) return;
+  ENTRIES = solver->dual_solving_enabled ? num_report_header_lines-1: 0;
+  CLEAR (COLUMNS);
+  for (int i = 0; i < num_report_header_lines; i++)
+    CLEAR (HEADER[i]);
+#if 0
+  column ("time", 2, 0, 0, process_time ());
+  column ("space", 1, 0, 0, current_resident_set_size ()/(double)(1<<20));
+  column ("level", 1, 0, 0, average.level);
+  if (option.conquer && option.cube) {
+    column ("cubes", 0, 0, 0, cubes);
+    column ("conquer", 0, 1, 0, 100 * relative_conquer_visits ());
+    column ("interval", 0, 0, 0, interval.conquer.average);
+  }
+  column ("reduced", 0, 0, 0, reductions);
+  if (option.conquer) column ("restarts", 0, 0, 0, restarts);
+  column ("conflicts", 0, 0, 0, conflicts);
+  column ("redundant", 0, 0, 0, num_redundant_clauses);
+  column ("glue", 1, 0, 0, average.glue.slow);
+  column ("size", 1, 0, 0, average.size);
+  column ("irredundant", 0, 0, 0, num_irredundant_clauses);
+  column ("variables", 0, 0, 0, remaining ());
+  column ("remaining", 0, 1, 1, percent (remaining (), max_var));
+#else
+  double space = current_resident_set_size () / (double)(1<<20);
+  column (solver, "time", 2, 0, 0, process_time ());
+  column (solver, "space", 1, 0, 0, space);
+  column (solver, "conflicts", 0, 0, 0, stats.conflicts.primal);
+  column (solver, "redundant", 0, 0, 0, solver->cnf.primal->redundant);
+  column (solver, "irredundant", 0, 0, 0, solver->cnf.primal->irredundant);
+  if (solver->dual_solving_enabled)
+  column (solver, "dual", 0, 0, 0, solver->cnf.dual->irredundant);
+  double r = remaining_variables (solver);
+  double p = percent (r, solver->max_var);
+  column (solver, "variables", 0, 0, 0, r);
+  column (solver, "remaining", 0, 1, 0, p);
+  column (solver, "log2models", 0, 0, 0, solver->limit.models.log2report-1);
+  column (solver, "log2count", 0, 0, 1, solver->limit.count.log2report-1);
+#endif
+  if (!(stats.reports++ % 20)) {
+    printf ("c\n");
+    for (int i = 0; i < num_report_header_lines; i++) {
+      PUSH (HEADER[i], 0);
+      printf ("c  %s\n", HEADER[i].start);
+    }
+    printf ("c\n");
+  }
+  ENTRIES = 0;
+  PUSH (COLUMNS, 0);
+  printf ("c %c%s\n", ch, COLUMNS.start);
+  inc_model_report_limit (solver);
+}
+
+#endif
 
 static int
 restart_after_first_model_to_split_on_relevant_first (Solver * solver) {
