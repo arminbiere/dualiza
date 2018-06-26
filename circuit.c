@@ -164,6 +164,12 @@ void sort_circuit (Circuit * c) {
     if (g->idx == idx) continue;
     LOG ("changing %s gate %d to %d", gate_name (g), g->idx, idx);
     g->idx = idx;
+#ifndef NDEBUG
+    for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
+      Gate * h = STRIP (*p);
+      assert (h->idx < g->idx);
+    }
+#endif
   }
   LOG ("sorted circuit");
 }
