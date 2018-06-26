@@ -18,12 +18,18 @@ original=${tmp}-original.$suffix
 anded=${tmp}-anded.$suffix
 trap "rm -f $tmp*" 2 9 15
 ./aiger/aigfuzz -m -c -1 -s -o $original
+seed="`./aiger/aiginfo $original|grep '^seed '`"
 ./aiger/aigand $original $anded
 ./aiger/aigstrip $anded
+if [ ! x"$seed" = x ]
+then
+  ( echo c; echo "$seed" ) >> $anded
+fi
 if [ $# -gt 0 ]
 then
   cp $anded $1
 else
   cat $anded
 fi
+cp $anded /tmp/asdf
 rm -f $tmp*
