@@ -1,0 +1,1 @@
+../cnf/cmp-dualiza-sat-cnf.sh

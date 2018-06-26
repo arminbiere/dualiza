@@ -1,12 +1,13 @@
 These are CNF fuzzers for 'dualiza' both for SAT and Counting mode.
 The CNF fuzzer and delta-debugger are included for convenience.
+
 Just use
 
-  ./fuzzsat.sh
+  ./fuzz-dualiza-sat-cnf.sh
 
 or
 
-  ./fuzzcount.sh
+  ./fuzz-dualiza-count-cnf.sh
 
 to start the fuzzing and 'make clean' to kill all fuzzing processes
 and also remove the bugs and reduced files.
