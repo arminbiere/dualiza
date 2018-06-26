@@ -1597,7 +1597,7 @@ static void subsume_learned (Solver * solver, Clause * c) {
     if (subsumed_learned (solver, d, c->size)) {
       SOGCLS (d, "subsumed");
       d->garbage = 1;
-      stats.subsumed++;
+      stats.blocked.subsumed++;
       count++;
     } else if (!limit--) break;
   }

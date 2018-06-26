@@ -23,10 +23,10 @@ struct Stats {
   long reductions, collected;
   long reports, restarts, reused;
   long pivots, resolutions, eliminated;
-  long bumped, searched, learned, subsumed;
-  struct { long clauses, literals; } blocked;
+  long bumped, searched, learned, subsumed, tried;
   struct { struct { long shared; } dual; } units;
   struct { long dual, primal; } conflicts, propagated;
+  struct { long clauses, subsumed, literals; } blocked;
   struct { long tracked, jumped, forced, discounting; } back;
   struct { struct { long lookups, collisions; } node, cache; } bdd;
   struct { long lookups, collisions; } symbol;

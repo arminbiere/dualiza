@@ -31,12 +31,9 @@ static void delete_subsume (Sub * sub) {
   DELETE (sub);
 }
 
-static int
-marked_clause_is_subsumed_by_clause (Clause * c, Clause * d) {
-  return 0;
-}
-
 static int try_to_subsume_clause (Sub * sub, Clause * c) {
+
+  stats.tried++;
 
   LOGCLS (c, "candidate");
   assert (!c->garbage);
@@ -65,12 +62,21 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   size_t min_occs = LLONG_MAX;
 
   for (int i = 0; !res && i < c->size; i++) {
-    int lit = c->literals[i];
+    const int lit = c->literals[i];
     Clauses * clauses = sub->occs + lit;
-    size_t tmp_occs = COUNT (*clauses);
+    const size_t tmp_occs = COUNT (*clauses);
     if (tmp_occs < min_occs) min_occs = tmp_occs, min_lit = lit;
-    for (Clause ** p = clauses->start; !res && p != clauses->top; p++)
-      res = marked_clause_is_subsumed_by_clause (c, *p);
+    for (Clause ** p = clauses->start; !res && p != clauses->top; p++) {
+      Clause * d = *p;
+      if (c->redundant && !d->redundant) continue;
+      int j;
+      for (j = 0; j < d->size; j++) {
+	const int other = d->literals[j];
+	if (other == lit) continue;
+	if (marked (other) <= 0) break;
+      }
+      res = (j == d->size);
+    }
   }
 
   for (int i = 0; i < c->size; i++)
@@ -79,6 +85,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   if (res == INT_MIN) {
     LOGCLS (c, "subsumed clause");
     stats.subsumed++;
+    c->garbage = 1;
   } else {
     LOG ("minimum occurrence literal %d size with %zd occurrences",
       min_lit, min_occs);

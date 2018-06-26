@@ -95,9 +95,13 @@ void print_statistics () {
       msg (1, "%ld blocking clauses (%.1f average length)",
         stats.blocked.clauses,
 	average (stats.blocked.literals, stats.blocked.clauses));
+    if (stats.blocked.subsumed)
+      msg (1, "%ld subsumed blocked clauses (%.1f%% of blocking clauses)",
+        stats.blocked.subsumed,
+	percent (stats.blocked.subsumed, stats.blocked.clauses));
     if (stats.subsumed)
-      msg (1, "%ld subsumed clauses (%.1f%% of blocking clauses)",
-        stats.subsumed, percent (stats.subsumed, stats.blocked.clauses));
+      msg (1, "%ld subsumed clauses (%.1f%% of tried clauses)",
+        stats.subsumed, percent (stats.subsumed, stats.tried));
     if (stats.pivots) {
       msg (1, "%ld variable elimination attempts", stats.pivots);
       msg (1, "%ld resolutions (%.1f per elimination attempt)",
