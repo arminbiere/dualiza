@@ -31,6 +31,23 @@ static void delete_subsume (Sub * sub) {
   DELETE (sub);
 }
 
+static int sign (int lit) { return lit < 0 ? -1 : 1; }
+
+static void mark (Sub * sub, int lit) {
+  const int idx = abs (lit);
+  assert (!sub->marks[idx]);
+  sub->marks[idx] = sign (lit);
+}
+
+static int marked (Sub * sub, int lit) {
+  const int idx = abs (lit);
+  int res = sub->marks[idx];
+  if (lit < 0) res = -res;
+  return res;
+}
+
+static void unmark (Sub * sub, int lit) { sub->marks[abs (lit)] = 0; }
+
 static int try_to_subsume_clause (Sub * sub, Clause * c) {
 
   stats.tried++;
@@ -38,25 +55,8 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   LOGCLS (c, "candidate");
   assert (!c->garbage);
 
-  int sign (int lit) { return lit < 0 ? -1 : 1; }
-
-  void mark (int lit) {
-    const int idx = abs (lit);
-    assert (!sub->marks[idx]);
-    sub->marks[idx] = sign (lit);
-  }
-
-  int marked (int lit) {
-    const int idx = abs (lit);
-    int res = sub->marks[idx];
-    if (lit < 0) res = -res;
-    return res;
-  }
-
-  void unmark (int lit) { sub->marks[abs (lit)] = 0; }
-  
   for (int i = 0; i < c->size; i++)
-    mark (c->literals[i]);
+    mark (sub, c->literals[i]);
 
   int res = 0, min_lit = 0;
   size_t min_occs = LLONG_MAX;
@@ -73,14 +73,14 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
       for (j = 0; j < d->size; j++) {
 	const int other = d->literals[j];
 	if (other == lit) continue;
-	if (marked (other) <= 0) break;
+	if (marked (sub, other) <= 0) break;
       }
       res = (j == d->size);
     }
   }
 
   for (int i = 0; i < c->size; i++)
-    unmark (c->literals[i]);
+    unmark (sub, c->literals[i]);
 
   if (res == INT_MIN) {
     LOGCLS (c, "subsumed clause");
@@ -93,6 +93,19 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   }
 
   return res;
+}
+
+static int cmp (const void * p, const void * q) {
+  Clause * c = * (Clause **) p, * d = * (Clause **) q;
+  if (c->size < d->size) return -1;
+  if (c->size > d->size) return 1;
+  assert (c->size == d->size);
+  if (!c->redundant && d->redundant) return -1;
+  if (c->redundant && !d->redundant) return 1;
+  assert (c->redundant == d->redundant);
+  if (c->id < d->id) return -1;
+  if (c->id > d->id) return 1;
+  return 0;
 }
 
 void subsume_clauses (CNF * cnf) {
@@ -113,18 +126,6 @@ void subsume_clauses (CNF * cnf) {
     PUSH (clauses, c);
   }
   LOG ("found %zd candidate clauses", COUNT (clauses));
-  int cmp (const void * p, const void * q) {
-    Clause * c = * (Clause **) p, * d = * (Clause **) q;
-    if (c->size < d->size) return -1;
-    if (c->size > d->size) return 1;
-    assert (c->size == d->size);
-    if (!c->redundant && d->redundant) return -1;
-    if (c->redundant && !d->redundant) return 1;
-    assert (c->redundant == d->redundant);
-    if (c->id < d->id) return -1;
-    if (c->id > d->id) return 1;
-    return 0;
-  }
   long changed;
   do {
     changed = 0;

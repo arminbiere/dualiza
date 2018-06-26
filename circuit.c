@@ -131,34 +131,39 @@ void check_circuit_connected (Circuit * c) {
 #endif
 }
 
-static int sort_gate (Gate * g, int * map, int idx) {
+static void init_gate_map (Circuit * c, int value) {
+  for (Gate ** p = c->gates.start; p != c->gates.top; p++) {
+    Gate * g = *p;
+    g->map = value;
+  }
+}
+
+static int sort_gate (Gate * g, int idx) {
   if (SIGN (g)) g = NOT (g);
-  if (map[g->idx] >= 0) return idx;
+  if (g->map >= 0) return idx;
   for (Gate ** p = g->inputs.start; p != g->inputs.top; p++)
-    idx = sort_gate (*p, map, idx);
-  return map[g->idx] = ++idx;
+    idx = sort_gate (*p, idx);
+  return g->map = ++idx;
+}
+
+static int cmp (const void * p, const void * q) {
+  Gate * g = * (Gate **) p, * h = * (Gate **) q;
+  int i = g->map, j = h->map;
+  return i - j;
 }
 
 void sort_circuit (Circuit * c) {
   LOG ("sorting circuit");
   const int n = COUNT (c->gates);
-  int * map;
-  ALLOC (map, n);
-  for (int i = 0; i < n; i++) map[i] = -1;
+  init_gate_map (c, -1);
   int idx = 0;
   for (Gate ** p = c->inputs.start; p != c->inputs.top; p++)
-    idx = sort_gate (*p, map, idx);
+    idx = sort_gate (*p, idx);
   assert (idx == (int) COUNT (c->inputs));
   for (Gate ** p = c->gates.top; p != c->gates.start; p--)
-    idx = sort_gate (p[-1], map, idx);
+    idx = sort_gate (p[-1], idx);
   assert (idx == n);
-  int cmp (const void * p, const void * q) {
-    Gate * g = * (Gate **) p, * h = * (Gate **) q;
-    int i = map[g->idx], j = map[h->idx];
-    return i - j;
-  }
   qsort (c->gates.start, n, sizeof (Gate*), cmp);
-  DEALLOC (map, n);
   for (idx = 0; idx < n; idx++) {
     Gate * g = PEEK (c->gates, idx);
     if (g->idx == idx) continue;

@@ -93,6 +93,23 @@ static int elimination_occurrences (Elm * elm, int lit) {
   return res;
 }
 
+static int sign (int lit) { return lit < 0 ? -1 : 1; }
+
+static void mark (Elm * elm, int lit) {
+  const int idx = abs (lit);
+  assert (!elm->marks[idx]);
+  elm->marks[idx] = sign (lit);
+}
+
+static int marked (Elm * elm, int lit) {
+  const int idx = abs (lit);
+  int res = elm->marks[idx];
+  if (lit < 0) res = -res;
+  return res;
+}
+
+static void unmark (Elm * elm, int lit) { elm->marks[abs (lit)] = 0; }
+
 static int eliminate_variable (Elm * elm, int pivot) {
 
   int m = elimination_occurrences (elm, pivot);
@@ -106,23 +123,6 @@ static int eliminate_variable (Elm * elm, int pivot) {
   assert (pivot > elm->frozen);
   stats.pivots++;
 
-  int sign (int lit) { return lit < 0 ? -1 : 1; }
-
-  void mark (int lit) {
-    const int idx = abs (lit);
-    assert (!elm->marks[idx]);
-    elm->marks[idx] = sign (lit);
-  }
-
-  int marked (int lit) {
-    const int idx = abs (lit);
-    int res = elm->marks[idx];
-    if (lit < 0) res = -res;
-    return res;
-  }
-
-  void unmark (int lit) { elm->marks[abs (lit)] = 0; }
-
   int resolvents = 0;
 
   Clauses * pos = elm->occs + pivot;
@@ -131,7 +131,8 @@ static int eliminate_variable (Elm * elm, int pivot) {
   for (Clause ** p = pos->start; p != pos->top; p++) {
     Clause * c = *p;
     assert (!c->garbage);
-    for (int i = 0; i < c->size; i++) mark (c->literals[i]);
+    for (int i = 0; i < c->size; i++)
+      mark (elm, c->literals[i]);
     for (Clause ** q = neg->start; q != neg->top; q++) {
       Clause * d = *q;
       assert (!d->garbage);
@@ -140,12 +141,13 @@ static int eliminate_variable (Elm * elm, int pivot) {
 	const int lit = d->literals[j];
 	if (lit == -pivot) continue;
 	assert (lit != pivot);
-	tautological = (marked (lit) < 0);
+	tautological = (marked (elm, lit) < 0);
       }
       if (tautological) continue;
       if (++resolvents > limit) break;
     }
-    for (int i = 0; i < c->size; i++) unmark (c->literals[i]);
+    for (int i = 0; i < c->size; i++)
+      unmark (elm, c->literals[i]);
     if (resolvents > limit) break;
   }
   stats.resolutions += resolvents;
@@ -163,7 +165,8 @@ static int eliminate_variable (Elm * elm, int pivot) {
   for (Clause ** p = pos->start; p != pos->top; p++) {
     Clause * c = *p;
     assert (!c->garbage);
-    for (int i = 0; i < c->size; i++) mark (c->literals[i]);
+    for (int i = 0; i < c->size; i++)
+      mark (elm, c->literals[i]);
     for (Clause ** q = neg->start; q != neg->top; q++) {
       Clause * d = *q;
       assert (!d->garbage);
@@ -172,7 +175,7 @@ static int eliminate_variable (Elm * elm, int pivot) {
 	const int lit = d->literals[j];
 	if (lit == -pivot) continue;
 	assert (lit != pivot);
-	tautological = (marked (lit) < 0);
+	tautological = (marked (elm, lit) < 0);
       }
       if (tautological) continue;
 
@@ -184,7 +187,7 @@ static int eliminate_variable (Elm * elm, int pivot) {
 	const int lit = c->literals[i];
 	if (lit == pivot) continue;
 	assert (lit != -pivot);
-	assert (marked (lit) > 0);
+	assert (marked (elm, lit) > 0);
 	PUSH (elm->clause, lit);
       }
       LOGCLS (d, "2nd antecedent");
@@ -194,7 +197,7 @@ static int eliminate_variable (Elm * elm, int pivot) {
 	const int lit = d->literals[i];
 	if (lit == -pivot) continue;
 	assert (lit != pivot);
-	int tmp = marked (lit);
+	int tmp = marked (elm, lit);
 	assert (tmp >= 0);
 	if (tmp) continue;
 	PUSH (elm->clause, lit);
@@ -206,7 +209,8 @@ static int eliminate_variable (Elm * elm, int pivot) {
       add_clause_to_cnf (r, elm->cnf);
       connect_elimination_clause (elm, r);
     }
-    for (int i = 0; i < c->size; i++) unmark (c->literals[i]);
+    for (int i = 0; i < c->size; i++)
+      unmark (elm, c->literals[i]);
     if (resolvents > limit) break;
   }
 
@@ -229,17 +233,24 @@ static int eliminate_variable (Elm * elm, int pivot) {
 
 static int eliminate_variables (Elm * elm) {
   int eliminated = 0;
-  for (const int * p = elm->schedule.start; p < elm->schedule.top; p++)
+  for (const int * p = elm->schedule.start; p < elm->schedule.top; p += 2)
     eliminated += eliminate_variable (elm, *p);
   collect_garbage_clauses (elm->cnf);
   LOG ("eliminated %d variables this round", eliminated);
   return eliminated;
 }
 
+static int cmp (const void * p, const void * q) {
+  int * a = (int *) p, * b = (int *) q;
+  int s = a[1], t = b[1];
+  int res = s - t;
+  return res ? res : a[0] - b[0];
+}
 static void schedule_elimination (Elm * elm)
 {
   CLEAR (elm->schedule);
-  for (int i = 1; i <= elm->max_var; i++) elm->score[i] = 0;
+  for (int i = 1; i <= elm->max_var; i++)
+    elm->score[i] = 0;
   for (int i = -elm->max_var; i <= elm->max_var; i++)
     CLEAR (elm->occs[i]);
 
@@ -262,18 +273,13 @@ static void schedule_elimination (Elm * elm)
     } else {
       LOG ("scheduling variable %d", i);
       PUSH (elm->schedule, i);
+      PUSH (elm->schedule, score);
     }
   }
-  const int scheduled = COUNT (elm->schedule);
+  const int scheduled = COUNT (elm->schedule)/2;
   LOG ("scheduled %d non-frozen variables", scheduled);
 
-  int cmp (const void * p, const void * q) {
-    int a = * (int *) p, b = * (int *) q;
-    int s = elm->score[a], t = elm->score[b];
-    int res = s - t;
-    return res ? res : a - b;
-  }
-  qsort (elm->schedule.start, scheduled, sizeof (int), cmp);
+  qsort (elm->schedule.start, scheduled, 2*sizeof (int), cmp);
   LOG ("sorted %d scheduled variables", scheduled);
 
   for (Clause ** p = clauses->start; p != clauses->top; p++)

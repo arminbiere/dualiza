@@ -17,6 +17,12 @@ static int is_relevant_variable_string (const char * s) {
   }
 }
 
+static int cmp (const void * p, const void * q) {
+  return *(int*)p - *(int*)q;
+  int a = * (int *) p, b = * (int *) q;
+  return a - b;
+}
+
 Circuit *
 parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
 {
@@ -176,12 +182,6 @@ parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
     msg (1, "parsed %zd relevant variables", j);
 
     DEALLOC (seen, s + 1);
-
-    int cmp (const void * p, const void * q) {
-      return *(int*)p - *(int*)q;
-      int a = * (int *) p, b = * (int *) q;
-      return a - b;
-    }
 
     qsort (relevant->start, j, sizeof (int), cmp);
   }

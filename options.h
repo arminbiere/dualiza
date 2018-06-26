@@ -30,7 +30,7 @@ OPTION (relevant,     0, "always split on relevant variables first") \
 OPTION (restart,      1, "enable search restarts") \
 OPTION (restartint,   2, "base restart interval") \
 OPTION (reuse,        1, "reuse trail during restart") \
-OPTION (subsume,      1, "clause subsumption") \
+OPTION (subsume,      0, "clause subsumption") \
 OPTION (sublearned,   1, "eager subsume learned clause subsumption") \
 OPTION (sublearnlim,  4, "limit on number of non-subsumed clauses")  \
 OPTION (verbosity,    0, "verbose level") \
