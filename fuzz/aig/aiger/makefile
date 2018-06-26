@@ -1,14 +1,14 @@
 CC=cc
 CFLAGS=-O
 all: aigand aigdd aigfuzz aigstrip
-aigand: aigand.o aiger.o
-	$(CC) $(CFLAGS) -o $@ aigand.o aiger.o makefile
-aigdd: aigdd.o aiger.o
-	$(CC) $(CFLAGS) -o $@ aigdd.o aiger.o makefile
-aigfuzz: aigfuzz.o aigfuzzlayers.o aiger.o
-	$(CC) $(CFLAGS) -o $@ aigfuzz.o aigfuzzlayers.o aiger.o makefile
-aigstrip: aigstrip.o aiger.o
-	$(CC) $(CFLAGS) -o $@ aigstrip.o aiger.o makefile
+aigand: aigand.o aiger.o makefile
+	$(CC) $(CFLAGS) -o $@ aigand.o aiger.o
+aigdd: aigdd.o aiger.o makefile
+	$(CC) $(CFLAGS) -o $@ aigdd.o aiger.o
+aigfuzz: aigfuzz.o aigfuzzlayers.o aiger.o makefile
+	$(CC) $(CFLAGS) -o $@ aigfuzz.o aigfuzzlayers.o aiger.o
+aigstrip: aigstrip.o aiger.o makefile
+	$(CC) $(CFLAGS) -o $@ aigstrip.o aiger.o
 aiger.o: aiger.c aiger.h makefile
 	$(CC) $(CFLAGS) -c $<
 aigand.o: aigand.c aiger.h makefile
