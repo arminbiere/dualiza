@@ -1,5 +1,8 @@
 #!/bin/sh
-[ -f valid.sh && ! ./valid.sh $1 ] && exit 2
+if [ -f valid.sh ]
+then 
+  ./valid.sh $1 || exit 2
+fi
 name="`basename $0 .sh`"
 echo "name '$name'"
 case "$name" in
@@ -21,9 +24,9 @@ satlog=${tmp}-sat.log
 bddlog=${tmp}-bdd.log
 trap "rm -f $tmp*" 2 9 15
 ../../dualiza --print=0 $options $1 2>/dev/null >$satlog
-sat="`$grep -1 $satlog`"
+sat="`$grep $satlog`"
 ../../dualiza --print=0 $options -b $1 2>/dev/null >$bddlog
-bdd="`$grep -1 $bddlog`"
+bdd="`$grep $bddlog`"
 rm -f $tmp*
 echo "sat '$sat'"
 echo "bdd '$bdd'"
