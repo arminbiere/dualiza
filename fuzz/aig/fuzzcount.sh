@@ -1,1 +1,1 @@
-#!/bin/sh
+fuzzsat.sh
