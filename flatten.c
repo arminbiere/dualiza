@@ -18,7 +18,7 @@ static void mark_removed_during_flattening (Gate * g, Gate ** map) {
     assert (h->idx < g->idx);
     if (h->op != g->op) continue;
     if ((long)h->pos + (long)h->neg > 1) continue;
-    assert (!map[h->idx]);
+    assert (!map[h->idx] || map[h->idx] == REMOVE);
     map[h->idx] = REMOVE;
   }
 }
@@ -64,7 +64,7 @@ flatten_gate (Gate * g, Gate ** map, Gates * gates, Circuit * c)
   const int sign = SIGN (g);
   if (sign) g = NOT (g);
   Gate * res = map[g->idx];
-  if (res == REMOVE) { assert (!sign); return 0; }
+  if (res == REMOVE) return 0;
   if (!res) {
     if (g->op == INPUT_OPERATOR)
       res = copy_input_gate_and_own_symbol (g, c);
