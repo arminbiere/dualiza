@@ -6,7 +6,7 @@ struct Sub {
   CNF * cnf;
   int max_var;
   signed char * marks;
-  long original, subsumed;
+  long original, subsumed, strengthened;
   Clauses * occs;
 };
 
@@ -31,8 +31,34 @@ static void delete_subsume (Sub * sub) {
   DELETE (sub);
 }
 
-static void subsume_clause (Sub * sub, Clause * c) {
+static int try_to_subsume_clause (Sub * sub, Clause * c) {
   LOGCLS (c, "candidate");
+
+  int sign (int lit) { return lit < 0 ? -1 : 1; }
+
+  void mark (int lit) {
+    const int idx = abs (lit);
+    assert (!sub->marks[idx]);
+    sub->marks[idx] = sign (lit);
+  }
+
+  int marked (int lit) {
+    const int idx = abs (lit);
+    int res = sub->marks[idx];
+    if (lit < 0) res = -res;
+    return res;
+  }
+
+  void unmark (int lit) { sub->marks[abs (lit)] = 0; }
+  
+  for (int i = 0; i < c->size; i++)
+    mark (c->literals[i]);
+
+  for (int i = 0; i < c->size; i++)
+
+    unmark (c->literals[i]);
+
+  return 0;
 }
 
 void subsume_clauses (CNF * cnf) {
@@ -65,12 +91,19 @@ void subsume_clauses (CNF * cnf) {
     if (c->id > d->id) return 1;
     return 0;
   }
-  qsort (clauses.start, COUNT (clauses), sizeof (Clause *), cmp);
-  for (Clause ** p = clauses.start; p != clauses.top; p++)
-    subsume_clause (sub, *p);
+  long changed;
+  do {
+    changed = 0;
+    qsort (clauses.start, COUNT (clauses), sizeof (Clause *), cmp);
+    for (Clause ** p = clauses.start; p != clauses.top; p++)
+      changed += try_to_subsume_clause (sub, *p);
+  } while (changed);
   RELEASE (clauses);
-  msg (1, "eliminated %ld clauses %.0f%% out of %d",
+  msg (1, "subsumed %ld clauses %.0f%% out of %d",
     sub->subsumed, type,
     percent (sub->subsumed, sub->original), sub->original);
+  msg (1, "strengthened %ld clauses %.0f%% out of %d",
+    sub->strengthened, type,
+    percent (sub->strengthened, sub->original), sub->original);
   delete_subsume (sub);
 }

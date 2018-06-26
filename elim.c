@@ -5,7 +5,7 @@ typedef struct Elm Elm;
 struct Elm {
   CNF * cnf;
   int frozen, max_var, original, eliminated;
-  signed char * mark;
+  signed char * marks;
   IntStack schedule;
   IntStack clause;
   Clauses * occs;
@@ -45,12 +45,12 @@ static int original_non_frozen_variables (Elm * elm) {
     for (int i = 0; i < c->size; i++) {
       const int lit = c->literals[i], idx = abs (lit);
       if (idx <= elm->frozen) continue;
-      if (elm->mark[idx]) continue;
-      elm->mark[idx] = 1;
+      if (elm->marks[idx]) continue;
+      elm->marks[idx] = 1;
       res++;
     }
   }
-  memset (elm->mark, 0, elm->max_var + 1);
+  memset (elm->marks, 0, elm->max_var + 1);
   LOG ("found %d original non-frozen variables", res);
   return res;
 }
@@ -65,7 +65,7 @@ static Elm * new_elimination (CNF * cnf, int frozen) {
   ALLOC (elm->occs, 2*(elm->max_var + 1));
   elm->occs += elm->max_var;
   ALLOC (elm->score, elm->max_var + 1);
-  ALLOC (elm->mark, elm->max_var + 1);
+  ALLOC (elm->marks, elm->max_var + 1);
   elm->original = original_non_frozen_variables (elm);
   return elm;
 }
@@ -76,7 +76,7 @@ static void delete_elimination (Elm * elm) {
   elm->occs -= elm->max_var;
   DEALLOC (elm->occs, 2*(elm->max_var + 1));
   DEALLOC (elm->score, elm->max_var + 1);
-  DEALLOC (elm->mark, elm->max_var + 1);
+  DEALLOC (elm->marks, elm->max_var + 1);
   RELEASE (elm->schedule);
   RELEASE (elm->clause);
   DELETE (elm);
@@ -106,23 +106,22 @@ static int eliminate_variable (Elm * elm, int pivot) {
   assert (pivot > elm->frozen);
   stats.pivots++;
 
-
   int sign (int lit) { return lit < 0 ? -1 : 1; }
 
   void mark (int lit) {
     const int idx = abs (lit);
-    assert (!elm->mark[idx]);
-    elm->mark[idx] = sign (lit);
+    assert (!elm->marks[idx]);
+    elm->marks[idx] = sign (lit);
   }
 
   int marked (int lit) {
     const int idx = abs (lit);
-    int res = elm->mark[idx];
+    int res = elm->marks[idx];
     if (lit < 0) res = -res;
     return res;
   }
 
-  void unmark (int lit) { elm->mark[abs (lit)] = 0; }
+  void unmark (int lit) { elm->marks[abs (lit)] = 0; }
 
   int resolvents = 0;
 
