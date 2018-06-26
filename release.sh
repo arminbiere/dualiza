@@ -3,6 +3,7 @@ LANG=C
 LC_TIME=C
 export LANG
 export LC_TIME
+[ -f makefile ] && make clean
 VERSION="`cat VERSION`"
 GITID="`git show|awk '{print $2;exit}'|sed -e 's,^\(.......\).*,\1,'`"
 BASE=`pwd|xargs basename`
@@ -19,7 +20,7 @@ sed \
   -e "s,^RELEASED=.*,RELEASED=\"$RELEASED\"," \
 version.sh > $DIR/version.sh
 chmod 755 $DIR/version.sh
-cp -pr formulas cnfs aigs $DIR/
+cp -pr formulas cnfs aigs fuzz $DIR/
 cd /tmp
 TAR=/tmp/$NAME.tar.xz
 tar cfJ $TAR $NAME

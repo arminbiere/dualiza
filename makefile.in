@@ -14,4 +14,6 @@ test: all
 	./test.sh
 clean:
 	rm -f makefile version.c *.o dualiza
+	make -C formulas clean
+	make -C fuzz/cnf clean
 .PHONY: all test clean

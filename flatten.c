@@ -17,9 +17,7 @@ static void mark_removed_during_flattening (Gate * g, Gate ** map) {
     if (SIGN (h)) continue;
     assert (h->idx < g->idx);
     if (h->op != g->op) continue;
-    assert (h->pos >= 1);
-    if (h->pos != 1) continue;
-    if (h->neg) continue;
+    if ((long)h->pos + (long)h->neg > 1) continue;
     assert (!map[h->idx]);
     map[h->idx] = REMOVE;
   }
@@ -51,8 +49,7 @@ flatten_tree (Gate * g, Gate ** map, Gates * gates, Circuit * c)
     Gate * h = *p;
     if (!SIGN (h) && map[h->idx] == REMOVE) {
       assert (h->op == g->op);
-      assert (h->pos == 1);
-      assert (!h->neg);
+      assert (h->pos + h->neg == 1);
       flatten_tree (h, map, gates, c);
     } else {
       Gate * res = flatten_gate (h, map, gates, c);
