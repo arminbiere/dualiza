@@ -17,17 +17,18 @@ static void mark_disconnected (Gate * g, Gate ** map) {
   g->pos = g->neg = 0;
 }
 
+static void count_gate (Gate * g) {
+  int sign = SIGN (g);
+  if (sign) g = NOT (g);
+  if (sign) g->neg++; else g->pos++;
+}
+
 static void count_occurrences (Gate * g, Gate ** map) {
   assert (!SIGN (g));
   if (g->op == INPUT_OPERATOR) return;
   if (map [g->idx] == REMOVE) return;
-  for (Gate ** p = g->inputs.start; p != g->inputs.top; p++) {
-    Gate * h = *p;
-    int sign = SIGN (h);
-    if (sign) h = NOT (h);
-    assert (h->idx < g->idx);
-    if (sign) h->neg++; else h->pos++;
-  }
+  for (Gate ** p = g->inputs.start; p != g->inputs.top; p++)
+    count_gate (*p);
 }
 
 static void mark_removed (Gate * g, Gate ** map) {
@@ -146,6 +147,7 @@ Circuit * flatten_circuit (Circuit *c) {
     mark_disconnected (*p, map);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
     count_occurrences (*p, map);
+  count_gate (c->output);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
     mark_removed (*p, map);
   for (Gate ** p = c->gates.start; p < c->gates.top; p++)
