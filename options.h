@@ -13,7 +13,7 @@ OPTION (elimclslim, 100, "clause size limit for variable elimination") \
 OPTION (elimocclim,  10, "occurrence limit for variable elimination") \
 OPTION (discount,     1, "discount models instead of backtracking") \
 OPTION (discountmax,  0, "maximum number of discounted models") \
-OPTION (dual,         1, "dual SAT engine too (opposite of '--primal')") \
+OPTION (dual,         1, "enable dual SAT engine (opposite of '--primal')") \
 OPTION (flatten,      1, "flatten circuit before encoding") \
 OPTION (keepglue,     3, "keep all clause of this glue") \
 OPTION (keepsize,     3, "keep all clause of this size") \

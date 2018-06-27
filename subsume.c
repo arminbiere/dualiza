@@ -17,18 +17,16 @@ static Sub * new_subsume (CNF * cnf) {
   sub->max_var = maximum_variable_index (cnf);
   LOG ("maximum variable index %d", sub->max_var);
   ALLOC (sub->marks, sub->max_var + 1);
-  ALLOC (sub->occs, 2*(sub->max_var + 1));
-  sub->occs += sub->max_var;
+  ALLOC (sub->occs, sub->max_var + 1);
   sub->original = cnf->irredundant + cnf->redundant;
   return sub;
 }
 
 static void delete_subsume (Sub * sub) {
   DEALLOC (sub->marks, sub->max_var + 1);
-  for (int lit = -sub->max_var; lit <= sub->max_var; lit++)
-    RELEASE (sub->occs[lit]);
-  sub->occs -= sub->max_var;
-  DEALLOC (sub->occs, 2*(sub->max_var + 1));
+  for (int idx = 1; idx <= sub->max_var; idx++)
+    RELEASE (sub->occs[idx]);
+  DEALLOC (sub->occs, sub->max_var + 1);
   DELETE (sub);
 }
 
@@ -60,14 +58,14 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   for (int i = 0; i < c->size; i++)
     mark (sub, c->literals[i]);
 
-  int res = 0, min_lit = 0;
+  int res = 0, min_idx = 0, negated = 0;
   size_t min_occs = LLONG_MAX;
 
   for (int i = 0; !res && i < c->size; i++) {
-    const int lit = c->literals[i];
-    Clauses * clauses = sub->occs + lit;
+    const int lit = c->literals[i], idx = abs (lit);
+    Clauses * clauses = sub->occs + idx;
     const size_t tmp_occs = COUNT (*clauses);
-    if (tmp_occs < min_occs) min_occs = tmp_occs, min_lit = lit;
+    if (tmp_occs < min_occs) min_occs = tmp_occs, min_idx = idx;
     for (Clause ** p = clauses->start; !res && p != clauses->top; p++) {
       Clause * d = *p;
       if (d->garbage) continue;
@@ -91,10 +89,12 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
     stats.subsumed++;
     sub->subsumed++;
     c->garbage = 1;
+    res = 1;
   } else {
-    LOG ("minimum occurrence literal %d size with %zd occurrences",
-      min_lit, min_occs);
-    PUSH (sub->occs[min_lit], c);
+    LOG ("minimum occurrence variable %d size with %zd occurrences",
+      min_idx, min_occs);
+    PUSH (sub->occs[min_idx], c);
+    res = 0;
   }
 
   return res;
@@ -131,15 +131,16 @@ void subsume_clauses (CNF * cnf) {
     PUSH (clauses, c);
   }
   LOG ("found %zd candidate clauses", COUNT (clauses));
-  long changed = 1;
-  while (changed && !empty) {
-    changed = 0;
+  long strengthened = 1;
+  for (int round = 1; strengthened && !empty; round++) {
+    strengthened = 0;
     qsort (clauses.start, COUNT (clauses), sizeof (Clause *), cmp);
     for (Clause ** p = clauses.start; p != clauses.top; p++)
-      changed += try_to_subsume_clause (sub, *p);
-    if (changed)
-      for (int lit = -sub->max_var; lit <= sub->max_var; lit++)
-	CLEAR (sub->occs[lit]);
+      strengthened += try_to_subsume_clause (sub, *p);
+    for (int idx = 1; idx <= sub->max_var; idx++)
+      CLEAR (sub->occs[idx]);
+    msg (1, "strengthened %ld clauses in subsumption round %d",
+      strengthened, round);
   }
   if (empty)
     msg (1, "found empty clause during clause subsumption");
