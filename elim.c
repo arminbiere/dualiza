@@ -246,6 +246,7 @@ static int cmp (const void * p, const void * q) {
   int res = s - t;
   return res ? res : a[0] - b[0];
 }
+
 static void schedule_elimination (Elm * elm)
 {
   CLEAR (elm->schedule);

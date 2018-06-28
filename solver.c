@@ -145,6 +145,7 @@ struct Solver {
 
   int dual_or_shared_fixed;
   int primal_or_shared_fixed;
+  int fixed;
 
   Clauses units;
 
@@ -693,6 +694,7 @@ static void assign (Solver * solver, int lit, Clause * reason) {
   } else {
     if (is_primal_or_shared_var (v)) solver->primal_or_shared_fixed++;
     if (is_dual_or_shared_var (v)) solver->dual_or_shared_fixed++;
+    solver->fixed++;
     v->reason = 0;
   }
   PUSH (solver->trail, lit);
@@ -995,7 +997,7 @@ static int sort_clause (Solver * solver) {
 }
 
 static int remaining_variables (Solver * solver) {
-  return solver->max_primal_or_shared_var - solver->primal_or_shared_fixed;
+  return solver->max_var - solver->fixed - stats.eliminated;
 }
 
 static void inc_model_report_limit (Solver * solver) {
