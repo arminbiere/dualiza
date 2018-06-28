@@ -108,10 +108,10 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
       if (d->garbage) continue;
       assert (d->size <= c->size);
       if (c->redundant && !d->redundant) continue;
+      negated = 0;
       int j;
       for (j = 0; j < d->size; j++) {
 	const int other = d->literals[j];
-	if (other == lit) continue;
 	const int tmp = marked (sub, other);
 	if (tmp > 0) continue;
 	if (!tmp) break;
@@ -197,7 +197,7 @@ void subsume_clauses (CNF * cnf) {
       strengthened += try_to_subsume_clause (sub, *p);
     for (int idx = 1; idx <= sub->max_var; idx++)
       CLEAR (sub->occs[idx]);
-    msg (1, "strengthened %ld clauses in subsumption round %d",
+    msg (2, "strengthened %ld clauses in subsumption round %d",
       strengthened, round);
   }
   if (sub->empty)

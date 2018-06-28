@@ -388,7 +388,7 @@ Solver * new_solver (CNF * primal,
   NEW (solver);
   solver->cnf.primal = primal;
   if (dual) {
-    SOG ("new solver: %ld primal %ld, dual clauses, %ld shared variables",
+    SOG ("new solver: %ld primal, %ld dual clauses, %ld shared variables",
       (long) COUNT (primal->clauses),
       (long) COUNT (dual->clauses),
       (long) COUNT (*shared));
@@ -1278,7 +1278,7 @@ static Clause * dual_force (Solver * solver, Clause * c, int lit) {
 
 static Clause * dual_propagate_units (Solver * solver) {
   assert (!solver->last_decision_level);
-  SOG ("dual trail propagation");
+  SOG ("dual units propagation");
   Clause * res = 0;
   while (!res && !EMPTY (solver->units)) {
     Clause * c = POP (solver->units);
