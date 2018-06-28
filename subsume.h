@@ -1,1 +1,1 @@
-void subsume_clauses (CNF *);
+int subsume_clauses (CNF *);

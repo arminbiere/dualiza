@@ -172,8 +172,8 @@ static int cmp (const void * p, const void * q) {
   return 0;
 }
 
-void subsume_clauses (CNF * cnf) {
-  if (!options.subsume) return;
+int subsume_clauses (CNF * cnf) {
+  if (!options.subsume) return 1;
   const char * type = cnf->dual ? "dual" : "primal";
   LOG ("%s subsumed clause elimination", type);
   Sub * sub = new_subsume (cnf);
@@ -197,19 +197,21 @@ void subsume_clauses (CNF * cnf) {
       strengthened += try_to_subsume_clause (sub, *p);
     for (int idx = 1; idx <= sub->max_var; idx++)
       CLEAR (sub->occs[idx]);
-    msg (2, "strengthened %ld clauses in subsumption round %d",
+    msg (3, "strengthened %ld clauses in subsumption round %d",
       strengthened, round);
   }
+  int res = !sub->empty;
   if (sub->empty)
     msg (1, "found empty clause during clause subsumption");
   if (sub->subsumed)
-    msg (1, "subsumed %ld %s clauses %.0f%% out of %d",
+    msg (2, "subsumed %ld %s clauses %.0f%% out of %d",
       sub->subsumed, type,
       percent (sub->subsumed, sub->original), sub->original);
   if (sub->strengthened)
-    msg (1, "strengthened %ld %s clauses %.0f%% out of %d",
+    msg (2, "strengthened %ld %s clauses %.0f%% out of %d",
       sub->strengthened, type,
       percent (sub->strengthened, sub->original), sub->original);
   RELEASE (clauses);
   delete_subsume (sub);
+  return res;
 }

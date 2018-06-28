@@ -236,7 +236,7 @@ static int eliminate_variables (Elm * elm) {
   for (const int * p = elm->schedule.start; p < elm->schedule.top; p += 2)
     eliminated += eliminate_variable (elm, *p);
   collect_garbage_clauses (elm->cnf);
-  LOG ("eliminated %d variables this round", eliminated);
+  msg (2, "eliminated %d variables this round", eliminated);
   return eliminated;
 }
 
@@ -294,11 +294,12 @@ void variable_elimination (CNF * cnf, int frozen) {
   LOG ("%s variable elimination with %d frozen variables", type, frozen);
   Elm * elm = new_elimination (cnf, frozen);
   do { 
-    subsume_clauses (cnf);
+    if (!subsume_clauses (cnf)) break;
     schedule_elimination (elm);
   } while (eliminate_variables (elm));
-  msg (1, "eliminated %d %s variables %.0f%% out of %d non-frozen",
-    elm->eliminated, type,
-    percent (elm->eliminated, elm->original), elm->original);
+  if (elm->eliminated)
+    msg (1, "eliminated %d %s variables %.0f%% out of %d non-frozen",
+      elm->eliminated, type,
+      percent (elm->eliminated, elm->original), elm->original);
   delete_elimination (elm);
 }
