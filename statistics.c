@@ -102,6 +102,9 @@ void print_statistics () {
     if (stats.subsumed)
       msg (1, "%ld subsumed clauses (%.1f%% of tried clauses)",
         stats.subsumed, percent (stats.subsumed, stats.tried));
+    if (stats.strengthened)
+      msg (1, "%ld strengthened clauses (%.1f%% of tried clauses)",
+        stats.strengthened, percent (stats.strengthened, stats.tried));
     if (stats.pivots) {
       msg (1, "%ld variable elimination attempts", stats.pivots);
       msg (1, "%ld resolutions (%.1f per elimination attempt)",

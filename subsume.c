@@ -4,6 +4,7 @@ typedef struct Sub Sub;
 
 struct Sub {
   CNF * cnf;
+  Clause * empty;
   int max_var;
   signed char * marks;
   long original, subsumed, strengthened;
@@ -47,6 +48,41 @@ static int marked (Sub * sub, int lit) {
 
 static void unmark (Sub * sub, int lit) { sub->marks[abs (lit)] = 0; }
 
+static void
+subsume_clause (Sub * sub, Clause * subsuming, Clause * subsumed)
+{
+  assert (!subsumed->garbage);
+  assert (!subsuming->garbage);
+  assert (!subsuming->redundant || subsumed->redundant);
+  LOGCLS (subsumed, "subsumed");
+  LOGCLS (subsuming, "subsuming");
+  stats.subsumed++;
+  sub->subsumed++;
+  subsumed->garbage = 1;
+}
+
+static void
+strengthen_clause (Sub * sub,
+  Clause * strengthening, Clause * strengthened, int remove)
+{
+  assert (!strengthened->garbage);
+  LOGCLS (strengthened, "removing %d in", remove);
+  LOGCLS (strengthening, "strengthening");
+  int j = 0, found = 0;
+  for (int i = 0; i < strengthened->size; i++) {
+    const int lit = strengthened->literals[i];
+    if (lit == remove) assert (!found), found = 1;
+    else strengthened->literals[j++] = lit;
+  }
+  assert (j == strengthened->size - 1);
+  strengthened->size = j;
+  DEC_ALLOCATED (sizeof (int));
+  LOGCLS (strengthened, "strengthened");
+  assert (found), (void) found;
+  stats.strengthened++;
+  sub->strengthened++;
+}
+
 static int try_to_subsume_clause (Sub * sub, Clause * c) {
 
   if (c->garbage) return 0;
@@ -60,6 +96,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
 
   int res = 0, min_idx = 0, negated = 0;
   size_t min_occs = LLONG_MAX;
+  Clause * d = 0;
 
   for (int i = 0; !res && i < c->size; i++) {
     const int lit = c->literals[i], idx = abs (lit);
@@ -67,7 +104,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
     const size_t tmp_occs = COUNT (*clauses);
     if (tmp_occs < min_occs) min_occs = tmp_occs, min_idx = idx;
     for (Clause ** p = clauses->start; !res && p != clauses->top; p++) {
-      Clause * d = *p;
+      d = *p;
       if (d->garbage) continue;
       assert (d->size <= c->size);
       if (c->redundant && !d->redundant) continue;
@@ -75,9 +112,16 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
       for (j = 0; j < d->size; j++) {
 	const int other = d->literals[j];
 	if (other == lit) continue;
-	if (marked (sub, other) <= 0) break;
+	const int tmp = marked (sub, other);
+	if (tmp > 0) continue;
+	if (!tmp) break;
+	assert (tmp < 0);
+	if (negated) break;
+	negated = other;
       }
-      if (j == d->size) res = INT_MIN;
+      if (j < d->size) continue;
+      if (negated) res = negated;	// strengthen
+      else res = INT_MIN;		// subsume
     }
   }
 
@@ -85,19 +129,34 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
     unmark (sub, c->literals[i]);
 
   if (res == INT_MIN) {
-    LOGCLS (c, "subsumed clause");
-    stats.subsumed++;
-    sub->subsumed++;
-    c->garbage = 1;
-    res = 1;
-  } else {
-    LOG ("minimum occurrence variable %d size with %zd occurrences",
-      min_idx, min_occs);
-    PUSH (sub->occs[min_idx], c);
-    res = 0;
+    subsume_clause (sub, d, c);
+    assert (c->garbage);
+    return 0;
   }
 
-  return res;
+  if (res) {
+    strengthen_clause (sub, d, c, -negated);
+    min_occs = LLONG_MAX, min_idx = 0;
+    for (int i = 0; i < c->size; i++) {
+      const int lit = c->literals[i], idx = abs (lit);
+      Clauses * clauses = sub->occs + idx;
+      const size_t tmp_occs = COUNT (*clauses);
+      if (tmp_occs >= min_occs) continue;
+      min_occs = tmp_occs, min_idx = idx;
+    }
+  }
+
+  if (min_idx) {
+    LOG ("minimum occurrence variable %d with %zd occurrences",
+      min_idx, min_occs);
+    PUSH (sub->occs[min_idx], c);
+  } else {
+    LOG ("found empty clause during strengthening");
+    assert (!c->size);
+    sub->empty = c;
+  }
+
+  return 0;
 }
 
 static int cmp (const void * p, const void * q) {
@@ -120,10 +179,9 @@ void subsume_clauses (CNF * cnf) {
   Sub * sub = new_subsume (cnf);
   Clauses clauses;
   INIT (clauses);
-  Clause * empty = 0;
   for (Clause ** p = cnf->clauses.start; p != cnf->clauses.top; p++) {
     Clause * c = *p;
-    if (!empty && c->size == 0) { empty = c; break; }
+    if (!sub->empty && c->size == 0) { sub->empty = c; break; }
     if (c->garbage) continue;
     if (c->redundant &&
         c->size > options.keepsize &&
@@ -132,7 +190,7 @@ void subsume_clauses (CNF * cnf) {
   }
   LOG ("found %zd candidate clauses", COUNT (clauses));
   long strengthened = 1;
-  for (int round = 1; strengthened && !empty; round++) {
+  for (int round = 1; strengthened && !sub->empty; round++) {
     strengthened = 0;
     qsort (clauses.start, COUNT (clauses), sizeof (Clause *), cmp);
     for (Clause ** p = clauses.start; p != clauses.top; p++)
@@ -142,7 +200,7 @@ void subsume_clauses (CNF * cnf) {
     msg (1, "strengthened %ld clauses in subsumption round %d",
       strengthened, round);
   }
-  if (empty)
+  if (sub->empty)
     msg (1, "found empty clause during clause subsumption");
   if (sub->subsumed)
     msg (1, "subsumed %ld %s clauses %.0f%% out of %d",

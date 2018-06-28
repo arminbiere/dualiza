@@ -162,14 +162,20 @@ for discount in "--discount" "--no-discount"
 do
 if [ $block = "--block" ]
 then
-  blocklimits="_--blocklimit=1 _--blocklimit=2 _--blocklimit=4 _--blocklimit=8"
+  blocklimits="_--blocklimit=1 _--blocklimit=2 _--blocklimit=3"
 else
   blocklimits=""
 fi
 for blocklimit in $blocklimits
 do
+for subsume in --subsume --no-subsume
+do
+for elim in --elim --no-elim
+do
 configurations="$configurations
 ${dual}_${block}_${discount}${blocklimit}"
+done
+done
 done
 done
 done
