@@ -159,6 +159,12 @@ static Gate * parse_implies_or_iff (Parser * parser) {
     connect_gates (a, xnor);
     connect_gates (c, xnor);
     return xnor;
+  } else if (ch.code == SEILMPI) {
+    Gate * c = parse_equal (parser);
+    Gate * or = new_or_gate (parser->circuit);
+    connect_gates (a, or);
+    connect_gates (NOT (c), or);
+    return or;
   } else { prev_char (parser->reader, ch); return a; }
 }
 

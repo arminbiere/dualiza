@@ -8,7 +8,7 @@ static Reader * new_reader (const char * name, FILE * file, int close) {
   STRDUP (res->name, name);
   res->buffer = new_buffer ();
   res->close = close;
-  res->saved.code = EOF;
+  res->num_saved = 0;
   res->file = file;
   return res;
 }
@@ -69,8 +69,7 @@ static void inc_coo (Coo * c, int ch) {
 
 Coo next_char (Reader * r) {
   Coo res;
-  if (r->saved.code != EOF)
-    res = r->saved, r->saved.code = EOF, r->coo = res;
+  if (r->num_saved) res = r->saved[--r->num_saved];
   else if (empty_buffer (r->buffer)) res = get_char (r);
   else res = dequeue_buffer (r->buffer), r->coo = res;
   inc_coo (&r->coo, res.code);
@@ -82,6 +81,11 @@ int peek_char (Reader * r) {
   inc_coo (&r->coo, res.code);
   if (res.code != EOF) enqueue_buffer (r->buffer, res);
   return res.code;
+}
+
+void prev_char (Reader * r, Coo ch) {
+  assert (r->num_saved < MAX_SAVED);
+  r->saved[r->num_saved++] = r->coo = ch;
 }
 
 Coo next_non_white_space_char (Reader * r) {
@@ -100,9 +104,14 @@ Coo next_non_white_space_char (Reader * r) {
     } else if (ch.code == '<' && r->info == FORMULA) {
       if ((ch = next_char (r)).code != '-')
 	parse_error (r, ch, "expected '-' after '<'");
-      if ((ch = next_char (r)).code != '>')
-	parse_error (r, ch, "expected '>' after '<-'");
-      ch.code = IFF;
+      Coo next = next_char (r);
+      if (next.code == '>') {
+	ch = next;
+	ch.code = IFF;
+      } else {
+	prev_char (r, next);
+	ch.code = SEILMPI;
+      }
       break;
     } else break;
 SKIP_REST_OF_LINE:
@@ -111,11 +120,6 @@ SKIP_REST_OF_LINE:
 	parse_error (r, ch, "unexpected end-of-file in comment");
   }
   return ch;
-}
-
-void prev_char (Reader * r, Coo ch) {
-  assert (r->saved.code == EOF);
-  r->saved = r->coo = ch;
 }
 
 void parse_error (Reader * r, Coo ch, const char * fmt, ...) {

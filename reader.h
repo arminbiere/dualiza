@@ -5,6 +5,9 @@ enum Info { UNKNOWN, DIMACS, AIGER, FORMULA };
 
 #define IMPLIES 256	// '->' token for FORMULA
 #define IFF	257	// '<->' token for FORMULA
+#define SEILMPI 258	// '<-' token for FORMULA
+
+#define MAX_SAVED 2
 
 struct Reader {
   char * name;
@@ -12,8 +15,10 @@ struct Reader {
   char close, eof, binary;
   Buffer * buffer;
   CharStack symbol;
-  Coo saved, coo;
+  Coo saved[MAX_SAVED];
+  int num_saved;
   Info info;
+  Coo coo;
 };
 
 Reader * new_reader_from_stdin ();
