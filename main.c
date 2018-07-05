@@ -454,11 +454,7 @@ static int check () {
       circuit = tautology ? dual_circuit : primal_circuit;
       encode_circuit (circuit, primal_cnf);
       msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
-#if 0
       const int frozen = COUNT (circuit->inputs);
-#else
-      const int frozen = 0;
-#endif
       variable_elimination (primal_cnf, frozen);
     } else {
       msg (1, "checking with dual SAT engine");
@@ -475,11 +471,7 @@ static int check () {
       }
       msg (1, "primal CNF with %ld clauses", primal_cnf->irredundant);
       msg (1, "dual CNF with %ld clauses", dual_cnf->irredundant);
-#if 0
       const int frozen = COUNT (circuit->inputs);
-#else
-      const int frozen = 0;
-#endif
       variable_elimination (primal_cnf, frozen);
       variable_elimination (dual_cnf, frozen);
     }
