@@ -2,6 +2,7 @@
 debug=no
 check=undefined
 log=undefined
+mingw64=no
 gmp=no
 die () {
   echo "*** configure.sh: $*" 1>&2
@@ -17,6 +18,7 @@ where '<option>' is one of the following
 -g | --debug  compile with debugging information
 -c | --check  include assertion checking code (default for '-g')
 -l | --log    include logging code (default for '-g')
+--mingw64     compile for Windows with MINGW64
 --gmp         use GMP code
 EOF
 exit 0
@@ -28,6 +30,7 @@ do
     -g | --debug) debug=yes;;
     -l | --log | --logging) log=yes;;
     -c | --chk | --check | --checking) check=yes;;
+    --mingw64) mingw64=yes;;
     --gmp) gmp=yes;;
     *) die "invalid option '$1' (try '-h')";;
   esac
@@ -35,8 +38,9 @@ do
 done
 if [ $gmp = yes ]
 then
-#tmp=/tmp/dualize-configure-$$
-tmp=/tmp/dualize-configure
+[ $mingw64 = yes ] && \
+die "incompatible options '--mingw64' and '--gmp'"
+tmp=/tmp/dualiza-configure
 cat << EOF > $tmp.c
 #include <gmp.h>
 #include <stdio.h>
@@ -53,11 +57,17 @@ EOF
 gcc -o $tmp $tmp.c -lgmp 1>/dev/null 2>/dev/null || \
   die "failed to compile 'gmp' test program"
 res="`$tmp`"
+rm -f ${tmp}*
 [ x"$res" = x42 ] || \
   die "'gmp' produces unexpected output"
 LIBS="-lgmp"
 fi
-CC=gcc
+if [ $mingw64 = yes ]
+then
+  CC=i686-w64-mingw32-gcc
+else
+  CC=gcc
+fi
 CFLAGS=-Wall
 [ $check = undefined ] && check=$debug
 [ $log = undefined ] && log=$debug
