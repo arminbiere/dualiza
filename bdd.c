@@ -4,7 +4,7 @@
 
 struct BDD {
   unsigned var, ref, hash, mark;
-  unsigned long idx;
+  uint64_t idx;
   BDD * next, * then, * other;
 };
 
@@ -13,7 +13,7 @@ struct BDD {
 static unsigned bdd_mark;
 static BDD ** bdd_table, * false_bdd_node, * true_bdd_node;
 static unsigned bdd_size, bdd_count;
-static unsigned long bdd_nodes;
+static uint64_t bdd_nodes;
 
 /*------------------------------------------------------------------------*/
 
@@ -38,10 +38,10 @@ alloc_bdd (unsigned var, BDD * then, BDD * other, unsigned hash) {
   bdd_count++;
 #ifndef NLOG
   if (then) {
-    LOG ("allocating BDD %lu var %u then %lu other %lu hash 0x%08x",
+    LOG ("allocating BDD %"PRIu64" var %u then %"PRIu64" other %"PRIu64" hash 0x%08x",
       res->idx, var, then->idx, other->idx, hash);
   } else
-    LOG ("allocating BDD %lu %s hash 0x%08x",
+    LOG ("allocating BDD %"PRIu64" %s hash 0x%08x",
       res->idx, (var ? "true" : "false"), hash);
 #endif
   return res;
@@ -49,7 +49,7 @@ alloc_bdd (unsigned var, BDD * then, BDD * other, unsigned hash) {
 
 static void dealloc_bdd (BDD * b) {
   assert (b);
-  LOG ("deallocating BDD %lu", b->idx);
+  LOG ("deallocating BDD %"PRIu64"", b->idx);
   assert (bdd_count);
   bdd_count--;
   DELETE (b);
@@ -179,7 +179,7 @@ static void print_bdd_recursive (BDD * b, FILE * file) {
   print_bdd_recursive (b->then, file);
   print_bdd_recursive (b->other, file);
   fprintf (file,
-    "%lu %u %lu %lu\n",
+    "%"PRIu64" %u %"PRIu64" %"PRIu64"\n",
     b->idx, b->var-1, b->then->idx, b->other->idx);
   b->mark = bdd_mark;
 }
@@ -201,23 +201,23 @@ static void visualize_bdd_recursive (BDD * b, FILE * file, Name name) {
   b->mark = bdd_mark;
   if (b->idx <= 1) {
     fprintf (file,
-      "b%lu [label=\"%u\",shape=none];\n",
+      "b%"PRIu64" [label=\"%u\",shape=none];\n",
       b->idx, b->var);
   } else {
     visualize_bdd_recursive (b->then, file, name);
     visualize_bdd_recursive (b->other, file, name);
     assert (b->var > 1);
-    fprintf (file, "b%lu [label=\"", b->idx);
+    fprintf (file, "b%"PRIu64" [label=\"", b->idx);
     int var = bdd_export_var (b->var);
     const char * s;
     s = name.get (name.state, var);
     fputs (s, file);
     fprintf (file, "\",shape=circle];\n");
     fprintf (file,
-      "b%lu -> b%lu [style=solid];\n",
+      "b%"PRIu64" -> b%"PRIu64" [style=solid];\n",
       b->idx, b->then->idx);
     fprintf (file,
-      "b%lu -> b%lu [style=dashed];\n",
+      "b%"PRIu64" -> b%"PRIu64" [style=dashed];\n",
       b->idx, b->other->idx);
   }
 }
@@ -234,8 +234,8 @@ void visualize_bdd (BDD * b, Name name) {
   ALLOC (dot, path_len);
   ALLOC (pdf, path_len);
   ALLOC (cmd, cmd_len);
-  unsigned long pid = getpid ();
-  sprintf (base, "/tmp/dualiza-bdd-%lu-%lu", b->idx, pid);
+  uint64_t pid = getpid ();
+  sprintf (base, "/tmp/dualiza-bdd-%"PRIu64"-%"PRIu64"", b->idx, pid);
   sprintf (dot, "%s.dot", base);
   FILE * file = fopen (dot, "w");
   if (!file) die ("failed to open '%s'", dot);
@@ -377,7 +377,7 @@ static BDD * not_bdd_recursive (BDD * a) {
 }
 
 BDD * not_bdd (BDD * a) {
-  LOG ("not_bdd (%lu, %lu)", a->idx);
+  LOG ("not_bdd (%"PRIu64", %"PRIu64")", a->idx);
   init_unary ();
   BDD * res = not_bdd_recursive (a);
   reset_unary ();
@@ -567,7 +567,7 @@ static BDD * xnor_bdd_recursive (BDD * a, BDD * b) {
 }
 
 BDD * and_bdd (BDD * a, BDD * b) {
-  LOG ("and_bdd (%lu, %lu)", a->idx, b->idx);
+  LOG ("and_bdd (%"PRIu64", %"PRIu64")", a->idx, b->idx);
   init_binary ();
   BDD * res = and_bdd_recursive (a, b);
   reset_binary ();
@@ -575,7 +575,7 @@ BDD * and_bdd (BDD * a, BDD * b) {
 }
 
 BDD * xor_bdd (BDD * a, BDD * b) {
-  LOG ("xor_bdd (%lu, %lu)", a->idx, b->idx);
+  LOG ("xor_bdd (%"PRIu64", %"PRIu64")", a->idx, b->idx);
   init_binary ();
   BDD * res = xor_bdd_recursive (a, b);
   reset_binary ();
@@ -583,7 +583,7 @@ BDD * xor_bdd (BDD * a, BDD * b) {
 }
 
 BDD * or_bdd (BDD * a, BDD * b) {
-  LOG ("or_bdd (%lu, %lu)", a->idx, b->idx);
+  LOG ("or_bdd (%"PRIu64", %"PRIu64")", a->idx, b->idx);
   init_binary ();
   BDD * res = or_bdd_recursive (a, b);
   reset_binary ();
@@ -591,7 +591,7 @@ BDD * or_bdd (BDD * a, BDD * b) {
 }
 
 BDD * xnor_bdd (BDD * a, BDD * b) {
-  LOG ("xor_bdd (%lu, %lu)", a->idx, b->idx);
+  LOG ("xor_bdd (%"PRIu64", %"PRIu64")", a->idx, b->idx);
   init_binary ();
   BDD * res = xnor_bdd_recursive (a, b);
   reset_binary ();
@@ -622,7 +622,7 @@ static int cmp_ints (const void * p, const void * q) {
 }
 
 BDD * project_bdd (BDD * a, IntStack * vars) {
-  LOG ("project_bdd (%lu, #%zd)", a->idx, COUNT (*vars));
+  LOG ("project_bdd (%"PRIu64", #%zd)", a->idx, COUNT (*vars));
   init_unary ();
   init_binary ();
   qsort (vars->start, COUNT (*vars), sizeof *vars->start, cmp_ints);
@@ -775,7 +775,7 @@ static BDD * ite_bdd_recursive (BDD * a, BDD * b, BDD * c) {
 }
 
 BDD * ite_bdd (BDD * a, BDD * b, BDD * c) {
-  LOG ("ite_bdd (%lu, %lu, %lu)", a->idx, b->idx, c->idx);
+  LOG ("ite_bdd (%"PRIu64", %"PRIu64", %"PRIu64")", a->idx, b->idx, c->idx);
   init_ternary ();
   BDD * res = ite_bdd_recursive (a, b, c);
   reset_ternary ();
@@ -905,7 +905,7 @@ count_bdd_recursive (Number res, BDD * a, int * vars, int * end)
 }
 
 void count_bdd (Number res, BDD * b, IntStack * vars) {
-  LOG ("count_bdd (%lu, #%zd)", b->idx, COUNT (*vars));
+  LOG ("count_bdd (%"PRIu64", #%zu)", b->idx, COUNT (*vars));
   assert (b);
   init_count ();
   qsort (vars->start, COUNT (*vars), sizeof *vars->start, cmp_ints);

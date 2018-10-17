@@ -1,5 +1,7 @@
 #include "headers.h"
 
+#include <stdint.h>
+
 /*------------------------------------------------------------------------*/
 #ifdef GMP
 /*------------------------------------------------------------------------*/
@@ -123,11 +125,11 @@ static void print_number_to_stack (Number n, CharStack * s) {
     for (int j = i; j >= 0; j--) {
       unsigned old_t = q[j], old_r = r, t;
       assert (old_r < 10);
-      unsigned long tl = old_t, rl;
-      tl += ((unsigned long) old_r) << 32;
+      uint64_t tl = old_t, rl;
+      tl += (uint64_t) old_r << 32;
       rl = tl % 10;
       tl = tl / 10;
-      assert (tl <= (unsigned long) UINT_MAX);
+      assert (tl <= (uint64_t) UINT_MAX);
       r = rl, t = tl;
       assert (r < 10);
       q[j] = t;
@@ -146,11 +148,11 @@ static void normalize_number (Number n) {
 }
 
 void multiply_number_by_power_of_two (Number n, Exponent e) {
-  const unsigned long old_count = COUNT (n[0]);
+  const uint64_t old_count = COUNT (n[0]);
   if (!old_count) return;
-  const unsigned long word = e >> 5;
+  const uint64_t word = e >> 5;
   const unsigned bit = e & 31;
-  const unsigned long new_count = old_count + word + (bit != 0);
+  const uint64_t new_count = old_count + word + (bit != 0);
   while (new_count > SIZE (n[0])) ENLARGE (n[0]);
   n[0].top = n[0].start + new_count;
   unsigned src = old_count, dst = new_count;
@@ -167,7 +169,7 @@ void multiply_number_by_power_of_two (Number n, Exponent e) {
 
 void add_power_of_two_to_number (Number n, Exponent e) {
   assert (n);
-  unsigned long word = e >> 5;
+  uint64_t word = e >> 5;
   const unsigned bit = e & 31;
   unsigned inc = 1u << bit;
   for (;;) {
@@ -183,7 +185,7 @@ void add_power_of_two_to_number (Number n, Exponent e) {
 
 void sub_power_of_two_from_number (Number n, Exponent e) {
   assert (n);
-  unsigned long word = e >> 5;
+  uint64_t word = e >> 5;
   const unsigned bit = e & 31;
   unsigned dec = 1u << bit;
   unsigned * words = n[0].start;
@@ -201,7 +203,7 @@ void sub_power_of_two_from_number (Number n, Exponent e) {
 void add_number (Number res, const Number other) {
   const unsigned res_count = COUNT (res[0]);
   const unsigned other_count = COUNT (other[0]);
-  unsigned long carry = 0;
+  uint64_t carry = 0;
   for (unsigned i = 0; i < other_count; i++) {
     carry += other[0].start[i];
     if (i < res_count) {
@@ -216,7 +218,7 @@ void add_number (Number res, const Number other) {
 void sub_number (Number res, const Number other) {
   const unsigned res_count = COUNT (res[0]);
   const unsigned other_count = COUNT (other[0]);
-  unsigned long carry = 0;
+  uint64_t carry = 0;
   for (unsigned i = 0; i < other_count; i++) {
     carry += other[0].start[i];
     if (i < res_count) {

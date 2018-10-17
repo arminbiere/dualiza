@@ -9,7 +9,6 @@ SIGNAL(SIGINT) \
 SIGNAL(SIGSEGV) \
 SIGNAL(SIGABRT) \
 SIGNAL(SIGTERM) \
-SIGNAL(SIGBUS) \
 
 #define SIGNAL(SIG) \
 static void (*SIG ## _handler)(int);

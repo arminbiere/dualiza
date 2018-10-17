@@ -6,6 +6,10 @@ int has_suffix (const char * s, const char * t) {
 }
 
 static FILE * open_pipe (int write, const char * fmt, const char * arg) {
+#ifdef __MINGW32__
+  die ("will not open pipe in MINGW environment");
+  return 0;
+#else
   long bytes = strlen (fmt);
   if (arg) bytes += strlen (arg);
   char * cmd;
@@ -17,6 +21,7 @@ static FILE * open_pipe (int write, const char * fmt, const char * arg) {
   DEALLOC (cmd, bytes);
   if (!res) die ("'popen (\"%s\", \"%s\")' failed", cmd, type);
   return res;
+#endif
 }
 
 FILE * read_pipe (const char * fmt, const char * arg) {

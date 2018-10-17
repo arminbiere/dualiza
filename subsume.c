@@ -95,7 +95,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
     mark (sub, c->literals[i]);
 
   int res = 0, min_idx = 0, negated = 0;
-  size_t min_occs = LLONG_MAX;
+  size_t min_occs = ~(size_t)0;
   Clause * d = 0;
 
   for (int i = 0; !res && i < c->size; i++) {
@@ -136,7 +136,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
 
   if (res) {
     strengthen_clause (sub, d, c, -negated);
-    min_occs = LLONG_MAX, min_idx = 0;
+    min_occs = ~(size_t) 0, min_idx = 0;
     for (int i = 0; i < c->size; i++) {
       const int lit = c->literals[i], idx = abs (lit);
       Clauses * clauses = sub->occs + idx;

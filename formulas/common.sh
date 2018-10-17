@@ -103,8 +103,8 @@ execute () {
   echo -n "$* "
   $* > $tmp 2>$tmp.err
   status=$?
-  firstline="`head -1 $tmp`"
-  lastline="`tail -1 $tmp`"
+  firstline="`head -1 $tmp|sed -e 's,,,g'`"
+  lastline="`tail -1 $tmp|sed -e 's,,,g'`"
   if [ ! -t 1 ]
   then
     echo
