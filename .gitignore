@@ -1,4 +1,5 @@
 makefile
 *.o
 dualiza
+dualiza.exe
 version.c

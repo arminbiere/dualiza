@@ -18,8 +18,10 @@ where '<option>' is one of the following
 -g | --debug  compile with debugging information
 -c | --check  include assertion checking code (default for '-g')
 -l | --log    include logging code (default for '-g')
---mingw64     compile for Windows with MINGW64
 --gmp         use GMP code
+--mingw64     compile for Windows with MINGW64
+--windows
+-w
 EOF
 exit 0
 }
@@ -30,7 +32,7 @@ do
     -g | --debug) debug=yes;;
     -l | --log | --logging) log=yes;;
     -c | --chk | --check | --checking) check=yes;;
-    --mingw64) mingw64=yes;;
+    --mingw64|--windows|-w) mingw64=yes;;
     --gmp) gmp=yes;;
     *) die "invalid option '$1' (try '-h')";;
   esac
@@ -65,8 +67,10 @@ fi
 if [ $mingw64 = yes ]
 then
   CC=i686-w64-mingw32-gcc
+  TARGET=dualiza.exe
 else
   CC=gcc
+  TARGET=dualiza
 fi
 CFLAGS=-Wall
 [ $check = undefined ] && check=$debug
@@ -85,5 +89,6 @@ rm -f makefile
 sed \
   -e "s,@CC@,$CC," \
   -e "s,@CFLAGS@,$CFLAGS," \
+  -e "s,@TARGET@,$TARGET," \
   -e "s,@LIBS@,$LIBS," \
 makefile.in > makefile
