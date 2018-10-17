@@ -147,7 +147,7 @@ static int try_to_subsume_clause (Sub * sub, Clause * c) {
   }
 
   if (min_idx) {
-    LOG ("minimum occurrence variable %d with %zd occurrences",
+    LOG ("minimum occurrence variable %d with %"PRz" occurrences",
       min_idx, min_occs);
     PUSH (sub->occs[min_idx], c);
   } else {
@@ -188,7 +188,7 @@ int subsume_clauses (CNF * cnf) {
         c->glue > options.keepglue) continue;
     PUSH (clauses, c);
   }
-  LOG ("found %zd candidate clauses", COUNT (clauses));
+  LOG ("found %"PRz" candidate clauses", COUNT (clauses));
   long strengthened = 1;
   for (int round = 1; strengthened && !sub->empty; round++) {
     strengthened = 0;

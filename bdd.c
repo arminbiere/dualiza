@@ -622,7 +622,7 @@ static int cmp_ints (const void * p, const void * q) {
 }
 
 BDD * project_bdd (BDD * a, IntStack * vars) {
-  LOG ("project_bdd (%"PRIu64", #%zd)", a->idx, COUNT (*vars));
+  LOG ("project_bdd (%"PRIu64", #%"PRz")", a->idx, COUNT (*vars));
   init_unary ();
   init_binary ();
   qsort (vars->start, COUNT (*vars), sizeof *vars->start, cmp_ints);
@@ -905,7 +905,7 @@ count_bdd_recursive (Number res, BDD * a, int * vars, int * end)
 }
 
 void count_bdd (Number res, BDD * b, IntStack * vars) {
-  LOG ("count_bdd (%"PRIu64", #%zu)", b->idx, COUNT (*vars));
+  LOG ("count_bdd (%"PRIu64", #%"PRz")", b->idx, COUNT (*vars));
   assert (b);
   init_count ();
   qsort (vars->start, COUNT (*vars), sizeof *vars->start, cmp_ints);

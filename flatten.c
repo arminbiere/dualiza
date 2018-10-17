@@ -157,7 +157,7 @@ Circuit * flatten_circuit (Circuit *c) {
   RELEASE (gates);
   connect_output (res, o);
   DEALLOC (map, num_gates);
-  msg (1, "flattened circuit from %zd gates to %zd gates %.0f%%",
+  msg (1, "flattened circuit from %"PRz" gates to %"PRz" gates %.0f%%",
     COUNT (c->gates), COUNT (res->gates), 
     percent (COUNT (res->gates), COUNT (c->gates)));
   return res;

@@ -40,3 +40,9 @@ do { \
   fflush (stderr); \
   abort (); \
 } while (0)
+
+#ifdef __MINGW32__
+#define PRz "Iu"
+#else
+#define PRz "zu"
+#endif

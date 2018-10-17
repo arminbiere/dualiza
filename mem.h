@@ -15,7 +15,7 @@ do { \
 do { \
   if ((N) != 0) { \
     assert ((N) > 0); \
-    const long BYTES = (N) * sizeof *(P); \
+    const size_t BYTES = (N) * sizeof *(P); \
     (P) = malloc (BYTES); \
     INC_ALLOCATED (BYTES); \
     if (!(P)) \
@@ -27,7 +27,7 @@ do { \
 
 #define DEALLOC(P,N) \
 do { \
-  const long BYTES = (N) * sizeof *(P); \
+  const size_t BYTES = (N) * sizeof *(P); \
   DEC_ALLOCATED (BYTES); \
   free (P); \
 } while (0)
@@ -39,8 +39,8 @@ do { \
   DEC_ALLOCATED (O); \
   (P) = realloc ((P), (N)); \
   if ((N) != 0 && !(P)) \
-    die ("out-of-memory in '%s' reallocating %ld bytes", \
-      __FUNCTION__, (long)(N)); \
+    die ("out-of-memory in '%s' reallocating %"PRz" bytes", \
+      __FUNCTION__, (size_t)(N)); \
   if ((O) < (N)) memset ((O) + (char*)(P), 0, (N) - (O)); \
   INC_ALLOCATED (N); \
 } while (0)

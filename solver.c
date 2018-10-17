@@ -1027,7 +1027,7 @@ column (Solver * solver, const char * name,
   tmp[t-1] = 0;
   size_t m = strlen (tmp);
   if (m < 3) m = 3;
-  sprintf (fmt, "%%%zd.%df%s", m - percent_suffix, precision, suffix);
+  sprintf (fmt, "%%%"PRz".%df%s", m - percent_suffix, precision, suffix);
   snprintf (tmp, t, fmt, value);
   tmp[t-3] = tmp[t-2] = '.', tmp[t-1] = 0;
   PUSH (COLUMNS, ' ');
@@ -1977,7 +1977,7 @@ static int jump_level (Solver * solver) {
 static Clause * learn_primal_clause (Solver * solver, int glue, int level) {
   stats.learned++;
   const int size = COUNT (solver->clause);
-  SOG ("learning clause number %ld of size %zd", stats.learned, size);
+  SOG ("learning clause number %ld of size %"PRz"", stats.learned, size);
   Clause * res = new_clause (solver->clause.start, size);
   res->glue = glue;
   res->redundant = 1;

@@ -27,11 +27,11 @@ do { \
 
 #define ENLARGE(S) \
 do { \
-  const long OLD_SIZE = SIZE (S); \
-  const long NEW_SIZE = OLD_SIZE ? 2*OLD_SIZE : 1; \
-  const long OLD_BYTES = OLD_SIZE * sizeof *(S).start; \
-  const long NEW_BYTES = NEW_SIZE * sizeof *(S).start; \
-  const long OLD_COUNT = COUNT (S); \
+  const size_t OLD_SIZE = SIZE (S); \
+  const size_t NEW_SIZE = OLD_SIZE ? 2*OLD_SIZE : 1; \
+  const size_t OLD_BYTES = OLD_SIZE * sizeof *(S).start; \
+  const size_t NEW_BYTES = NEW_SIZE * sizeof *(S).start; \
+  const size_t OLD_COUNT = COUNT (S); \
   REALLOC ((S).start, OLD_BYTES, NEW_BYTES); \
   (S).top = (S).start + OLD_COUNT; \
   (S).end = (S).start + NEW_SIZE; \
@@ -39,15 +39,15 @@ do { \
 
 #define RESERVE(S,MIN_SIZE) \
 do { \
-  const long OLD_SIZE = SIZE (S); \
+  const size_t OLD_SIZE = SIZE (S); \
   if (OLD_SIZE >= (MIN_SIZE)) break; \
   long NEW_SIZE = OLD_SIZE; \
   do \
     NEW_SIZE = NEW_SIZE ? 2*NEW_SIZE : 1; \
   while (NEW_SIZE < (MIN_SIZE)); \
-  const long OLD_COUNT = COUNT (S); \
-  const long OLD_BYTES = OLD_SIZE * sizeof *(S).start; \
-  const long NEW_BYTES = NEW_SIZE * sizeof *(S).start; \
+  const size_t OLD_COUNT = COUNT (S); \
+  const size_t OLD_BYTES = OLD_SIZE * sizeof *(S).start; \
+  const size_t NEW_BYTES = NEW_SIZE * sizeof *(S).start; \
   REALLOC ((S).start, OLD_BYTES, NEW_BYTES); \
   (S).top = (S).start + OLD_COUNT; \
   (S).end = (S).start + NEW_SIZE; \

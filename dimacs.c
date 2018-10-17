@@ -97,7 +97,7 @@ parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
       }
       const size_t n = COUNT (*relevant);
       assert (n > 0);
-      msg (2, "found relevant variable line with %zd variables", n);
+      msg (2, "found relevant variable line with %"PRz" variables", n);
       parsed_relevant_variables = 1;
     }
     CLEAR (comment);
@@ -179,7 +179,7 @@ parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
     }
     RESIZE (*relevant, j);
 
-    msg (1, "parsed %zd relevant variables", j);
+    msg (1, "parsed %"PRz" relevant variables", j);
 
     DEALLOC (seen, s + 1);
 
