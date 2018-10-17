@@ -68,6 +68,8 @@ if [ $mingw64 = yes ]
 then
   CC=i686-w64-mingw32-gcc
   TARGET=dualiza.exe
+  [ x"$LIBX" = x ] || LIBS="$LIBS "
+  LIBS="${LIBS}-lpsapi"
 else
   CC=gcc
   TARGET=dualiza

@@ -1,3 +1,3 @@
 double process_time ();
-long current_resident_set_size ();
-long maximum_resident_set_size ();
+double current_resident_set_size ();
+double maximum_resident_set_size ();

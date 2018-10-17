@@ -37,7 +37,7 @@ void print_statistics () {
   msg (1, "");
   msg (1, "---- [statistics] ----------------------------------------");
   msg (1, "");
-  long resident = maximum_resident_set_size ();
+  double resident = maximum_resident_set_size ();
   double seconds = process_time ();
   if (stats.decisions ||
       stats.conflicts.primal || stats.conflicts.dual ||
@@ -154,7 +154,7 @@ void print_statistics () {
   msg (1, "");
   msg (1, "maximum allocated %ld bytes (%.1f MB)",
     stats.bytes.max, stats.bytes.max / (double)(1<<20));
-  msg (1, "maximum resident set size %ld bytes (%.1f MB)",
+  msg (1, "maximum resident set size %.0f bytes (%.1f MB)",
     resident, resident / (double)(1<<20));
   msg (1, "process time %.2f seconds", seconds);
 }

@@ -2,6 +2,7 @@
 
 #ifdef __MINGW32__
 #include <windows.h>
+#include <psapi.h>
 #else
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -28,9 +29,12 @@ double process_time () {
   return res;
 }
 
-long maximum_resident_set_size () {
+double maximum_resident_set_size () {
 #ifdef __MINGW32__
-  return -1;
+  PROCESS_MEMORY_COUNTERS pmc;
+  if (GetProcessMemoryInfo (GetCurrentProcess (), &pmc, sizeof (pmc))) {
+     return pmc.PeakWorkingSetSize;
+  } else return -1;
 #else
   struct rusage u;
   if (getrusage (RUSAGE_SELF, &u)) return 0;
@@ -38,9 +42,12 @@ long maximum_resident_set_size () {
 #endif
 }
 
-long current_resident_set_size () {
+double current_resident_set_size () {
 #ifdef __MINGW32__
-  return -1;
+  PROCESS_MEMORY_COUNTERS pmc;
+  if (GetProcessMemoryInfo (GetCurrentProcess (), &pmc, sizeof (pmc))) {
+     return pmc.WorkingSetSize;
+  } else return -1;
 #else
   char path[40];
   sprintf (path, "/proc/%ld/statm", (long) getpid ());
