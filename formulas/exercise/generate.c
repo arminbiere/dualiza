@@ -83,11 +83,17 @@ int main () {
     res -= 5;
     assert (0 <= res), assert (res < 10);
     if (count[res] == 10) continue;
-    char name[3];
-    name[0] = '0' + count[res];
-    name[1] = '0' + (res + 5) % 10;
-    name[2] = 0;
-    printf ("%s\n", name);
+    char id[3];
+    id[0] = '0' + count[res];
+    id[1] = '0' + (res + 5) % 10;
+    id[2] = 0;
+    char name[10];
+    sprintf (name, "%s.cnf", id);
+    printf ("%s\n", name), fflush (stdout);
+    FILE * file = fopen (name, "w");
+    fprintf (file, "cnf %s\n", id);
+    print (file);
+    fclose (file);
     if (++count[res] < 10) continue;
     if (++all == 10) return 0;
   }
