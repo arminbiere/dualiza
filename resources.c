@@ -21,7 +21,7 @@ double process_time () {
   }
 #else
   struct rusage u;
-  if (getrusage (RUSAGE_SELF, &u)) {
+  if (!getrusage (RUSAGE_SELF, &u)) {
     res  = u.ru_utime.tv_sec + 1e-6 * u.ru_utime.tv_usec;
     res += u.ru_stime.tv_sec + 1e-6 * u.ru_stime.tv_usec;
   }
