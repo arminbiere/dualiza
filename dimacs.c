@@ -41,7 +41,8 @@ parse_dimacs (Reader * r, Symbols * symbols, IntStack ** relevant_ptr)
       if (ch.code == EOF)
 	parse_error (r, ch,
 	  "unexpected end-of-file in header comment");
-      PUSH (comment, ch.code);
+      if (ch.code != '\r')
+	PUSH (comment, ch.code);
     }
     PUSH (comment, 0);
     if (options.project && 
