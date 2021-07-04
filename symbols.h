@@ -1,19 +1,21 @@
 typedef struct Symbols Symbols;
 typedef struct Symbol Symbol;
 
-struct Symbols {
+struct Symbols
+{
   unsigned count, size;
-  Symbol ** table;
+  Symbol **table;
 };
 
-struct Symbol {
-  char * name;
-  Symbol * next;
-  Gate * gate;
+struct Symbol
+{
+  char *name;
+  Symbol *next;
+  Gate *gate;
 };
 
-Symbols * new_symbols ();
+Symbols *new_symbols ();
 void delete_symbols (Symbols *);
 
-Symbol * find_symbol (Symbols *, const char *);
-Symbol * find_or_create_symbol (Symbols *, const char *);
+Symbol *find_symbol (Symbols *, const char *);
+Symbol *find_or_create_symbol (Symbols *, const char *);

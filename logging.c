@@ -2,7 +2,9 @@
 
 #include "headers.h"
 
-void log_message (const char * fmt, ...) {
+void
+log_message (const char *fmt, ...)
+{
   assert (options.logging);
   fputs ("c LOG ", stdout);
   va_list ap;
@@ -13,7 +15,9 @@ void log_message (const char * fmt, ...) {
   fflush (stdout);
 }
 
-void log_clause (Clause * c, const char * fmt, ...) {
+void
+log_clause (Clause * c, const char *fmt, ...)
+{
   assert (options.logging);
   fputs ("c LOG ", stdout);
   va_list ap;
@@ -21,7 +25,8 @@ void log_clause (Clause * c, const char * fmt, ...) {
   vprintf (fmt, ap);
   va_end (ap);
   fputs (c->dual ? " dual" : " primal", stdout);
-  if (c->redundant) printf (" redundant glue %d", c->glue);
+  if (c->redundant)
+    printf (" redundant glue %d", c->glue);
   printf (" size %d clause[%ld]", c->size, (long) c->id);
   for (int i = 0; i < c->size; i++)
     printf (" %d", c->literals[i]);

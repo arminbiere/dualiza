@@ -1,1 +1,1 @@
-Circuit * flatten_circuit (Circuit *);
+Circuit *flatten_circuit (Circuit *);

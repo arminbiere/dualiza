@@ -1,19 +1,21 @@
 typedef struct Reader Reader;
 typedef enum Info Info;
 
-enum Info { UNKNOWN, DIMACS, AIGER, FORMULA };
+enum Info
+{ UNKNOWN, DIMACS, AIGER, FORMULA };
 
-#define IMPLIES 256	// '->' token for FORMULA
-#define IFF	257	// '<->' token for FORMULA
-#define SEILMPI 258	// '<-' token for FORMULA
+#define IMPLIES 256		// '->' token for FORMULA
+#define IFF	257		// '<->' token for FORMULA
+#define SEILMPI 258		// '<-' token for FORMULA
 
 #define MAX_SAVED 2
 
-struct Reader {
-  char * name;
-  FILE * file;
+struct Reader
+{
+  char *name;
+  FILE *file;
   char close, eof, binary;
-  Buffer * buffer;
+  Buffer *buffer;
   CharStack symbol;
   Coo saved[MAX_SAVED];
   int num_saved;
@@ -21,8 +23,8 @@ struct Reader {
   Coo coo;
 };
 
-Reader * new_reader_from_stdin ();
-Reader * open_new_reader (const char * path);
+Reader *new_reader_from_stdin ();
+Reader *open_new_reader (const char *path);
 
 void delete_reader (Reader *);
 
@@ -33,7 +35,7 @@ int peek_char (Reader *);
 
 Info get_file_info (Reader *);
 
-void parse_error (Reader *, Coo ch, const char * fmt, ...);
+void parse_error (Reader *, Coo ch, const char *fmt, ...);
 
 #define parse_error_at(READER,COO,FMT,ARGS...) \
   parse_error (READER, COO, FMT " at character %s", ##ARGS, \

@@ -1,1 +1,1 @@
-BDD * simulate_circuit (Circuit *);
+BDD *simulate_circuit (Circuit *);

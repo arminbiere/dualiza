@@ -10,10 +10,12 @@ all: @TARGET@
 	$(CC) $(CFLAGS) -o $@ $(OBJ) $(LIBS)
 version.c: $(shell ls *.[ch]|grep -v version.c) VERSION makefile version.sh
 	./version.sh > $@
+indent:
+	indent *.[ch]
 test: all
 	./test.sh
 clean:
 	rm -f makefile version.c *.o dualiza dualiza.exe
 	make -C formulas clean
 	make -C fuzz/cnf clean
-.PHONY: all test clean
+.PHONY: all test indent clean

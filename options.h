@@ -54,23 +54,21 @@ OPTION (logging,	0, "logging level")
 #define DBGOPT OPTION
 #endif
 /*------------------------------------------------------------------------*/
-
 #define OPTIONS \
 OPTIONS_ALL \
 OPTIONS_LOG
-
 void usage_options ();
 void print_options ();
-int parse_option (const char * arg);
+int parse_option (const char *arg);
 void fix_options ();
 
 #ifndef OPTION
 typedef struct Options Options;
-struct Options {
+struct Options
+{
 #define OPTION(NAME, DEFAULT, DESCRIPTION) \
 int NAME;
-OPTIONS
-};
+OPTIONS};
 extern Options options;
 #else
 OPTIONS

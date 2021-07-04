@@ -3,10 +3,11 @@
 
 typedef struct Name Name;
 
-typedef const char * (*GetName)(void *, int);
+typedef const char *(*GetName) (void *, int);
 
-struct Name {
-  void * state;
+struct Name
+{
+  void *state;
   GetName get;
 };
 

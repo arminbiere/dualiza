@@ -1,1 +1,1 @@
-Circuit * negate_circuit (Circuit *);
+Circuit *negate_circuit (Circuit *);

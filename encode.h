@@ -1,5 +1,5 @@
 int encode_input (Circuit *, Gate *);
-Gate * decode_literal (Circuit *, int);
+Gate *decode_literal (Circuit *, int);
 
 void print_dimacs_encoding_to_file (Circuit *, FILE *);
 void print_dimacs_encoding (Circuit *);
