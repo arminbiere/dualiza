@@ -1,6 +1,8 @@
 /*------------------------------------------------------------------------*/
 // List of long options available in all build configurations.
 
+// *INDENT-OFF*
+
 #define OPTIONS_ALL \
  \
 OPTION (annotate,     0, "annotate generated") \
@@ -34,6 +36,8 @@ OPTION (subsume,      1, "clause subsumption") \
 OPTION (sublearned,   1, "eager subsume learned clause subsumption") \
 OPTION (sublearnlim,  4, "limit on number of non-subsumed clauses")  \
 OPTION (verbosity,    0, "verbose level") \
+
+// *INDENT-ON*
 
 /*------------------------------------------------------------------------*/
 // List of long options only available in logging build ('-l').

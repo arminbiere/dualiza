@@ -53,8 +53,12 @@ typedef struct Frame Frame;
 typedef struct Limit Limit;
 typedef enum Decision Decision;
 
+// *INDENT-OFF*
+
 typedef STACK (Var *) VarStack;
 typedef STACK (Frame) FrameStack;
+
+// *INDENT-ON*
 
 enum Type {
   UNCLASSIFIED_VARIABLE = 0,

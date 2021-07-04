@@ -77,7 +77,11 @@ do { \
   (S).start = (S).top = (S).end = 0; \
 } while (0)
 
+// *INDENT-OFF*
+
 typedef STACK (int) IntStack;
 typedef STACK (char) CharStack;
 typedef STACK (char *) StrStack;
 typedef STACK (unsigned) UnsignedStack;
+
+// *INDENT-ON*
