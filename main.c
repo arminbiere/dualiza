@@ -2,6 +2,8 @@
 
 int sat_competition_mode;
 
+// *INDENT-OFF*
+
 static void usage () {
 fputs (
 "usage: dualiza [ <option> ... ] [ <file> ] [ <limit> ]\n"
@@ -75,6 +77,7 @@ fputs (
 , stdout);
 }
 
+// *INDENT-ON*
 static int formula, aiger, dimacs, negate;
 static int printing, checking, counting;
 static int sat, tautology, enumerate;
