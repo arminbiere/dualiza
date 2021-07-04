@@ -1,0 +1,5 @@
+Release 1.0.0
+-------------
+
+- fixed relevant variable parsing for DOS (carriage return)
+- cross compilation for Windows with './configure --windows'
