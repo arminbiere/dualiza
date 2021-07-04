@@ -15,7 +15,7 @@ indent:
 test: all
 	./test.sh
 clean:
-	rm -f makefile version.c *.o dualiza dualiza.exe
+	rm -f makefile version.c *.o dualiza dualiza.exe *~
 	make -C formulas clean
 	make -C fuzz/cnf clean
 .PHONY: all test indent clean

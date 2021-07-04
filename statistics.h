@@ -9,9 +9,6 @@ struct Rules
   long BP0F, JP0;
   long BP1F, BP1L;
   long BN0F, BN0L;
-#if 0
-  long JN0F, JN0L;
-#endif
   long DX, DY, DS;
   long UP, UNX, UNY, UNT;
   long FP, FN;
